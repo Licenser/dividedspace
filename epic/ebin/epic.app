@@ -1,7 +1,7 @@
 {application, epic,
  [
   {description, ""},
-  {vsn, "1"},
+  {vsn, "1.0.0"},
   {registered, []},
   {modules, [
              epic_app,

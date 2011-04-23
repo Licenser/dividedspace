@@ -9,11 +9,11 @@ compile:
 
 recompile: clean compile
 
-generate: clean-rel compile
+generate: compile clean-rel
 	@./rebar generate
 	@chmod +x rel/epic/bin/epic
 
 all: generate
 
-console: generate
+console:
 	./rel/epic/bin/epic console

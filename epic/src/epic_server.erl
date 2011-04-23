@@ -11,7 +11,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, say_hello/0]).
+-export([start_link/0, list_fights/0, new_fight/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -19,14 +19,17 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {}).
+-record(state, {fights = []}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-say_hello() ->
-    gen_server:call(?MODULE, hello).
+list_fights() ->
+    gen_server:call(?MODULE, list_fights).
+
+new_fight(Fight) ->
+    gen_server:call(?MODULE, {new_fight, Fight}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -70,10 +73,10 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(hello, _From, State) ->
-    io:format("Hello from server!~n", []),
-    {reply, ok, State};
-
+handle_call(list_fights, _From, #state{fights = Fights} = State) ->
+    {reply, {ok, Fights}, State};
+handle_call({new_fight, Fight}, _From, #state{fights = Fights} = State) ->
+    {reply, {ok, Fight}, State#state{fights = [Fight | Fights]}};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
