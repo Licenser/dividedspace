@@ -15,7 +15,9 @@
 	 start_link/1,
 	 specs/1,
 	 add_module/2,
-	 remove_module/2
+	 remove_module/2,
+	 new/1,
+	 load/1
 	]).
 
 %% gen_server callbacks
@@ -24,7 +26,7 @@
 
 -define(SERVER, ?MODULE). 
 
--include("epic.hrl").
+-include("../../src/epic.hrl").
 
 %%%===================================================================
 %%% API
@@ -34,11 +36,18 @@
 %% @doc
 %% Starts the server
 %%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @spec start_link(Spec) -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
 start_link(Spec) ->
     gen_server:start_link(?MODULE, [Spec], []).
+
+load(ID) ->
+    unit_server:get(ID).
+
+new(Modules) ->
+    {ok, ID} = storage:new_unit(Modules),
+    load(ID).
 
 specs(Pid) ->
     gen_server:call(Pid, specs).

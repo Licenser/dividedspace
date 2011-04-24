@@ -2,4 +2,6 @@
 *.dump
 epic/rel/epic
 ds_store/rel/ds_store
+epic/doc
+ds_store/doc
 rel/dividedspace

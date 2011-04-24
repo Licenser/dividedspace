@@ -6,7 +6,8 @@
   {modules, [
              epic_app,
              epic_sup,
-	     epic_server
+	     epic_server,
+	     module
             ]},
   {applications, [
                   kernel,
