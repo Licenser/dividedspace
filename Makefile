@@ -1,3 +1,6 @@
+doc: 
+	@./rebar doc
+
 clean-rel:
 	@cd epic && make clean-rel
 	@cd ds_store && make clean-rel
@@ -12,6 +15,10 @@ compile:
 	@./rebar compile
 
 recompile: clean compile
+
+
+dialyze: recompile
+	@./rebar dialyze
 
 generate: compile clean-rel
 	@./rebar generate

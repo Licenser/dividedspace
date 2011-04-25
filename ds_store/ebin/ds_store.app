@@ -10,6 +10,9 @@
              unit_sup,
              storage,
 	     uuid,
+	     module,
+	     module_type,
+	     weapon,
              unit
             ]},
   {applications, [

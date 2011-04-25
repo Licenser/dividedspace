@@ -1,0 +1,551 @@
+%%%-------------------------------------------------------------------
+%%% @author Heinz N. Gies <heinz@licenser.net>
+%%% @copyright (C) 2011, Heinz N. Gies
+%%% @doc
+%%% Functions that handle modules, damaging, cycling etc are stored in this module.
+%%% @end
+%%% Created : 23 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
+%%%-------------------------------------------------------------------
+-module(module).
+
+
+-export([
+	 fields/0,
+	 select/1,
+	 make/4,
+	 new/1,
+	 explode/1,
+	 implode/1,
+	 is_a/1,
+	 reset/1]).
+
+-export([
+	 id/1,
+	 id/2,
+	 type/1,
+	 type/2,
+	 integrety/1,
+	 integrety/2,
+	 instance/1,
+	 instance/2,
+	 kind/1,
+	 mass/1
+	]).
+
+-export([
+	 is_destroyed/1, 
+	 cycle/1, 
+	 hit/4
+	]).
+
+-export([fire_weapon/3]).
+
+%%%===================================================================
+%%% Recors
+%%%===================================================================
+
+%% @type module() = {ID,
+%%                   Type,
+%%                   Integrety,
+%%                   Instance}
+%%   ID = binary()
+%%   Type = binary() | module_type()
+%%   Integrety = integer()
+%%   Instance = hull_spec() | reactor_spec() | engine_spec() |
+%%              weapon_spec() | armor_spec() | shield_spec().
+%%
+%% <p>
+%% This represents the specifica of ships hull.
+%% </p>
+%% <ul>
+%%   <li>ID - The ID of the module .</li>
+%%   <li>Type - The module type of the module.</li>
+%%   <li>Integrety - The integrety of the module.</li>
+%%   <li>Instance - A copy of the types specifica to be modified.</li>
+%% </ul>
+%% @end
+-record(module, {id, type, integrety, instance}).
+
+
+%%%-------------------------------------------------------------------
+%%% Spec Records
+%%%-------------------------------------------------------------------
+
+%% @type hull_spec() = {Maneuverability}
+%%   Maneuverability = float().
+%%
+%% <p>
+%% This represents the specifica of ships hull.
+%% </p>
+%% <ul>
+%%   <li>Maneuverability - How good can this ship manuver to evade.</li>
+%% </ul>
+%% @end
+-record(hull_spec, {maneuverability}).
+
+%% @type reactor_spec() = {Capacity,
+%%                         Output,
+%%                         Energy}
+%%   Capacity = integer()
+%%   Output = integer()
+%%   Energy = integer().
+%%
+%% <p>
+%% This represents the specifica of a reactor.
+%% </p>
+%% <ul>
+%%   <li>Capacity - The maximum of energy the reactor can store.</li>
+%%   <li>Output - The energy produced per cycle.</li>
+%%   <li>Energy - The ammount of energy currently stored in the reactor.</li>
+%% </ul>
+%% @end
+-record(reactor_spec, {capacity, output, energy}).
+
+
+%% @type engine_spec() = {TimesUsable}
+%%   TimesUsable = integer().
+%%
+%% <p>
+%% This represents the specifica of a combat engine.
+%% </p>
+%% <ul>
+%%   <li>TimesUsable - Number of times this engine can be used this turn.</li>
+%% </ul>
+%% @end
+-record(engine_spec, {times_useable = 0}).
+
+%% @type weapon_spec() = {TimesUsable,
+%%                        Damage,
+%%                        Accuracy,
+%%                        Range,
+%%                        Variation,
+%%                        Rotatability}
+%%   TimesUsed = integer()
+%%   Damage = integer()
+%%   Accuracy = float()
+%%   Variation = integer()
+%%   Range = integer()
+%%   Rotatability = float().
+%%
+%% <p>
+%% This represents the specifica of a weapon.
+%% </p>
+%% <ul>
+%%   <li>TimesUsable - Number of times this weapon can be fired this turn.</li>
+%%   <li>Damage - The damage the weapon does per shot.</li>
+%%   <li>Accuracy - The accuracy of the weapon.</li>
+%%   <li>Range - The optimal range of the weapon.</li>
+%%   <li>Variation - The derivation that is posible of the optimal range.</li>
+%%   <li>Rotatability - How easy it is for the weapon to track fast moving targets.</li>
+%% </ul>
+%% @end
+-record(weapon_spec, {times_useable = 0,
+		      damage = 0,
+		      accuracy = 0,
+		      range = 0,
+		      variation = 0,
+		      rotatability = 0}).
+
+%% @type armor_spec() = {DamageAbsorbation}
+%%   DamageAbsorbation = integer().
+%%
+%% <p>
+%% This represents the specifica of armor/hull plating.
+%% </p>
+%% <ul>
+%%   <li>DamageAbsorbation - Maximal ammount of damage the armor can suffer per shot before it is penetrated.</li>
+%% </ul>
+%% @end
+-record(armor_spec, {damage_absorbation}).
+
+%% @type shield_spec() = {Energy}
+%%   Energy = integer().
+%%
+%% <p>
+%% This represents the specifica of energy shield.
+%% </p>
+%% <ul>
+%%   <li>Energy - The ammount of energy stored in the shield left to absorb incoming damage.</li>
+%% </ul>
+%% @end
+-record(shield_spec, {energy}).
+
+
+%%%===================================================================
+%%% API
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% This function returns the record fiends of the module record.
+%% @spec fields() -> ModuleRecordFields
+%% @end
+%%--------------------------------------------------------------------
+fields() ->
+    record_info(fields,module).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% This function tests if a Structure is a Module.
+%% @spec is_a(Data) -> true | false
+%% @end
+%%--------------------------------------------------------------------
+is_a(#module{}) ->
+    true;
+is_a(_) ->
+    false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Tests if a Module is destroyed.
+%% @spec is_destroyed(Module) -> true |
+%%                               false
+%% @end
+%%--------------------------------------------------------------------
+is_destroyed(#module{integrety = Integrety}) ->
+    Integrety =< 0.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Cycles a module and handles it's per turn actions. This might
+%% modifie the Module or it's instance specs.
+%% @spec cycle(Module) -> CycledModule
+%% @end
+%%--------------------------------------------------------------------
+
+cycle(#module{instance = 
+		  #reactor_spec{energy = Energy, 
+				output = Output, 
+				capacity = Capacity
+			       } = Instance} = Module) ->
+    Module#module{instance = Instance#reactor_spec{energy = max(Capacity, Output + Energy)}};
+
+cycle(#module{instance = #engine_spec{} = Instance,
+	      type = Type} = Module) ->
+    #engine_spec{times_useable = TimesUsable} = module_type:specs(Type),
+    Module#module{instance =Instance#engine_spec{times_useable = TimesUsable}};
+
+cycle(#module{instance = #weapon_spec{} = Instance,
+	      type = Type} = Module) ->
+    #weapon_spec{times_useable = TimesUsable} = module_type:specs(Type),
+    Module#module{instance = Instance#weapon_spec{times_useable = TimesUsable}};
+
+cycle(M) ->
+    M.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% This function abstracts the logic of hitting a module, it takes
+%% care of the propability of the hit and also of dealing with
+%% destroyed modules. It will call hit/3
+%% @spec hit(Module, Damage, Partial, Prop) -> {NewModule, NextDamage, NewPartial}
+%% @end
+%%--------------------------------------------------------------------
+
+hit(#module{integrety = Integrety, type = Type} = Module, 
+    Damage, Partial, Prop) ->
+    HitPropability = module_type:hit_propability(Type),
+    if 
+	Integrety > 0, Prop < HitPropability ->
+	    hit(Module, Damage, Partial);
+	true ->
+	    {Module, Damage, Partial}
+    end.
+
+%%%===================================================================
+%%% Private functions
+%%%===================================================================
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This function handles dealing damange to a Module, the integrety
+%% will never fall below Zero. ActualDamage indicates how much dmanage
+%% was really dealed.
+%% @spec damage(Module, Damage) -> {DamagedModule, ActualDamage}
+%% @end
+%%--------------------------------------------------------------------
+
+
+damage(#module{integrety = Integrety} = Module, Damage) when is_number(Damage) and is_number(Integrety)->
+    ActualDamage = min(Integrety, Damage),
+    {Module#module{integrety = Integrety - ActualDamage}, ActualDamage}.
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This functions handles the situation when a Module is hit, it takes
+%% case of special cases as shields or armor, it will deal damage to
+%% the module.
+%% The Partial parameter will be updated with possible events occured
+%% during the hit.
+%% @spec hit(Module, Damage, Partial) -> {NewModule, NextDamage, NewPartial}
+%% @end
+%%--------------------------------------------------------------------
+
+hit(#module{instance = #hull_spec{}} = Module, Damage, Partial) when is_number(Damage) ->
+    {#module{integrety = NewIntegrety} = NewModule, MaxDamage} = damage(Module, Damage),
+    {NewModule, MaxDamage, [{impact, MaxDamage, NewIntegrety} | Partial]};
+
+hit(#module{instance = #armor_spec{
+	      damage_absorbation = DamageAbsorbation
+	     }} = Module, Damage, Partial) when is_number(Damage) ->
+    MaxAbsorbation = min(DamageAbsorbation, Damage),
+    case damage(Module, MaxAbsorbation) of
+	{#module{} = NewModule, 0} -> 
+	    {NewModule, Damage, Partial};
+	{#module{integrety = NewIntegrety} = NewModule, ActualAbsorbation} ->
+	    {NewModule, Damage - ActualAbsorbation, [{armor_impact, ActualAbsorbation, NewIntegrety} | Partial]}
+    end;
+
+hit(#module{instance = #shield_spec{
+	      energy = Energy
+	     } = Instance} = Module, Damage, Partial) when is_number(Damage) ->
+    ShieldDamage = min(Energy, Damage),
+    PhysicalDamage = Damage - ShieldDamage,
+    {#module{integrety = NewIntegrety} = NewModule, _ActualDamage} = damage(Module, PhysicalDamage),
+    {NewModule#module{instance = Instance#shield_spec{
+				   energy = Energy - ShieldDamage
+				  }}, PhysicalDamage, case ShieldDamage of
+							  0 -> Partial;
+							  _ -> [{shield_impact, ShieldDamage, NewIntegrety} | Partial]
+						      end};
+
+
+hit(Module, Damage, Partial) when is_number(Damage) ->
+    {#module{} = NewModule, _ActualDamage} = damage(Module, Damage),
+    {NewModule, Damage, Partial}.
+
+
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This function is used to explode a module, replacing all uuids
+%% by the refferenced data.
+%% @spec explode(Module) -> ExplodedModule
+%% @end
+%%--------------------------------------------------------------------
+
+explode(#module{type = Type} = M) ->
+    case module_type:is_a(Type) of
+	true -> M;
+	false -> M#module{type = module_type:select(Type)}
+    end;
+explode(M) ->
+    {ok, M1} = select(M),
+    explode(M1).
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This function is used to implode a exploded module, replacing all
+%% exploded data to the refferencing uuid's.
+%% @spec implode(Module) -> ImplodedModule
+%% @end
+%%--------------------------------------------------------------------
+
+implode(#module{type = Type} = M) ->
+    case module_type:is_a(Type) of
+	true ->
+	    M#module{type = module_type:id(Type)};
+	false ->
+	    M
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% This function is used to reset a module to the defaults of the
+%% module type. It handles exploded and non exploded Modules.
+%% @spec reset(Module) -> NewModule
+%% @end
+%%--------------------------------------------------------------------
+
+reset(#module{type = Type} = Module) ->
+    ModuleType = 
+	case module_type:is_a(Type) of
+	    true -> Type;
+	    false -> {ok, Res} = module_type:select(Type),
+		     Res
+	end,
+    Module#module{integrety = module_type:integrety(ModuleType), instance = module_type:specs(ModuleType)}.
+
+
+
+make(ID, Type, Integrety, Specs) ->
+    #module{id = ID,
+	    type = Type,
+	    integrety = Integrety,
+	    instance = Specs
+	   }.
+%%--------------------------------------------------------------------
+%% @doc
+%% This function creates a new module, it checks if the Type passed is
+%% a valid UUID and fetches it's specs and integrety to set up the 
+%% module up correctly.
+%% module type.
+%% @spec new(Type) -> UUID
+%% @end
+%%--------------------------------------------------------------------
+
+new(Type) ->
+    case module_type:select(Type) of
+	{ok, ModuleType} -> 
+	    {ok, make(uuid:v4(), Type, module_type:integrety(ModuleType), module_type:specs(ModuleType))};
+	{error,not_found} -> {error, unknown_module_type}
+    end.
+
+select(ID) ->
+    storage:select({module, ID}).
+
+%%%===================================================================
+%%% Accessors
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Getter for module.id
+%% @spec id(Module) -> ModuleId
+%%       ModuleId = binary()
+%% @end
+%%--------------------------------------------------------------------
+id(#module{id = Id}) ->
+    Id.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Setter for module.id
+%% @spec id(module(), NewId) -> NewModule
+%%       NewModule = module()
+%%       NewId = binary()
+%% @end
+%%--------------------------------------------------------------------
+id(#module{} = Module,  NewId) when is_binary(NewId) ->
+    Module#module{id = NewId}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Getter for module.type
+%% @spec type(Module) -> Type
+%%       ModuleId = binary() | module_type()
+%% @end
+%%--------------------------------------------------------------------
+type(#module{type = Type}) ->
+    Type.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Setter for module.id
+%% @spec type(module(), Type) -> NewModule
+%%       NewModule = module()
+%%       Type = binary()
+%% @end
+%%--------------------------------------------------------------------
+type(#module{} = Module,  Type) when is_binary(Type)->
+    Module#module{type = Type}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Getter for module.type
+%% @spec integrety(Module) -> Type
+%%       Type = integer()
+%% @end
+%%--------------------------------------------------------------------
+integrety(#module{integrety = Integrety}) ->
+    Integrety.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Setter for module.id
+%% @spec integrety(module(), Integrety) -> NewModule
+%%       NewModule = module()
+%%       Integrety = integer()
+%% @end
+%%--------------------------------------------------------------------
+integrety(#module{} = Module,  Integrety) when is_integer(Integrety)->
+    Module#module{integrety = Integrety}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Getter for module.type
+%% @spec instance(Module) -> Instance
+%%       Instance = hull_spec() | reactor_spec() | engine_spec() | 
+%%                  weapon_spec() | armor_spec() | shield_spec()
+%% @end
+%%--------------------------------------------------------------------
+instance(#module{instance = Instance}) ->
+    Instance.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Setter for module.id
+%% @spec instance(module(), Instance) -> NewModule
+%%       NewModule = module()
+%%       Instance = hull_spec() | reactor_spec() | engine_spec() | 
+%%                  weapon_spec() | armor_spec() | shield_spec()
+%% @end
+%%--------------------------------------------------------------------
+instance(#module{} = Module,  Instance) when is_integer(Instance)->
+    Module#module{instance = Instance}.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the mass of the Module
+%% @spec mass(module()) -> Mass
+%%       Mass = integer()
+%% @end
+%%--------------------------------------------------------------------
+
+mass(#module{type = Type}) ->
+    module_type:mass(Type).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Returns the type of the module.
+%% @spec kind(module()) -> Kind
+%%       Kind = hull | reactor | engine | 
+%%              weapon | armor | shield
+%% @end
+%%--------------------------------------------------------------------
+
+kind(#module{instance = #weapon_spec{}}) ->
+    weapon;
+kind(#module{instance = #engine_spec{}}) ->
+    engine;
+kind(#module{instance = #reactor_spec{}}) ->
+    reactor;
+kind(#module{instance = #armor_spec{}}) ->
+    armor;
+kind(#module{instance = #shield_spec{}}) ->
+    shield;
+kind(#module{instance = #hull_spec{}}) ->
+    hull;
+kind(#module{}) ->
+    unknown.
+
+fire_weapon(#module{
+	       type = Type,
+	       integrety = Integrety,
+	       instance = #weapon_spec{
+		 accuracy = Accuracy,
+		 variation = Variation,
+		 range = Range,
+		 rotatability = Rotatability
+		}
+	      }, Attacker, Target) ->
+    Dist = unit:distance(Attacker, Target),
+    DamagePenalty = Integrety / module_type:integrety(Type),
+    [#module{instance = #hull_spec{maneuverability = ManeuvA}}] = unit:modules(Attacker, hull),
+    [#module{instance = #hull_spec{maneuverability = ManeuvT}}] = unit:modules(Target, hull),
+    Aim = (DamagePenalty * ((Accuracy * (2 + random:uniform())) / 3)) +
+	((Variation - trunc(abs(Range - Dist))) / Variation / 2),
+    Mass = math:log((math:pow(unit:mass(target), 1/3) / max(Dist, 1)) + 1),
+    Aiming =  (((ManeuvA * (2 + random:uniform())) / 3) + Rotatability) * Aim,
+    Evade = ManeuvT * (2 +random:uniform()) / 3,
+    1 > ((Aiming / Evade) * Mass);
+
+fire_weapon(#module{}, _, _) ->
+    {error, not_a_weapon}.
+

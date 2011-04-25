@@ -3,6 +3,7 @@ clean-rel:
 
 clean: clean-rel
 	@rm -rf ebin/*.beam
+	@rm -rf doc
 
 compile:
 	@./rebar compile

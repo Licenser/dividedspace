@@ -83,7 +83,7 @@ handle_call({get, Key}, _From, State) ->
     Reply = case mnesia:dirty_read(unit_to_pid, Key) of
 		[{unit_to_pid, Key, Pid}] -> {ok, Pid};
 		[]                        -> 
-		    case storage:select_unit(Key) of
+		    case unit:select(Key) of
 			{ok, Spec} -> {ok, Pid} = unit_sup:start_child(Spec),
 				      insert(Key, Pid),
 				      {ok, Pid};
