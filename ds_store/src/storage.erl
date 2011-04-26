@@ -18,7 +18,8 @@
 	]).
 
 -export([ % Selects
-	  select/1
+	  select/1,
+	  select/2
 	]).
 
 -export([ % Data impoding and exploding
@@ -48,10 +49,13 @@ init() ->
     uuid:init(),
     mnesia:create_schema([node()]),
     mnesia:start(),
-    mnesia:create_table(module_type,
+    case mnesia:create_table(module_type,
 			[ {disc_copies, [node()] },
 			  {attributes,      
-			   module_type:fields()} ]),
+			   module_type:fields()} ]) of
+	{atomic, ok} -> loader:load();
+	R -> R
+    end,
     mnesia:create_table(module,
 			[ {disc_copies, [node()] },
 			  {attributes,      
@@ -68,7 +72,7 @@ init() ->
 			[ {disc_copies, [node()] },
 			  {attributes,      
 			   record_info(fields,fight)} ]).
-    
+
 %%--------------------------------------------------------------------
 %% @doc
 %% This function is used to explode a database object, it replaces
@@ -128,7 +132,7 @@ insert(Element) ->
 %% @doc
 %% This wrapps the database select into a form that can easiely be
 %% called, and returns the result or a handable error.
-%% @spec select(Select) -> {ok, Row} |
+%% @spec read(Select) -> {ok, Row} |
 %%                         {error, not_found}
 %% @end
 %%--------------------------------------------------------------------
@@ -140,5 +144,27 @@ select(Select) ->
         end,
     case mnesia:transaction(Fun) of      
 	{atomic, [Row]} -> {ok, Row};
+	{aborted, R} -> {error, R};
+	_ -> {error, not_found}
+    end.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This wrapps the database select into a form that can easiely be
+%% called, and returns the result or a handable error.
+%% @spec select(Select) -> {ok, Row} |
+%%                         {error, not_found}
+%% @end
+%%--------------------------------------------------------------------
+
+select(Table, Select) when is_atom(Table) ->
+    Fun = 
+        fun() ->
+		mnesia:select(Table, Select)
+        end,
+    case mnesia:transaction(Fun) of      
+	{atomic, Rows} -> {ok, Rows};
+	{aborted, R} -> {error, R};
 	_ -> {error, not_found}
     end.

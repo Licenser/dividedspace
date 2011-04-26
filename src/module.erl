@@ -38,6 +38,15 @@
 	 hit/4
 	]).
 
+-export([
+	 new_hull_spec/1,
+	 new_armor_spec/1,
+	 new_engine_spec/2,
+	 new_shield_spec/1,
+	 new_generator_spec/5,
+	 new_weapon_spec/7
+	]).
+
 -export([fire_weapon/3]).
 
 %%%===================================================================
@@ -51,8 +60,8 @@
 %%   ID = binary()
 %%   Type = binary() | module_type()
 %%   Integrety = integer()
-%%   Instance = hull_spec() | reactor_spec() | engine_spec() |
-%%              weapon_spec() | armor_spec() | shield_spec().
+%%   Instance = hull_spec() | generator_spec() | engine_spec() |
+%%              weapon_spec() | armor_spec() | shield_spec() |
 %%
 %% <p>
 %% This represents the specifica of ships hull.
@@ -71,6 +80,7 @@
 %%% Spec Records
 %%%-------------------------------------------------------------------
 
+
 %% @type hull_spec() = {Maneuverability}
 %%   Maneuverability = float().
 %%
@@ -83,49 +93,57 @@
 %% @end
 -record(hull_spec, {maneuverability}).
 
-%% @type reactor_spec() = {Capacity,
-%%                         Output,
-%%                         Energy}
+%% @type generator_spec() = {Capacity,
+%%                           Output,
+%%                           Energy,
+%%                           DischargeRate,
+%%                           Efficiency}
 %%   Capacity = integer()
 %%   Output = integer()
-%%   Energy = integer().
+%%   Energy = integer()
+%%   DischargeRate = integer()
+%%   Efficiency = integer().
 %%
 %% <p>
-%% This represents the specifica of a reactor.
+%% This represents the specifica of a generator.
 %% </p>
 %% <ul>
-%%   <li>Capacity - The maximum of energy the reactor can store.</li>
+%%   <li>Capacity - The maximum of energy the generator can store.</li>
 %%   <li>Output - The energy produced per cycle.</li>
-%%   <li>Energy - The ammount of energy currently stored in the reactor.</li>
+%%   <li>Energy - The ammount of energy currently stored in the generator.</li>
+%%   <li>DischargeRate - The power this reactor can provide per cycle.</li>
+%%   <li>Efficiency - The efficiencie of converting fuel into energy.</li>
 %% </ul>
 %% @end
--record(reactor_spec, {capacity, output, energy}).
+-record(generator_spec, {capacity, output, energy, discharge_rate, efficiency}).
 
 
-%% @type engine_spec() = {TimesUsable}
-%%   TimesUsable = integer().
+%% @type engine_spec() = {EnergyUsage, Range}
+%%   EnergyUsage, Range = integer().
 %%
 %% <p>
 %% This represents the specifica of a combat engine.
 %% </p>
 %% <ul>
-%%   <li>TimesUsable - Number of times this engine can be used this turn.</li>
+%%   <li>EnergyUsage, Range - Number of times this engine can be used this turn.</li>
 %% </ul>
 %% @end
--record(engine_spec, {times_useable = 0}).
+-record(engine_spec, {energy_usage, range}).
 
-%% @type weapon_spec() = {TimesUsable,
+%% @type weapon_spec() = {FireRate,
 %%                        Damage,
 %%                        Accuracy,
 %%                        Range,
 %%                        Variation,
-%%                        Rotatability}
-%%   TimesUsed = integer()
+%%                        Rotatability,
+%%                        EnergyUsage}
+%%   FireRate = integer()
 %%   Damage = integer()
 %%   Accuracy = float()
 %%   Variation = integer()
 %%   Range = integer()
-%%   Rotatability = float().
+%%   Rotatability = float()
+%%   EnergyUsage = integer().
 %%
 %% <p>
 %% This represents the specifica of a weapon.
@@ -137,14 +155,16 @@
 %%   <li>Range - The optimal range of the weapon.</li>
 %%   <li>Variation - The derivation that is posible of the optimal range.</li>
 %%   <li>Rotatability - How easy it is for the weapon to track fast moving targets.</li>
+%%   <li>EnergyUsage - Energy required for fiering a single shot.</li>
 %% </ul>
 %% @end
--record(weapon_spec, {times_useable = 0,
-		      damage = 0,
-		      accuracy = 0,
-		      range = 0,
-		      variation = 0,
-		      rotatability = 0}).
+-record(weapon_spec, {fire_rate,
+		      damage,
+		      accuracy,
+		      range,
+		      variation,
+		      rotatability,
+		      energy_usage}).
 
 %% @type armor_spec() = {DamageAbsorbation}
 %%   DamageAbsorbation = integer().
@@ -174,6 +194,7 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -214,21 +235,21 @@ is_destroyed(#module{integrety = Integrety}) ->
 %%--------------------------------------------------------------------
 
 cycle(#module{instance = 
-		  #reactor_spec{energy = Energy, 
-				output = Output, 
-				capacity = Capacity
-			       } = Instance} = Module) ->
-    Module#module{instance = Instance#reactor_spec{energy = max(Capacity, Output + Energy)}};
+		  #generator_spec{energy = Energy, 
+				  output = Output, 
+				  capacity = Capacity
+				 } = Instance} = Module) ->
+    Module#module{instance = Instance#generator_spec{energy = max(Capacity, Output + Energy)}};
 
 cycle(#module{instance = #engine_spec{} = Instance,
 	      type = Type} = Module) ->
-    #engine_spec{times_useable = TimesUsable} = module_type:specs(Type),
-    Module#module{instance =Instance#engine_spec{times_useable = TimesUsable}};
+    #engine_spec{range = Range} = module_type:specs(Type),
+    Module#module{instance =Instance#engine_spec{range = Range}};
 
 cycle(#module{instance = #weapon_spec{} = Instance,
 	      type = Type} = Module) ->
-    #weapon_spec{times_useable = TimesUsable} = module_type:specs(Type),
-    Module#module{instance = Instance#weapon_spec{times_useable = TimesUsable}};
+    #weapon_spec{fire_rate = FireRate} = module_type:specs(Type),
+    Module#module{instance = Instance#weapon_spec{fire_rate = FireRate}};
 
 cycle(M) ->
     M.
@@ -391,9 +412,13 @@ make(ID, Type, Integrety, Specs) ->
 %%--------------------------------------------------------------------
 
 new(Type) ->
-    case module_type:select(Type) of
+    TypeID = case module_type:is_a(Type) of
+		 true -> module_type:id(Type);
+		 false -> Type
+	     end,
+    case module_type:select(TypeID) of
 	{ok, ModuleType} -> 
-	    {ok, make(uuid:v4(), Type, module_type:integrety(ModuleType), module_type:specs(ModuleType))};
+	    {ok, make(uuid:v4(), TypeID, module_type:integrety(ModuleType), module_type:specs(ModuleType))};
 	{error,not_found} -> {error, unknown_module_type}
     end.
 
@@ -471,7 +496,7 @@ integrety(#module{} = Module,  Integrety) when is_integer(Integrety)->
 %% @doc
 %% Getter for module.type
 %% @spec instance(Module) -> Instance
-%%       Instance = hull_spec() | reactor_spec() | engine_spec() | 
+%%       Instance = hull_spec() | generator_spec() | engine_spec() | 
 %%                  weapon_spec() | armor_spec() | shield_spec()
 %% @end
 %%--------------------------------------------------------------------
@@ -483,7 +508,7 @@ instance(#module{instance = Instance}) ->
 %% Setter for module.id
 %% @spec instance(module(), Instance) -> NewModule
 %%       NewModule = module()
-%%       Instance = hull_spec() | reactor_spec() | engine_spec() | 
+%%       Instance = hull_spec() | generator_spec() | engine_spec() | 
 %%                  weapon_spec() | armor_spec() | shield_spec()
 %% @end
 %%--------------------------------------------------------------------
@@ -505,7 +530,7 @@ mass(#module{type = Type}) ->
 %% @doc
 %% Returns the type of the module.
 %% @spec kind(module()) -> Kind
-%%       Kind = hull | reactor | engine | 
+%%       Kind = hull | generator | engine | 
 %%              weapon | armor | shield
 %% @end
 %%--------------------------------------------------------------------
@@ -514,8 +539,8 @@ kind(#module{instance = #weapon_spec{}}) ->
     weapon;
 kind(#module{instance = #engine_spec{}}) ->
     engine;
-kind(#module{instance = #reactor_spec{}}) ->
-    reactor;
+kind(#module{instance = #generator_spec{}}) ->
+    generator;
 kind(#module{instance = #armor_spec{}}) ->
     armor;
 kind(#module{instance = #shield_spec{}}) ->
@@ -549,3 +574,30 @@ fire_weapon(#module{
 fire_weapon(#module{}, _, _) ->
     {error, not_a_weapon}.
 
+new_armor_spec(DamageAbsorbation) -> 
+    #armor_spec{damage_absorbation = DamageAbsorbation}.
+
+new_engine_spec(EnergyUsage, Range) -> 
+    #engine_spec{energy_usage = EnergyUsage, range = Range}.
+
+new_generator_spec(Capacity, Output, Energy, DischargeRate, Efficiency) ->
+    #generator_spec{capacity = Capacity, 
+		    output = Output, 
+		    energy = Energy, 
+		    discharge_rate = DischargeRate, 
+		    efficiency = Efficiency}.
+
+new_shield_spec(Energy) -> 
+    #shield_spec{energy = Energy}.
+
+new_hull_spec(Maneuverability) -> 
+    #hull_spec{maneuverability = Maneuverability}.
+
+new_weapon_spec(Damage, FireRate, Range, Variation, Accuracy, Rotatability, EnergyUsage) ->
+    #weapon_spec{damage = Damage, 
+		 fire_rate = FireRate, 
+		 range = Range,
+		 variation = Variation, 
+		 accuracy = Accuracy, 
+		 rotatability = Rotatability, 
+		 energy_usage = EnergyUsage}.

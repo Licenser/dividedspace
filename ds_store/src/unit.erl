@@ -22,15 +22,25 @@
 	 new/3,
 	 load/1,
 	 mass/1,
+	 x/1,
+	 x/2,
+	 y/1,
+	 y/2,
+	 move/3,
 	 distance/2,
-	 is_a/1
+	 is_a/1,
+	 turn/3,
+	 hit/3
 	]).
 
 -export([
 	 fields/0,
 	 explode/1,
 	 implode/1,
-	 select/1
+	 select/1,
+	 cycle/1,
+	 from_template/1,
+	 from_template/3
 	]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -83,7 +93,7 @@ new(X, Y, Modules) ->
 %% @end
 %%--------------------------------------------------------------------
 
-select(ID) ->
+select(ID) when is_binary(ID) ->
     storage:select({unit, ID}).
 
 is_a(#unit{}) ->
@@ -91,9 +101,7 @@ is_a(#unit{}) ->
 is_a(_) ->
     false.
 
-
-
-create(Id, X, Y, Modules) ->
+create(Id, X, Y, Modules) when is_binary(ID), is_integer(X), is_integer(Y) ->
     #unit{
 	id = Id,
 	x = X,
@@ -101,28 +109,49 @@ create(Id, X, Y, Modules) ->
 	modules = Modules
        }.
 
-load(ID) ->
+load(ID) when is_binary(ID) ->
     unit_server:get(ID).
 
-specs(Pid) ->
+specs(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, specs).
 
-add_module(Pid, M) ->
+turn(Pid, Fleet, Fight) ->
+    gen_server:call(Pid, {turtn, Fleet, Fight}).
+
+x(Pid) when is_pid(Pid) ->
+    #unit{x = X} = gen_server:call(Pid, specs),
+    X.
+
+y(Pid) when is_pid(Pid) ->
+    #unit{y = Y} = gen_server:call(Pid, specs),
+    Y.
+
+x(Pid, X) when is_pid(Pid), is_integer(X) ->
+    gen_server:cast(Pid, {set_x, X}).
+
+y(Pid, Y) when is_pid(Pid), is_integer(Y) ->
+    gen_server:cast(Pid, {set_y, Y}).
+
+add_module(Pid, M) when is_pid(Pid) ->
     gen_server:cast(Pid, {add_module, M}).
 
-remove_module(Pid, M) ->
+remove_module(Pid, M) when is_pid(Pid) ->
     gen_server:cast(Pid, {remove_module, M}).
 
-reload_specs(Pid) ->
+reload_specs(Pid) when is_pid(Pid) ->
     Pid ! reload.
 
-modules(Pid, Kind) ->
+modules(Pid, Kind) when is_pid(Pid) ->
     gen_server:call(Pid, {modules, Kind}).
 
-mass(Pid) ->
+mass(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, mass).
 
-distance(PidA, PidB) ->
+cycle(Pid) when is_pid(Pid) ->
+    gen_server:cast(cycle, Pid).
+    
+
+distance(PidA, PidB) when is_pid(PidA), is_pid(PidB) ->
     gen_server:call(PidA, {distance, PidB}).
 
 
@@ -149,9 +178,16 @@ explode(#unit{modules = Ms} = U) ->
 %%--------------------------------------------------------------------
 
 implode(#unit{modules = Ms} = U) ->
-    U#unit{modules = lists:map(fun module:implode/1, Ms)}.
+    U#unit{modules = lists:map(fun module:id/1, Ms)}.
 
-
+from_template(Modules) when is_list(Modules) ->
+    from_template(0,0, Modules).
+from_template(X, Y, Modules) when is_integer(X), is_integer(Y), is_list(Modules) ->
+    ModuleIDs = create_modules(Modules),
+    {ok, #unit{id = ID}=Unit} = new(X, Y, ModuleIDs),
+    storage:insert(Unit),
+    {ok, ID}.
+    
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -195,7 +231,8 @@ handle_call(mass, _From, #unit{modules = Modules} = State) ->
     {reply, 
      lists:foldl(fun(Module, Sum) -> module:mass(Module) + Sum end, 0, Modules),
      State};
-
+handle_call({turn, Enemees, Fight}, _From, State) ->
+    {reply, ok, State};
 handle_call({modules, Kind}, _From, #unit{modules = Modules} = State) ->
     {reply, list:filter(
 	      fun(M) ->
@@ -225,7 +262,19 @@ handle_cast({remove_module, M}, #unit{modules = Ms}=State) ->
     self() ! save,
     {noreply, State#unit{modules = lists:filter(fun (Module) ->
 							module:id(Module) =/= M
-						end, Ms)}};    
+						end, Ms)}};
+handle_cast(save, #unit{modules = Modules} = State) ->
+    lists:map(fun module:save/1, Modules),
+    case storage:insert(implode(State)) of
+	{aborted, Reason} -> {stop, {save_failed, Reason}, State};
+	{atomic, _} -> {noreply, State}
+    end;
+handle_cast(cycle, #unit{modules = Modules} = State) ->
+    {noreply, State#unit{modules = lists:map(fun modules:cycle/1, Modules)}};
+handle_cast({set_x, X}, State) ->
+    {noreply, State#unit{x = X}};
+handle_cast({set_y, Y}, State) ->
+    {noreply, State#unit{y = Y}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -275,3 +324,15 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+create_modules([TypeName]) ->
+        [ModuleType] = module_type:select_by_name(TypeName),
+    {ok, Module} = module:new(ModuleType),
+    storage:insert(Module),
+    [module:id(Module)];
+create_modules([TypeName | Modules]) ->
+    [ModuleType] = module_type:select_by_name(TypeName),
+    {ok, Module} = module:new(ModuleType),
+    storage:insert(Module),
+    [module:id(Module) | create_modules(Modules)].
+

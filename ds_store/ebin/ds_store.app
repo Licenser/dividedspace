@@ -13,6 +13,7 @@
 	     module,
 	     module_type,
 	     weapon,
+	     loader,
              unit
             ]},
   {applications, [

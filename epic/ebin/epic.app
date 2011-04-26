@@ -9,6 +9,8 @@
 	     epic_server,
 	     weapon,
 	     module_type,
+	     fight_server,
+	     fight_worker,
 	     module
             ]},
   {applications, [
