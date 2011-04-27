@@ -1,12 +1,12 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@schroedinger.lan>
+%%% @author Heinz N. Gies <heinz@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 22 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
+%%% Created : 27 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(unit_sup).
+-module(fight_sup).
 
 -behaviour(supervisor).
 
@@ -33,8 +33,8 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-start_child(Spec) -> 
-    supervisor:start_child(?SERVER, [Spec]).
+start_child(Fight) -> 
+    supervisor:start_child(?SERVER, [Fight, nil]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -54,20 +54,11 @@ start_child(Spec) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    RestartStrategy = simple_one_for_one,
-    MaxRestarts = 0,
-    MaxSecondsBetweenRestarts = 1,
-
-    SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
-
-    Restart = temporary,
-    Shutdown = brutal_kill,
-    Type = worker,
-
-    AChild = {unit, {unit, start_link, []},
-	      Restart, Shutdown, Type, [unit]},
-
-    {ok, {SupFlags, [AChild]}}.
+    Element = {fight_server, {fight_server, start_link, []},
+	       temporary, brutal_kill, worker, [fight_server]}, 
+    Children = [Element],
+    RestartStrategy = {simple_one_for_one, 0, 1}, 
+    {ok, {RestartStrategy, Children}}.
 
 %%%===================================================================
 %%% Internal functions

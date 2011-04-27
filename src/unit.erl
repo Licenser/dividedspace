@@ -12,10 +12,10 @@
 
 %% API
 -export([ % Meta
-	  new/3,
+	  new/4,
 	  is_a/1,
 	  from_template/1,
-	  from_template/3,
+	  from_template/4,
 	  fields/0,
 	  explode/1,
 	  implode/1,
@@ -23,7 +23,6 @@
 	  save/1,
 	  ensure_record/1,
 	  ensure_id/1
-
 	]).
 
 -export([ % Getter / Setter
@@ -41,13 +40,14 @@
 	]).
 
 -export([ % Logic
-	 move/3,
-	 fly/3,
-	 distance/2,
-	 mass/1,
-	 cycle/1,
-	 turn/3,
-	 hit/2
+	  move/3,
+	  fly/3,
+	  distance/2,
+	  mass/1,
+	  cycle/1,
+	  turn/2,
+	  use_energy/2,
+	  hit/2
 	]).
 
 
@@ -74,8 +74,8 @@ fields() ->
 %% @end
 %%--------------------------------------------------------------------					
 
-new(X, Y, Modules) ->
-    create(X, Y, uuid:v4(), Modules).
+new(X, Y, Fleet, Modules) ->
+    create(uuid:v4(), X, Y, Fleet, Modules).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -94,12 +94,13 @@ is_a(#unit{}) ->
 is_a(_) ->
     false.
 
-create(Id, X, Y, Modules) when is_binary(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
+create(Id, X, Y, Fleet, Modules) when is_binary(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
     #unit{
-	id = Id,
-	x = X,
-	y = Y,
-	modules = Modules
+	   id = Id,
+	   x = X,
+	   y = Y,
+	   fleet = Fleet,
+	   modules = Modules
        }.
 
 save(#unit{modules = Modules} = Unit) ->
@@ -134,12 +135,24 @@ implode(#unit{modules = Ms} = U) ->
     U#unit{modules = lists:map(fun module:id/1, Ms)}.
 
 from_template(Modules) when is_list(Modules) ->
-    from_template(0,0, Modules).
-from_template(X, Y, Modules) when is_integer(X), is_integer(Y), is_list(Modules) ->
+    from_template(0,0, nil, Modules).
+from_template(X, Y, Fleet, Modules) when is_integer(X), is_integer(Y), is_list(Modules) ->
     ModuleIDs = create_modules(Modules),
-    {ok, #unit{id = ID}=Unit} = new(X, Y, ModuleIDs),
+    Unit = explode(new(X, Y, Fleet, ModuleIDs)),
     storage:insert(Unit),
-    {ok, ID}.
+    {ok, Unit}.
+
+ensure_id(Unit) when is_binary(Unit) ->
+    Unit;
+ensure_id(#unit{id = ID})->
+    ID.
+
+ensure_record(#unit{} = Unit)->
+    Unit;
+ensure_record(Unit) when is_binary(Unit) ->
+    {ok, U} = select(Unit),
+    explode(U).
+
 
 %%%===================================================================
 %%% Accessor
@@ -182,7 +195,7 @@ remove_module(#unit{modules = Modules} = Unit, M) ->
 				     end, Modules)}.
 
 modules_of_kind(#unit{modules = Modules}, Kind) when is_atom(Kind) ->
-    list:filter(fun(M) ->
+    lists:filter(fun(M) ->
 			Kind == module:kind(M)
 		end,
 		Modules).
@@ -192,7 +205,7 @@ modules_of_kind(#unit{modules = Modules}, Kind) when is_atom(Kind) ->
 %%%===================================================================
 
 
-mass(#unit{modules = Modules} = Unit) ->
+mass(#unit{modules = Modules}) ->
     lists:foldl(fun(Module, Sum) -> module:mass(Module) + Sum end, 0, Modules).
 
 
@@ -206,23 +219,46 @@ fly(#unit{} = Unit, X, Y) when is_integer(X), is_integer(Y) ->
     move(Unit, X, Y).
 
 cycle(#unit{modules = Modules} = Unit) ->
-    Unit#unit{modules = list:map(fun module:cycle/1, Modules)}.
+    Unit#unit{modules = lists:map(fun module:cycle/1, Modules)}.
 
 
-turn(#unit{modules = Modules} = Unit, Units) ->
-    Units.
+turn(#unit{id = UnitID} = Unit, Fight) ->
+    Weapons = modules_of_kind(Unit, weapon),
+    [#unit{id = TargetID} | _] = fight:foes(Fight, Unit),
+    {NewFight, Events} = lists:foldl(fun (Weapon, {NewFight, Messages}) ->
+					     Attacker = fight:get_unit(NewFight, UnitID),
+					     Target = fight:get_unit(NewFight, TargetID),
+					     case module:fire_weapon(Weapon, Attacker, Target) of
+						 {ok, true} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
+							       NewFight1 = fight:add_unit(NewFight, NewAttacker),
+							       {NewTarget, TargetMessages} = hit(Target, module:damag(Weapon)),
+							       {fight:add_unit(NewFight1, NewTarget), [{hit, UnitID, TargetID} | TargetMessages] ++ Messages};
+						 {ok, false} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
+								{fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID}| Messages]}
+					     end
+				     end, {Fight, []}, Weapons),
+    {NewFight, Events}.
 
-hit(#unit{modules = Modules} = Unit, Damage) ->
+hit(#unit{modules = _Modules} = Unit, _Damage) ->
     {Unit, []}.
+
+
+
+use_energy(Unit, Energy) ->
+    AvailableEnergy = available_energy(Unit),
+    if 
+	AvailableEnergy >= Energy -> {ok, consume_energy(Unit, Energy)};
+	true -> {error, not_enough_energy}
+    end.
+	    
     
-
-
+    
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
 
 create_modules([TypeName]) ->
-        [ModuleType] = module_type:select_by_name(TypeName),
+    [ModuleType] = module_type:select_by_name(TypeName),
     {ok, Module} = module:new(ModuleType),
     storage:insert(Module),
     [module:id(Module)];
@@ -232,14 +268,19 @@ create_modules([TypeName | Modules]) ->
     storage:insert(Module),
     [module:id(Module) | create_modules(Modules)].
 
+available_energy(#unit{} = Unit) ->
+    lists:foldl(fun (Generator, Energy) ->
+			Energy + module:energy(Generator)
+		end, 0, modules_of_kind(Unit, generator)).
 
-ensure_id(Unit) when is_binary(Unit) ->
-    Unit;
-ensure_id(#unit{id = ID})->
-    id.
-
-ensure_record(#module{} = Unit)->
-    Unit;
-ensure_record(Unit) when is_binary(Unit) ->
-    {ok, U} = select(Unit),
-    explode(M).
+consume_energy(#unit{modules = Modules} = Unit, Energy) ->
+    {0, Ms} = lists:foldl(fun (Module, {RemainingEnergy, NewModules}) ->
+				  case module:kind(Module) of
+				      generator -> ConsumedEnergy = min(RemainingEnergy, module:energy(Module)),
+						   {RemainingEnergy - ConsumedEnergy,
+						    [module:use_energy(Module, ConsumedEnergy) | NewModules]};
+				      _ -> {RemainingEnergy, [Module | NewModules]}
+				  end
+			  end, {Energy, []}, Modules),
+    Unit#unit{modules = Ms}.
+	

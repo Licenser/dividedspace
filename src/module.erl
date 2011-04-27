@@ -27,15 +27,21 @@
 	 integrety/1,
 	 integrety/2,
 	 instance/1,
-	 instance/2,
-	 kind/1,
-	 mass/1
+	 instance/2
 	]).
 
 -export([
+	 kind/1,
+	 mass/1,
 	 is_destroyed/1, 
-	 cycle/1, 
-	 hit/4
+	 cycle/1,
+	 ensure_id/1,
+	 ensure_record/1,
+	 hit/4,
+	 energy_usage/1,
+	 damage/1,
+	 energy/1,
+	 use_energy/2
 	]).
 
 -export([
@@ -234,24 +240,26 @@ is_destroyed(#module{integrety = Integrety}) ->
 %% @end
 %%--------------------------------------------------------------------
 
-cycle(#module{instance = 
+cycle(Module) ->
+    save_cycle(ensure_record(Module)).
+
+save_cycle(#module{instance = 
 		  #generator_spec{energy = Energy, 
 				  output = Output, 
 				  capacity = Capacity
 				 } = Instance} = Module) ->
     Module#module{instance = Instance#generator_spec{energy = max(Capacity, Output + Energy)}};
 
-cycle(#module{instance = #engine_spec{} = Instance,
+save_cycle(#module{instance = #engine_spec{} = Instance,
 	      type = Type} = Module) ->
     #engine_spec{range = Range} = module_type:specs(Type),
     Module#module{instance =Instance#engine_spec{range = Range}};
 
-cycle(#module{instance = #weapon_spec{} = Instance,
+save_cycle(#module{instance = #weapon_spec{} = Instance,
 	      type = Type} = Module) ->
     #weapon_spec{fire_rate = FireRate} = module_type:specs(Type),
     Module#module{instance = Instance#weapon_spec{fire_rate = FireRate}};
-
-cycle(M) ->
+save_cycle(#module{} = M) ->
     M.
 
 %%--------------------------------------------------------------------
@@ -351,10 +359,7 @@ hit(Module, Damage, Partial) when is_number(Damage) ->
 %%--------------------------------------------------------------------
 
 explode(#module{type = Type} = M) ->
-    case module_type:is_a(Type) of
-	true -> M;
-	false -> M#module{type = module_type:select(Type)}
-    end;
+    M#module{type = module_type:ensure_record(Type)};
 explode(M) ->
     {ok, M1} = select(M),
     explode(M1).
@@ -534,20 +539,22 @@ mass(#module{type = Type}) ->
 %%              weapon | armor | shield
 %% @end
 %%--------------------------------------------------------------------
+kind(Module) ->
+    save_kind(ensure_record(Module)).
 
-kind(#module{instance = #weapon_spec{}}) ->
+save_kind(#module{instance = #weapon_spec{}}) ->
     weapon;
-kind(#module{instance = #engine_spec{}}) ->
+save_kind(#module{instance = #engine_spec{}}) ->
     engine;
-kind(#module{instance = #generator_spec{}}) ->
+save_kind(#module{instance = #generator_spec{}}) ->
     generator;
-kind(#module{instance = #armor_spec{}}) ->
+save_kind(#module{instance = #armor_spec{}}) ->
     armor;
-kind(#module{instance = #shield_spec{}}) ->
+save_kind(#module{instance = #shield_spec{}}) ->
     shield;
-kind(#module{instance = #hull_spec{}}) ->
+save_kind(#module{instance = #hull_spec{}}) ->
     hull;
-kind(#module{}) ->
+save_kind(#module{}) ->
     unknown.
 
 fire_weapon(#module{
@@ -562,17 +569,35 @@ fire_weapon(#module{
 	      }, Attacker, Target) ->
     Dist = unit:distance(Attacker, Target),
     DamagePenalty = Integrety / module_type:integrety(Type),
-    [#module{instance = #hull_spec{maneuverability = ManeuvA}}] = unit:modules(Attacker, hull),
-    [#module{instance = #hull_spec{maneuverability = ManeuvT}}] = unit:modules(Target, hull),
+    [#module{instance = #hull_spec{maneuverability = ManeuvA}}] = unit:modules_of_kind(Attacker, hull),
+    [#module{instance = #hull_spec{maneuverability = ManeuvT}}] = unit:modules_of_kind(Target, hull),
     Aim = (DamagePenalty * ((Accuracy * (2 + random:uniform())) / 3)) +
 	((Variation - trunc(abs(Range - Dist))) / Variation / 2),
-    Mass = math:log((math:pow(unit:mass(target), 1/3) / max(Dist, 1)) + 1),
+    Mass = math:log((math:pow(unit:mass(Target), 1/3) / max(Dist, 1)) + 1),
     Aiming =  (((ManeuvA * (2 + random:uniform())) / 3) + Rotatability) * Aim,
     Evade = ManeuvT * (2 +random:uniform()) / 3,
-    1 > ((Aiming / Evade) * Mass);
+    {ok , 1 > ((Aiming / Evade) * Mass)};
 
 fire_weapon(#module{}, _, _) ->
     {error, not_a_weapon}.
+
+
+energy_usage(#module{instance = #weapon_spec{energy_usage = EnergyUsage}}) ->
+    EnergyUsage;
+
+energy_usage(#module{instance = #engine_spec{energy_usage = EnergyUsage}}) ->
+    EnergyUsage.
+
+damage(#module{instance = #weapon_spec{damage = Damage}}) ->
+    Damage.
+
+energy(#module{instance = #generator_spec{energy = Energy}}) ->
+    Energy.
+
+use_energy(#module{instance = #generator_spec{energy = CurrentEnergy} = Generator} = Module, RequiredEnergy) when is_integer(RequiredEnergy), RequiredEnergy =< CurrentEnergy ->
+    Module#module{instance = Generator#generator_spec{energy = CurrentEnergy - RequiredEnergy}}.
+    
+
 
 new_armor_spec(DamageAbsorbation) -> 
     #armor_spec{damage_absorbation = DamageAbsorbation}.
@@ -601,3 +626,15 @@ new_weapon_spec(Damage, FireRate, Range, Variation, Accuracy, Rotatability, Ener
 		 accuracy = Accuracy, 
 		 rotatability = Rotatability, 
 		 energy_usage = EnergyUsage}.
+
+ensure_id(Module) when is_binary(Module) ->
+    Module;
+ensure_id(#module{id = ID})->
+    ID.
+
+ensure_record(#module{} = Module)->
+    Module;
+ensure_record(Module) when is_binary(Module) ->
+    {ok, M} = select(Module),
+    M.
+

@@ -11,7 +11,10 @@
 	     module_type,
 	     fight_server,
 	     fight_worker,
-	     module
+	     module,
+	     unit,
+	     fight_sup,
+	     fight
             ]},
   {applications, [
                   kernel,

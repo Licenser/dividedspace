@@ -6,14 +6,13 @@
   {modules, [
              ds_store_app,
              ds_store_sup,
-             unit_server,
-             unit_sup,
              storage,
 	     uuid,
 	     module,
 	     module_type,
 	     weapon,
 	     loader,
+	     fight,
              unit
             ]},
   {applications, [

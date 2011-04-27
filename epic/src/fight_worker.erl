@@ -39,11 +39,11 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-place_cycle(Units, Id, Fight) ->
-    gen_server:cast(?SERVER, {place_cycle, Units, Id, Fight}).
+place_cycle(Fight, Id, FightPid) ->
+    gen_server:cast(?SERVER, {place_cycle, Fight, Id, FightPid}).
 
-place_turn(Units, Map, Id, Fight) ->
-    gen_server:cast(?SERVER, {place_turn, Units, Map, Id, Fight}).
+place_turn(Fight, Map, Id, FightPid) ->
+    gen_server:cast(?SERVER, {place_turn, Fight, Map, Id, FightPid}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -91,11 +91,11 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({place_cycle, Units, Id, Fight}, State) ->
-    fight_server:end_cycle(Fight, handle_cycle(Units), Id),
+handle_cast({place_cycle, Fight, Id, FightPid}, State) ->
+    fight_server:end_cycle(FightPid, handle_cycle(Fight), Id),
     {noreply, State};
-handle_cast({place_turn, Units, Map, Id, Fight}, State) ->
-    fight_server:end_turn(Fight, handle_turn(Units, Map), Id),
+handle_cast({place_turn, Fight, Map, Id, FightPid}, State) ->
+    fight_server:end_turn(FightPid, handle_turn(Fight, FightPid, Map), Id),
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -142,10 +142,15 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-handle_cycle(Units) ->
-    list:map(fun unit:cyce/1, fight:units(Units)).
+handle_cycle(Fight) ->
+    fight:units(Fight,
+		dict:map(fun (_UnitID, Unit) ->
+				 unit:cycle(Unit)
+			 end, fight:units(Fight))).
 
-handle_turn(Units, _Map) ->
-    lists:foldl(fun (UnitID, RUnits) ->
-			unit:turn(dict:fetch(UnitID, RUnits), RUnits)
-		end, Units, dict:fetch_keys(Units)).
+handle_turn(Fight, FightPid, _Map) ->
+    lists:foldl(fun (UnitID, RFight) ->
+			{NewFight, Events} = unit:turn(fight:get_unit(RFight, UnitID), RFight),
+			fight_server:add_event(FightPid, Events),
+			NewFight
+		end, Fight, fight:unit_ids(Fight)).

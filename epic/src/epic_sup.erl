@@ -64,7 +64,9 @@ init([]) ->
     %Type = worker,
 
     EPICServer = ?CHILD(epic_server, worker),
-    {ok, {SupFlags, [EPICServer]}}.
+    FightWorker = ?CHILD(fight_worker, worker),
+    FightSup = ?CHILD(fight_sup, supervisor),
+    {ok, {SupFlags, [EPICServer, FightSup, FightWorker]}}.
 
 
 %%%===================================================================

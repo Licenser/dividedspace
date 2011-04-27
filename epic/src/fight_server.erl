@@ -12,12 +12,13 @@
 
 %% API
 -export([
-	 start_link/0,
+	 start_link/2,
 	 end_turn/3,
 	 end_cycle/3,
 	 add_event/2,
 	 trigger_turn/1,
-	 trigger_cycle/1
+	 trigger_cycle/1,
+	 get_events/1
 	]).
 
 %% gen_server callbacks
@@ -26,7 +27,7 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {units = [], map, map_id, events = [], running_turn = 0, running_cycle = 0, turn = 0}).
+-record(state, {fight, map, map_id, events = [], running_turn = 0, running_cycle = 0, turn = 0}).
 
 %%%===================================================================
 %%% API
@@ -39,15 +40,14 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Fight, Map) ->
+    gen_server:start_link(?MODULE, [Fight, Map], []).
 
 end_turn(Pid, NewUnits, TurnId) ->
     gen_server:cast(Pid, {end_turn, NewUnits, TurnId}).
 
 end_cycle(Pid, NewUnits, CycleId) ->
     gen_server:cast(Pid, {end_cycle, NewUnits, CycleId}).
-
 
 add_event(Pid, Event) ->
     gen_server:cast(Pid, {add_event, Event}).
@@ -57,6 +57,10 @@ trigger_turn(Pid) ->
     
 trigger_cycle(Pid) ->
     gen_server:cast(Pid, trigger_cycle).
+
+get_events(Pid) ->
+    gen_server:call(Pid, events).
+    
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -73,8 +77,8 @@ trigger_cycle(Pid) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Units, MapServer]) ->
-    {ok, #state{units = Units, map = MapServer}}.
+init([Fight, MapServer]) ->
+    {ok, #state{fight = Fight, map = MapServer}}.
 
     
 
@@ -92,6 +96,8 @@ init([Units, MapServer]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(events, _Form, #state{events = Events} = State) ->
+    {reply, Events, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -106,48 +112,60 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({end_turn, NewUnits, TurnId}, #state{running_cycle = RunningCycle,
+handle_cast({end_turn, NewFight, TurnId}, #state{running_cycle = RunningCycle,
 						 running_turn = RunningTurn, 
 						 turn = Turn} = State) ->
     if 
 	RunningTurn =/= TurnId -> {stop, {unexpcted_turn_end, RunningTurn, TurnId}};
-	TurnId -1 >= Turn -> {stop, {turn_runaway, Turn, TurnId}};
-	TurnId -1 =< Turn -> {stop, {turn_too_slow, Turn, TurnId}};
+	TurnId  > Turn + 1 -> {stop, {turn_runaway, Turn, TurnId}};
+	TurnId =< Turn -> {stop, {turn_too_slow, Turn, TurnId}};
 	RunningCycle =/= TurnId -> {stop, {turn_head_of_cycle, TurnId, RunningCycle}};
 	true -> {noreply, State#state{
-			    units = NewUnits,
+			    fight = NewFight,
 			    turn = TurnId
 			   }}
     end;
-handle_cast({end_cycle, NewUnits, CycleId}, #state{running_cycle = RunningCycle,
+
+handle_cast({end_cycle, NewFight, CycleId}, #state{running_cycle = RunningCycle,
 						 running_turn = RunningTurn, 
 						 turn = Turn} = State) ->
     if 
 	RunningTurn == CycleId -> {stop, {turn_started_to_early, RunningTurn, CycleId}};
-	CycleId -1 >= Turn -> {stop, {cycle_runaway, Turn, CycleId}};
-	CycleId -1 =< Turn -> {stop, {cycle_too_slow, Turn, CycleId}};
+	CycleId   > Turn +1 -> {stop, {cycle_runaway, Turn, CycleId}};
+	CycleId  =< Turn -> {stop, {cycle_too_slow, Turn, CycleId}};
 	RunningCycle =/= CycleId -> {stop, {turn_head_of_cycle, CycleId, RunningCycle}};
 	true -> {noreply, State#state{
-			    units = NewUnits
+			    fight = NewFight
 			   }}
     end;
 
 handle_cast(trigger_turn, #state{running_turn = RunningTurn,
-				 turn = Turn} = State) ->
+				 turn = Turn,
+				 fight = Fight} = State) ->
     if
 	Turn =/= RunningTurn -> {stop, {turn_not_in_sync, Turn, RunningTurn}};
 	true -> 
-	    fight_worker:place_turn(State, Turn + 1, self()),
+	    fight_worker:place_turn(Fight, nil, Turn + 1, self()),
 	    {noreply, State#state{running_turn = Turn + 1}}
     end;
+
 handle_cast(trigger_cycle, #state{running_cycle = RunningCycle,
-				 turn = Turn} = State) ->
+				  turn = Turn,
+				  fight = Fight} = State) ->
     if
 	Turn =/= RunningCycle -> {stop, {cycle_not_in_sync, Turn, RunningCycle}};
 	true -> 
-	    fight_worker:place_cycle(State, Turn + 1, self()),
+	    fight_worker:place_cycle(Fight, Turn + 1, self()),
 	    {noreply, State#state{running_cycle = Turn + 1}}
     end;
+handle_cast({add_event, NewEvents}, #state{events = Events} = State) when is_list(NewEvents) ->
+    lists:map(fun (Event) ->
+		      io:format("EVENT >> ~p~n", [Event])
+	      end, NewEvents),
+    {noreply, State#state{events = NewEvents ++ Events}};
+handle_cast({add_event, Event}, #state{events = Events} = State) ->
+    io:format("EVENT >> ~p~n", [Event]),
+    {noreply, State#state{events = [Event | Events]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

@@ -6,6 +6,8 @@
   {modules, [
 	     module,
 	     module_type,
+             fight,
+	     unit,
 	     weapon
             ]},
   {applications, [

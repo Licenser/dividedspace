@@ -14,7 +14,9 @@
 	 select/1,
 	 new/7,
 	 make/8,
-	 select_by_name/1
+	 select_by_name/1,
+	 ensure_id/1,
+	 ensure_record/1
 	 ]).
 
 -export([
@@ -182,3 +184,14 @@ is_a(#module_type{}) ->
     true;
 is_a(_) ->
     false.
+
+ensure_id(ModuleType) when is_binary(ModuleType) ->
+    ModuleType;
+ensure_id(#module_type{id = ID})->
+    ID.
+
+ensure_record(#module_type{} = ModuleType)->
+    ModuleType;
+ensure_record(ModuleType) when is_binary(ModuleType) ->
+    {ok, M} = select(ModuleType),
+    M.
