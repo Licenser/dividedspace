@@ -66,7 +66,7 @@ init([]) ->
     EPICServer = ?CHILD(epic_server, worker),
     FightWorker = ?CHILD(fight_worker, worker),
     TurnServer = ?CHILD(turn_server, worker),
-    EpicEvent = ?CHILD(epic_event, worker),
+    EpicEvent = {epic_event, {epic_event, register_with_logger, []}, permanent, 5000, worker, [epic_event]},
     FightSup = ?CHILD(fight_sup, supervisor),
     {ok, {SupFlags, [EPICServer, FightSup, FightWorker, EpicEvent, TurnServer]}}.
 

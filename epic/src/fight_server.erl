@@ -195,12 +195,12 @@ handle_cast(trigger_cycle, #state{running_cycle = RunningCycle,
 				  events = [{start_cycle, CycleID} | Events]}}
     end;
 handle_cast({add_event, NewEvents}, #state{events = Events} = State) when is_list(NewEvents) ->
-    lists:map(fun (Event) ->
-		      io:format("EVENT >> ~p~n", [Event])
-	      end, NewEvents),
+%    lists:map(fun (Event) ->
+%		      io:format("EVENT >> ~p~n", [Event])
+%	      end, NewEvents),
     {noreply, State#state{events = NewEvents ++ Events}};
 handle_cast({add_event, Event}, #state{events = Events} = State) ->
-    io:format("EVENT >> ~p~n", [Event]),
+%    io:format("EVENT >> ~p~n", [Event]),
     {noreply, State#state{events = [Event | Events]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.

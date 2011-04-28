@@ -115,7 +115,7 @@ handle_cast(_Msg, State) ->
 handle_info(interval, #state{fights = Fights} = State) ->
     epic_event:start_global_turn(),
     lists:map(fun(Fight) ->
-		      case fight_server:state(Fight) of
+		      case fight_server:status(Fight) of
 			  {ok, idle} -> fight_server:trigger(Fight);
 			  {ok, in_cycle} -> epic_event:fight_problem(Fight, cycle_taking_long);
 			  {ok, in_turn} -> epic_event:fight_problem(Fight, cycle_taking_long);

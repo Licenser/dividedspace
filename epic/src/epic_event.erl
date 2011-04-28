@@ -11,7 +11,8 @@
 -behaviour(gen_event).
 
 %% API
--export([start_link/0,
+-export([
+	 start_link/0,
 	 add_handler/0,
 	 start_turn/2,
 	 end_turn/2,
@@ -20,7 +21,8 @@
 	 start_cycle/2,
 	 end_cycle/2,
 	 fight_error/2,
-	 fight_problem/2
+	 fight_problem/2,
+	 register_with_logger/0
 	]).
 
 %% gen_event callbacks
@@ -55,9 +57,12 @@ end_turn(FightID, TurnID) ->
 
 fight_problem(FightID, Problem) ->
     gen_event:notify(?SERVER, {fight_problem, FightID, Problem}).
+
 fight_error(FightID, Error) ->
     gen_event:notify(?SERVER, {fight_error, FightID, Error}).
 
+register_with_logger() ->
+    error_logger:add_report_handler(?MODULE).
 
 
 %%%===================================================================
@@ -120,6 +125,7 @@ handle_event({fight_error, FightID, Error}, State) ->
     error_logger:error_msg("EPIC - FIGHT<~p> ERROR: ~p.~n", [FightID, Error]),
     {ok, State};
 handle_event({start_cycle, FightID, CycleID}, State) ->
+    io:format("EPIC - FIGHT<~p>: Cycle<~p> started.~n", [FightID, CycleID]),
     error_logger:error_msg("EPIC - FIGHT<~p>: Cycle<~p> started.~n", [FightID, CycleID]),
     {ok, State};
 handle_event({end_cycle, FightID, CycleID}, State) ->
@@ -137,8 +143,8 @@ handle_event({start_global_turn}, State) ->
 handle_event({end_global_turn}, State) ->
     error_logger:info_msg("EPIC: Global turn ended.~n", []),
     {ok, State};
-
-handle_event(_Event, State) ->
+handle_event(Event, State) ->
+    io:format("~p~n", [Event]),
     {ok, State}.
 
 %%--------------------------------------------------------------------
