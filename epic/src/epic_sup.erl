@@ -65,8 +65,10 @@ init([]) ->
 
     EPICServer = ?CHILD(epic_server, worker),
     FightWorker = ?CHILD(fight_worker, worker),
+    TurnServer = ?CHILD(turn_server, worker),
+    EpicEvent = ?CHILD(epic_event, worker),
     FightSup = ?CHILD(fight_sup, supervisor),
-    {ok, {SupFlags, [EPICServer, FightSup, FightWorker]}}.
+    {ok, {SupFlags, [EPICServer, FightSup, FightWorker, EpicEvent, TurnServer]}}.
 
 
 %%%===================================================================

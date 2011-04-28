@@ -14,6 +14,8 @@
 	     module,
 	     unit,
 	     fight_sup,
+	     turn_server,
+	     epic_event,
 	     fight
             ]},
   {applications, [

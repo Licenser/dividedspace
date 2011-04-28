@@ -2,8 +2,7 @@ clean-rel:
 	@rm -rf  rel/ds_store
 
 clean: clean-rel
-	@rm -rf ebin/*.beam
-	@rm -rf doc
+	@./rebar clean
 
 compile:
 	@./rebar compile

@@ -1,16 +1,12 @@
-clean-rel:
-	@rm -rf  rel/epic
-
-clean: clean-rel
-	@rm -rf ebin/*.beam
-	@rm -rf doc
+clean:
+	@./rebar clean
 
 compile:
 	@./rebar compile
 
 recompile: clean compile
 
-generate: compile clean-rel
+generate: compile
 	@./rebar generate
 	@chmod +x rel/epic/bin/epic
 

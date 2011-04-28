@@ -231,7 +231,7 @@ turn(#unit{id = UnitID} = Unit, Fight) ->
 					     case module:fire_weapon(Weapon, Attacker, Target) of
 						 {ok, true} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
 							       NewFight1 = fight:add_unit(NewFight, NewAttacker),
-							       {NewTarget, TargetMessages} = hit(Target, module:damag(Weapon)),
+							       {NewTarget, TargetMessages} = hit(Target, module:damage(Weapon)),
 							       {fight:add_unit(NewFight1, NewTarget), [{hit, UnitID, TargetID} | TargetMessages] ++ Messages};
 						 {ok, false} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
 								{fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID}| Messages]}
