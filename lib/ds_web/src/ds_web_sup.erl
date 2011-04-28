@@ -43,10 +43,12 @@ init([]) ->
     Shutdown = 2000,
     Type = worker,
 
-    AChild = {'AName', {'AModule', start_link, []},
-              Restart, Shutdown, Type, ['AModule']},
-
-    {ok, {SupFlags, [AChild]}}.
+    WebServer = {misultin_server, {misultin_server, start_link, [8080]},
+		 Restart, Shutdown, Type, [misultin_server]},
+    WsSup = {ws_sup, {ws_sup, start_link, []},
+	     Restart, Shutdown, supervisor, [ws_sup]},
+    
+    {ok, {SupFlags, [WebServer, WsSup]}}.
 
 %%%===================================================================
 %%% Internal functions

@@ -4,7 +4,12 @@
   [{description, "Your Desc HERE"},
    {vsn, "0.1.0"},
    {modules, [ds_web_app,
-              ds_web_sup]},
+              ds_web_sup,
+	      misultin, misultin_req, misultin_socket, misultin_http, misultin_utility, misultin_websocket, misultin_ws,
+	      misultin_server,
+	      ws,
+	      ws_sup
+	      ]},
    {registered,[ds_web_sup]},
    {applications, [kernel, stdlib]},
    {mod, {ds_web_app,[]}},

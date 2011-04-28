@@ -50,26 +50,26 @@ init() ->
     mnesia:create_schema([node()]),
     mnesia:start(),
     case mnesia:create_table(module_type,
-			[ {disc_copies, [node()] },
-			  {attributes,      
-			   module_type:fields()} ]) of
+			     [{ram_copies, [node()]},
+			       {attributes,
+				module_type:fields()}]) of
 	{atomic, ok} -> loader:load();
 	R -> R
     end,
     mnesia:create_table(module,
-			[ {disc_copies, [node()] },
+			[ {ram_copies, [node()] },
 			  {attributes,      
 			   module:fields()} ]),
     mnesia:create_table(unit,
-			[ {disc_copies, [node()] },
+			[ {ram_copies, [node()] },
 			  {attributes,      
 			   unit:fields()} ]),
     mnesia:create_table(fleet,
-			[ {disc_copies, [node()] },
+			[ {ram_copies, [node()] },
 			  {attributes,      
 			   record_info(fields,fleet)} ]),
     mnesia:create_table(fight,
-			[ {disc_copies, [node()] },
+			[ {ram_copies, [node()] },
 			  {attributes,      
 			   record_info(fields,fight)} ]).
 

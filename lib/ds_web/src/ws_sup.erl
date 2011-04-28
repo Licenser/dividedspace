@@ -1,23 +1,20 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@schroedinger.lan>
+%%% @author Heinz N. Gies <heinz@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 21 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
+%%% Created : 28 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(epic_sup).
+-module(ws_sup).
 
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/0, start_child/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
-
-%% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
 -define(SERVER, ?MODULE).
 
@@ -34,6 +31,9 @@
 %%--------------------------------------------------------------------
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+
+start_child(Ws) ->
+    supervisor:start_child(?SERVER, [Ws]).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -53,24 +53,10 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    RestartStrategy = one_for_one,
-    MaxRestarts = 1000,
-    MaxSecondsBetweenRestarts = 3600,
-
-    SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
-
-    %Restart = permanent,
-    %Shutdown = 2000,
-    %Type = worker,
-
-    EPICServer = ?CHILD(epic_server, worker),
-    FightWorker = ?CHILD(fight_worker, worker),
-    TurnServer = ?CHILD(turn_server, worker),
-    EpicEvent =  ?CHILD(epic_event, worker), %{epic_event, {epic_event, register_with_logger, []}, permanent, 5000, worker, [epic_event]},
-    FightSup = ?CHILD(fight_sup, supervisor),
-    {ok, {SupFlags, [EPICServer, FightSup, FightWorker, EpicEvent, TurnServer]}}.
-
-
+    WsChild = {ws, {ws, start_link, []},
+	       temporary, brutal_kill, worker, [ws]}, 
+    RestartStrategy = {simple_one_for_one, 0, 1}, 
+    {ok, {RestartStrategy, [WsChild]}}.
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================

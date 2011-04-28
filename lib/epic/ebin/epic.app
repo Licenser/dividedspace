@@ -16,6 +16,9 @@
 	     fight_sup,
 	     turn_server,
 	     epic_event,
+	     uuid,
+	     storage,
+	     loader,
 	     fight
             ]},
   {applications, [

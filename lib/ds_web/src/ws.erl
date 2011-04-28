@@ -1,17 +1,17 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@schroedinger.lan>
+%%% @author Heinz N. Gies <heinz@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 21 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
+%%% Created : 28 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(epic_server).
+-module(ws).
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, list_fights/0, new_fight/1]).
+-export([start_link/1, incoming/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -19,17 +19,11 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {fights = []}).
+-record(state, {ws}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-list_fights() ->
-    gen_server:call(?MODULE, list_fights).
-
-new_fight(Fight) ->
-    gen_server:call(?MODULE, {new_fight, Fight}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -38,9 +32,13 @@ new_fight(Fight) ->
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Ws) ->
+    gen_server:start_link(?MODULE, [Ws], []).
 
+
+incoming(Pid, Data) ->
+    gen_server:cast(Pid, {incoming, Data}).
+    
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -56,9 +54,8 @@ start_link() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    storage:init(),
-    {ok, #state{}}.
+init([Ws]) ->
+    {ok, #state{ws = Ws}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -74,10 +71,6 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(list_fights, _From, #state{fights = Fights} = State) ->
-    {reply, {ok, Fights}, State};
-handle_call({new_fight, Fight}, _From, #state{fights = Fights} = State) ->
-    {reply, {ok, Fight}, State#state{fights = [Fight | Fights]}};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -92,6 +85,9 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({incoming, Data}, #state{ws = Ws} = State) ->
+    Ws:send(["received '", Data, "'"]),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -105,6 +101,9 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_info({browser, Data}, #state{ws = Ws} = State) ->
+    Ws:send(["received '", Data, "'"]),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
