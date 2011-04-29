@@ -1,0 +1,112 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+    <title>Divided Space</title>
+    <style type="text/css" media="screen">
+      body {
+        font-family: 'Trebuchet MS', Verdana, Arial, sans-serif;
+        margin: 0;
+        background: black;
+		overflow:hidden;
+      }
+      canvas {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+      }
+      #coordinates, #info, #biginfo, #controls {
+        opacity: 0.8;
+        position: absolute;
+        background: black;
+        border: 1px solid lime;
+        color: white;
+        text-align: center;
+      }
+      #controls {
+        top: 0px;
+        right: 0px;
+        opacity: 0.5;
+        height: auto;
+        width: auto;
+        border-top: none;
+        border-right: none;
+      }
+      #controls .button {
+        float: left;
+        font-size: 3em;
+        padding: 1px 15px;
+        cursor: pointer;
+        color: silver;
+      }
+      #controls .button:hover {
+        color: white;
+        background: gray;
+      }
+      #coordinates, #info, #biginfo {
+        bottom: 0px;
+        height: 20px;
+        border-bottom: none;
+      }
+      #coordinates {
+        opacity: 0.8;
+        position: absolute;
+        right: 0px;
+        width: 200px;
+        border-right: none;
+      }
+      #info {
+        opacity: 0.8;
+        position: absolute;
+        right: 201px;
+        width: 400px;
+        border-right: none;
+      }
+      #biginfo {
+        opacity: 0.8;
+        position: absolute;
+        left: 0px;
+        right: 602px;
+        border-right: none;
+        border-left: none;
+      }
+    </style>
+    <script src="lib/shapes.js" type="text/javascript" charset="utf-8"></script>
+    <script src="lib/draw_engine.js" type="text/javascript" charset="utf-8"></script>
+    <!-- JSON is not available on Mobile Safari, so we use this library. -->
+    <script src="lib/json2.js" type="text/javascript" charset="utf-8"></script>
+    <script src="ds-gui.js" type="text/javascript" charset="utf-8"></script>
+  </head>
+  <body>
+    <!-- <canvas id="background">Your browser doesn't support HTML 5 Canvas.</canvas> -->
+    <canvas id="fighter">This demo needs HTML 5 Canvas.</canvas>
+    <canvas id="fire">---</canvas>
+    <canvas id="units">Please install a better browser.</canvas>
+    <canvas id="grid">---</canvas>
+    <!-- <canvas id="explosions">-</canvas> -->
+    <canvas id="selection">Firefox or Safari, for example.</canvas>
+    <canvas id="osd" style="display: block">Or both.</canvas>
+    <div id="biginfo"></div>
+    <div id="coordinates"></div>
+    <div id="info"></div>
+    <div id="controls">
+      <div class="button" id="play" style="display: none">Play</div>
+      <!-- <div class="button" id="next">Next</div> -->
+    </div>
+    <script type="text/javascript" charset="utf-8">
+      if (!Prototype.Browser.IE) {
+        var waitForImages = window.setInterval(function() {
+          for (var i = document.images.length; i--;) {
+            if (!document.images[i].complete) return;
+          }
+          window.clearInterval(waitForImages);
+          var match = location.search.match(/log=([-\w]+)/);
+          DS.initialize(match ? match[1] : 'log');
+        }, 500);
+      }
+    </script>
+    <img id="fighter-l-two" src="images/fighter_light_blue.png" style="display: none;" />
+    <img id="fighter-l-one" src="images/fighter_light_red.png" style="display: none;" />
+  </body>
+</html>

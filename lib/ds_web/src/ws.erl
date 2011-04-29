@@ -11,7 +11,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/1, incoming/2]).
+-export([start_link/2, incoming/2, stop/1, send/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -19,7 +19,7 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {ws}).
+-record(state, {ws, fight}).
 
 %%%===================================================================
 %%% API
@@ -32,12 +32,18 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Ws) ->
-    gen_server:start_link(?MODULE, [Ws], []).
+start_link(Ws, Fight) ->
+    gen_server:start_link(?MODULE, [Ws, Fight], []).
+
+send(Pid, Data) ->
+    gen_server:cast(Pid, {send, Data}).
 
 
 incoming(Pid, Data) ->
     gen_server:cast(Pid, {incoming, Data}).
+
+stop(Pid) ->
+    gen_server:cast(Pid, stop).
     
 %%%===================================================================
 %%% gen_server callbacks
@@ -54,8 +60,9 @@ incoming(Pid, Data) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Ws]) ->
-    {ok, #state{ws = Ws}}.
+init([Ws, Fight]) ->
+    fight_server:subscribe(Fight, self()),
+    {ok, #state{ws = Ws, fight = Fight}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -85,8 +92,13 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({incoming, Data}, #state{ws = Ws} = State) ->
-    Ws:send(["received '", Data, "'"]),
+handle_cast(stop, #state{fight = Fight} = State) ->
+    fight_server:unsubscribe(Fight, self()),
+    {stop, stopped, State};
+handle_cast({send, Data}, #state{ws = Ws} = State) ->
+    Ws:send(base64:encode(term_to_binary(Data))),
+    {noreply, State};
+handle_cast({incoming, Data}, #state{} = State) ->
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -101,9 +113,6 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({browser, Data}, #state{ws = Ws} = State) ->
-    Ws:send(["received '", Data, "'"]),
-    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 

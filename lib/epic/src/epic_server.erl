@@ -11,7 +11,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, list_fights/0, new_fight/1]).
+-export([start_link/0, list_fights/0, add_fight/2, new_fight/1, get_fight/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -19,7 +19,7 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {fights = []}).
+-record(state, {fights = dict:new()}).
 
 %%%===================================================================
 %%% API
@@ -28,8 +28,19 @@
 list_fights() ->
     gen_server:call(?MODULE, list_fights).
 
+
+get_fight(Id) ->
+    gen_server:call(?MODULE, {get_fight, Id}).
+
+add_fight(Id, Fight) ->
+    gen_server:cast(?MODULE, {add_fight, Id, Fight}).
+
 new_fight(Fight) ->
-    gen_server:call(?MODULE, {new_fight, Fight}).
+    UUID = uuid:v4(),
+    {ok, FPid} = fight_sup:start_child(Fight),
+    add_fight(UUID, FPid),
+    turn_server:register_fight(FPid),
+    {ok, UUID}.
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -58,7 +69,7 @@ start_link() ->
 %%--------------------------------------------------------------------
 init([]) ->
     storage:init(),
-    {ok, #state{}}.
+    {ok, #state{fights = dict:new()}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -74,10 +85,11 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
+    {reply, {ok, dict:fetch(Id, Fights)}, State};
+
 handle_call(list_fights, _From, #state{fights = Fights} = State) ->
-    {reply, {ok, Fights}, State};
-handle_call({new_fight, Fight}, _From, #state{fights = Fights} = State) ->
-    {reply, {ok, Fight}, State#state{fights = [Fight | Fights]}};
+    {reply, {ok, dict:fetch_keys(Fights)}, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -92,6 +104,8 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({add_fight, Id, Fight}, #state{fights = Fights} = State) ->
+    {noreply,  State#state{fights = dict:store(Id, Fight, Fights)}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

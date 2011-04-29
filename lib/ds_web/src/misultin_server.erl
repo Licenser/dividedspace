@@ -31,10 +31,10 @@
 -behaviour(gen_server).
 
 % gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, index/0]).
 
 % API
--export([start_link/1, stop/0]).
+-export([start_link/0, stop/0]).
 
 % records
 -record(state, {
@@ -43,14 +43,14 @@
 
 % macros
 -define(SERVER, ?MODULE).
-
+-define(PORT, 8080).
 
 % ============================ \/ API ======================================================================
 
 % Function: {ok,Pid} | ignore | {error, Error}
 % Description: Starts the server.
-start_link(Port) ->
-	gen_server:start_link({local, ?SERVER}, ?MODULE, [Port], []).
+start_link() ->
+	gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 % Function: -> ok
 % Description: Manually stops the server.
@@ -66,18 +66,19 @@ stop() ->
 % Function: -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
 % Description: Initiates the server.
 % ----------------------------------------------------------------------------------------------------------
-init([Port]) ->
+init([]) ->
 	% trap_exit -> this gen_server needs to be supervised
     process_flag(trap_exit, true),
 	% start misultin & set monitor
-    misultin:start_link([{port, Port}, {loop, fun(Req) -> handle_http(Req, Port) end}, {ws_loop, fun (Ws) ->
-													 C = ws_sup:start_child(Ws),
-													 io:format("1: ~p~n", [C]),
-													 {ok, Server} = C,
-													 handle_websocket(Ws, Server)
-												 end }, {ws_autoexit, false}]),
+    misultin:start_link([{port, ?PORT}, {loop, fun(Req) -> handle_http(Req) end}, {ws_loop, fun (Ws) ->
+												    "/fight/" ++ Fight = Ws:get(path),
+												    FightId = uuid:to_binary(Fight),
+												    {ok, FPid} = epic_server:get_fight(FightId),
+												    {ok, Server} = ws_sup:start_child(Ws, FPid),
+												    handle_websocket(Ws, Server)
+											    end}, {ws_autoexit, false}]),
     erlang:monitor(process, misultin),
-    {ok, #state{port = Port}}.
+    {ok, #state{port = ?PORT}}.
 
 % ----------------------------------------------------------------------------------------------------------
 % Function: handle_call(Request, From, State) -> {reply, Reply, State} | {reply, Reply, State, Timeout} |
@@ -140,12 +141,60 @@ code_change(_OldVsn, State, _Extra) ->
 
 % ---------------------------- \/ misultin requests --------------------------------------------------------
 
-handle_http(Req, Port) ->	
-	% output
-	Req:ok([{"Content-Type", "text/html"}],
-	["	
-	<html>
-		<head>
+handle_http(Req) ->
+    case Req:get(uri) of
+	{abs_path, "/"} ->
+	    Req:ok([{"Content-Type", "text/html"}],
+		   index());
+	{abs_path,"/static/" ++ File} ->
+	    Req:file("./htdocs/" ++ File);
+	{abs_path,"/fight/" ++ FightId} ->
+	    Req:ok([{"Content-Type", "text/html"}],
+		   fight(FightId));
+	_ -> 
+	    Req:ok([{"Content-Type", "text/html"}],
+		   index())
+    end.
+
+handle_websocket(Ws, Server) ->
+    receive
+	{browser, Data} ->
+	    ws:incoming(Server, Data),
+	    handle_websocket(Ws, Server);
+	closed ->
+	    ws:stop(Server),
+	    closed;
+	_Ignore ->
+	    handle_websocket(Ws, Server)
+%    after 5000 ->
+%	    handle_websocket(Ws, Server)
+    end.
+
+% ---------------------------- /\ misultin requests --------------------------------------------------------
+
+% ============================ /\ INTERNAL FUNCTIONS =======================================================
+
+index() ->
+    {ok, Fights} = epic_server:list_fights(),
+    ["
+<html>
+  <head>
+  </head>
+  <body onload=\"ready();\">
+    <ul>",
+     string:join(lists:map(fun (Id) ->
+				   UUID = uuid:to_string(Id),
+				   "<li><a href='/fight/" ++ UUID ++ "'>" ++ UUID  ++ "</a></li>"
+			   end, Fights), "~n"),"
+    </ul>
+  </body>
+</html>"].
+
+fight(FightID) ->
+    ["
+<html>
+  <head>
+    <script src='/static/js/bert.js'></script>
 			<script type=\"text/javascript\">
 				function addStatus(text){
 					var date = new Date();
@@ -154,7 +203,7 @@ handle_http(Req, Port) ->
 				function ready(){
 					if (\"WebSocket\" in window) {
 						// browser supports websockets
-						var ws = new WebSocket(\"ws://localhost:", integer_to_list(Port) ,"/service\");
+						var ws = new WebSocket(\"ws://localhost:", integer_to_list(?PORT) ,"/fight/", FightID,"\");
 						ws.onopen = function() {
 							// websocket is connected
 							addStatus(\"websocket connected!\");
@@ -165,6 +214,7 @@ handle_http(Req, Port) ->
 						ws.onmessage = function (evt) {
 							var receivedMsg = evt.data;
 							addStatus(\"server sent the following: '\" + receivedMsg + \"'\");
+							addStatus(\"server sent the following (decoded): '\" + Bert.decode(window.atob(receivedMsg)).toJS() + \"'\");
 						};
 						ws.onclose = function() {
 							// websocket was closed
@@ -180,24 +230,4 @@ handle_http(Req, Port) ->
 		<body onload=\"ready();\">
 			<div id=\"status\"></div>
 		</body>
-	</html>"]).
-
-handle_websocket(Ws, Server) ->
-    receive
-	{browser, Data} ->
-	    ws:incoming(Server, Data),
-	    %Ws:send(["received '", Data, "'"]),
-	    handle_websocket(Ws, Server);
-	close ->
-	    ws:stop(Server),
-	    close;
-	_Ignore ->
-	    handle_websocket(Ws, Server)
-    after 5000 ->
-	    handle_websocket(Ws, Server)
-    end.
-
-% ---------------------------- /\ misultin requests --------------------------------------------------------
-
-% ============================ /\ INTERNAL FUNCTIONS =======================================================
-
+	</html>"].
