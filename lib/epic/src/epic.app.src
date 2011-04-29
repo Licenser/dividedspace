@@ -6,8 +6,7 @@
   {modules, [%MODULES%]},
   {applications, [
                   kernel,
-                  stdlib,
-		  ssl
+                  stdlib
                  ]},
   {mod, { epic_app, []}},
   {env, []}

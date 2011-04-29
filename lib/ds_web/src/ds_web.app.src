@@ -5,7 +5,7 @@
    {vsn, %VSN%},
    {modules, [%MODULES%]},
    {registered,[ds_web_sup]},
-   {applications, [kernel, stdlib, mnesia]},
+   {applications, [kernel, stdlib]},
    {mod, {ds_web_app,[]}},
    {start_phases, []}]}.
 
