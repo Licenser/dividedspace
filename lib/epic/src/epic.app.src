@@ -1,0 +1,14 @@
+{application, epic,
+ [
+  {description, ""},
+  {vsn, %VSN%},
+  {registered, []},
+  {modules, [%MODULES%]},
+  {applications, [
+                  kernel,
+                  stdlib,
+		  ssl
+                 ]},
+  {mod, { epic_app, []}},
+  {env, []}
+ ]}.

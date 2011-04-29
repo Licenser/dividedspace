@@ -1,0 +1,11 @@
+%% This is the application resource file (.app file) for the ds_web,
+%% application.
+{application, ds_web,
+  [{description, "Your Desc HERE"},
+   {vsn, %VSN%},
+   {modules, [%MODULES%]},
+   {registered,[ds_web_sup]},
+   {applications, [kernel, stdlib, mnesia]},
+   {mod, {ds_web_app,[]}},
+   {start_phases, []}]}.
+
