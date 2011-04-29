@@ -1,0 +1,4 @@
+["multi_event", [event +]]
+["new_unit", id, x, y]
+["miss", attacker-id, target-id]
+["hit", attacker-id, target-id]

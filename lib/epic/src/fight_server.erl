@@ -223,14 +223,14 @@ handle_cast(trigger_cycle, #state{running_cycle = RunningCycle,
 		{noreply, State#state{running_cycle = CycleId,
 				  events = [Event | Events]}}
     end;
+handle_cast({add_event, [Event]}, #state{events = Events} = State) ->
+    inform_subscribers(State, Event),
+    {noreply, State#state{events = [Event | Events]}};
 handle_cast({add_event, NewEvents}, #state{events = Events} = State) when is_list(NewEvents) ->
-%    lists:map(fun (Event) ->
-%		      io:format("EVENT >> ~p~n", [Event])
-%	      end, NewEvents),
     inform_subscribers(State, {multi_event, NewEvents}),
     {noreply, State#state{events = NewEvents ++ Events}};
 handle_cast({add_event, Event}, #state{events = Events} = State) ->
-%    io:format("EVENT >> ~p~n", [Event]),
+
     inform_subscribers(State, Event),
     {noreply, State#state{events = [Event | Events]}};
 handle_cast(_Msg, State) ->

@@ -198,23 +198,19 @@ fight(FightID) ->
 			<script type=\"text/javascript\">
 				function addStatus(text){
 					var date = new Date();
-					document.getElementById('status').innerHTML = document.getElementById('status').innerHTML + date + \": \" + text + \"<br>\";				
+					document.getElementById('status').innerHTML = document.getElementById('status').innerHTML + text + \"<br>\";
 				}
 				function ready(){
 					if (\"WebSocket\" in window) {
 						// browser supports websockets
 						var ws = new WebSocket(\"ws://localhost:", integer_to_list(?PORT) ,"/fight/", FightID,"\");
 						ws.onopen = function() {
-							// websocket is connected
 							addStatus(\"websocket connected!\");
-							// send hello data to server.
-							ws.send(\"hello server!\");
-							addStatus(\"sent message to server: 'hello server'!\");
 						};
 						ws.onmessage = function (evt) {
-							var receivedMsg = evt.data;
-							addStatus(\"server sent the following: '\" + receivedMsg + \"'\");
-							addStatus(\"server sent the following (decoded): '\" + Bert.decode(window.atob(receivedMsg)).toJS() + \"'\");
+							var data = Bert.decode(window.atob(evt.data)).toJS();
+							window.console.error(data);
+							addStatus(data);
 						};
 						ws.onclose = function() {
 							// websocket was closed
