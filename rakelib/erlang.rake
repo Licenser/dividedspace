@@ -131,7 +131,7 @@ namespace :erlang do
   def run_script(script, parameters)
     script_file = File.dirname(__FILE__) + "/escripts/" + script
     #puts "#{ERL_TOP}/bin/escript #{script_file} #{parameters.join(' ')}"
-    sh %{#{ERL_TOP}/bin/escript #{script_file} #{parameters.join(' ')}}
+    sh %{#{ERL_TOP}/bin/escript "#{script_file}" #{parameters.join(' ')}}
   end
 
   def make_boot_file(output, source)
