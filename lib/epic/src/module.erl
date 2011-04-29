@@ -27,7 +27,8 @@
 	 integrety/1,
 	 integrety/2,
 	 instance/1,
-	 instance/2
+	 instance/2,
+	 hit_priority/1
 	]).
 
 -export([
@@ -434,6 +435,10 @@ select(ID) ->
 %%% Accessors
 %%%===================================================================
 
+hit_priority(#module{type = Type}) ->
+    module_type:hit_priority(module_type:ensure_record(Type)).
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% Getter for module.id
@@ -573,10 +578,19 @@ fire_weapon(#module{
     [#module{instance = #hull_spec{maneuverability = ManeuvT}}] = unit:modules_of_kind(Target, hull),
     Aim = (DamagePenalty * ((Accuracy * (2 + random:uniform())) / 3)) +
 	((Variation - trunc(abs(Range - Dist))) / Variation / 2),
-    Mass = math:log((math:pow(unit:mass(Target), 1/3) / max(Dist, 1)) + 1),
+    Surface = math:log((math:pow(unit:mass(Target), 1/3) / max(Dist, 1)) + 1),
     Aiming =  (((ManeuvA * (2 + random:uniform())) / 3) + Rotatability) * Aim,
     Evade = ManeuvT * (2 +random:uniform()) / 3,
-    {ok , 1 > ((Aiming / Evade) * Mass)};
+    Result = ((Aiming / Evade) * Surface),
+    {ok , Result > 1, [{dist, Dist},
+		       {damage_penalty, DamagePenalty},
+		       {attacker_maneuverability, ManeuvA},
+		       {target_maneuverability, ManeuvT},
+		       {aim, Aim},
+		       {surface, Surface},
+		       {aiming, Aiming},
+		       {evade, Evade},
+		       {result, Result}]};
 
 fire_weapon(#module{}, _, _) ->
     {error, not_a_weapon}.

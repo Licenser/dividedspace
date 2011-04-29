@@ -1,3 +1,5 @@
+releases
+distrib
 Mnesia*
 _build
 *.beam

@@ -86,7 +86,10 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
-    {reply, {ok, dict:fetch(Id, Fights)}, State};
+    case dict:find(Id, Fights) of
+	{ok, Fight} -> {reply, {ok, Fight}, State};
+	error -> {reply, {error, not_found}, State}
+    end;
 
 handle_call(list_fights, _From, #state{fights = Fights} = State) ->
     {reply, {ok, dict:fetch_keys(Fights)}, State};

@@ -110,6 +110,13 @@ save(#unit{modules = Modules} = Unit) ->
 	{atomic, _} -> Unit
     end.
 
+
+sort_modules(#unit{modules = Ms} = U) ->
+    U#unit{modules = 
+	       lists:sort(fun (A, B) ->
+				  module:hit_priority(A) > module:hit_priority(B)
+			  end,Ms)}.
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -120,7 +127,7 @@ save(#unit{modules = Modules} = Unit) ->
 %%--------------------------------------------------------------------
 
 explode(#unit{modules = Ms} = U) ->
-    U#unit{modules = lists:map(fun module:explode/1,Ms)}.
+    sort_modules(U#unit{modules = lists:map(fun module:explode/1,Ms)}).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -189,9 +196,9 @@ add_module(#unit{modules = Modules} = Unit, Module) ->
     Unit#unit{modules = [Module | Modules]}.
 
 remove_module(#unit{modules = Modules} = Unit, M) ->
-    ModuleID = module:esure_id(M),
+    ModuleID = module:ensure_id(M),
     Unit#unit{modules = lists:filter(fun (Module) ->
-					     module:esure_id(Module) =/= ModuleID
+					     module:ensure_id(Module) =/= ModuleID
 				     end, Modules)}.
 
 modules_of_kind(#unit{modules = Modules}, Kind) when is_atom(Kind) ->
@@ -229,18 +236,23 @@ turn(#unit{id = UnitID} = Unit, Fight) ->
 					     Attacker = fight:get_unit(NewFight, UnitID),
 					     Target = fight:get_unit(NewFight, TargetID),
 					     case module:fire_weapon(Weapon, Attacker, Target) of
-						 {ok, true} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
-							       NewFight1 = fight:add_unit(NewFight, NewAttacker),
-							       {NewTarget, TargetMessages} = hit(Target, module:damage(Weapon)),
-							       {fight:add_unit(NewFight1, NewTarget), [{hit, UnitID, TargetID} | TargetMessages] ++ Messages};
-						 {ok, false} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
-								{fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID}| Messages]}
+						 {ok, true, Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
+								     NewFight1 = fight:add_unit(NewFight, NewAttacker),
+								     {NewTarget, TargetMessages} = hit(Target, module:damage(Weapon)),
+								     {fight:add_unit(NewFight1, NewTarget), [{hit, UnitID, TargetID, Data} | TargetMessages] ++ Messages};
+						 {ok, false, Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
+								      {fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID, Data}| Messages]}
 					     end
 				     end, {Fight, []}, Weapons),
     {NewFight, Events}.
 
-hit(#unit{modules = _Modules} = Unit, _Damage) ->
-    {Unit, []}.
+hit(#unit{modules = OriginalModules} = Unit, Damage) ->
+    {NewModules, _, Events} = 
+	lists:foldl(fun (Module, {Modules, RemainingDamage, Partial}) ->
+			    {NewModule, NewDamage, MewPartial} = module:hit(Module, RemainingDamage, Partial, random:uniform()),
+			    {[NewModule | Modules], NewDamage, MewPartial}
+		    end, {[], Damage, []}, OriginalModules),
+    {unit:modules(Unit, lists:reverse(NewModules)), lists:reverse(Events)}.
 
 
 
