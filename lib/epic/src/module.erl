@@ -336,11 +336,12 @@ hit(#module{instance = #shield_spec{
     ShieldDamage = min(Energy, Damage),
     PhysicalDamage = Damage - ShieldDamage,
     {#module{integrety = NewIntegrety} = NewModule, _ActualDamage} = damage(Module, PhysicalDamage),
+    ShieldEnergy = Energy - ShieldDamage,
     {NewModule#module{instance = Instance#shield_spec{
 				   energy = Energy - ShieldDamage
 				  }}, PhysicalDamage, case ShieldDamage of
 							  0 -> Partial;
-							  _ -> [{shield_impact, ShieldDamage, NewIntegrety} | Partial]
+							  _ -> [{shield_impact, ShieldDamage, ShieldEnergy,NewIntegrety} | Partial]
 						      end};
 
 

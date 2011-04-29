@@ -110,12 +110,14 @@ save(#unit{modules = Modules} = Unit) ->
 	{atomic, _} -> Unit
     end.
 
+module_sort(Modules) ->
+    lists:sort(fun (A, B) ->
+		       module:hit_priority(A) > module:hit_priority(B)
+	       end,Modules).
+
 
 sort_modules(#unit{modules = Ms} = U) ->
-    U#unit{modules = 
-	       lists:sort(fun (A, B) ->
-				  module:hit_priority(A) > module:hit_priority(B)
-			  end,Ms)}.
+    U#unit{modules = module_sort(Ms)}. 
 
 %%--------------------------------------------------------------------
 %% @private
@@ -251,8 +253,8 @@ hit(#unit{modules = OriginalModules} = Unit, Damage) ->
 	lists:foldl(fun (Module, {Modules, RemainingDamage, Partial}) ->
 			    {NewModule, NewDamage, MewPartial} = module:hit(Module, RemainingDamage, Partial, random:uniform()),
 			    {[NewModule | Modules], NewDamage, MewPartial}
-		    end, {[], Damage, []}, OriginalModules),
-    {unit:modules(Unit, lists:reverse(NewModules)), lists:reverse(Events)}.
+		    end, {[], Damage, []}, module_sort(OriginalModules)),
+    {unit:modules(Unit, NewModules), lists:reverse(Events)}.
 
 
 
