@@ -2,14 +2,9 @@ releases
 distrib
 Mnesia*
 _build
+ebin
 *.beam
 *.dump
-lib/*/ebin
-epic/rel/epic
-ds_store/rel/ds_store
-epic/doc
-doc
-ds_store/doc
-rel/dividedspace
+doc/
 .depend_erlang.mf
 erlang_config.rb

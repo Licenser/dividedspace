@@ -118,7 +118,7 @@ make(ID, Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs) when
 %% @doc
 %% This function creates a new module type and returns it's UUID.
 %% module type.
-%% @spec new(Name, Integrety, HitPropability, Specs) -> UUID
+%% @spec new(Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs) -> {ok, Unit}
 %% @end
 %%--------------------------------------------------------------------
 

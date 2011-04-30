@@ -132,7 +132,7 @@ insert(Element) ->
 %% @doc
 %% This wrapps the database select into a form that can easiely be
 %% called, and returns the result or a handable error.
-%% @spec read(Select) -> {ok, Row} |
+%% @spec select(Select) -> {ok, Row} |
 %%                         {error, not_found}
 %% @end
 %%--------------------------------------------------------------------
@@ -153,7 +153,7 @@ select(Select) ->
 %% @doc
 %% This wrapps the database select into a form that can easiely be
 %% called, and returns the result or a handable error.
-%% @spec select(Select) -> {ok, Row} |
+%% @spec select(Table, Select) -> {ok, Row} |
 %%                         {error, not_found}
 %% @end
 %%--------------------------------------------------------------------

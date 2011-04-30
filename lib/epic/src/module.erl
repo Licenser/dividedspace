@@ -68,7 +68,7 @@
 %%   Type = binary() | module_type()
 %%   Integrety = integer()
 %%   Instance = hull_spec() | generator_spec() | engine_spec() |
-%%              weapon_spec() | armor_spec() | shield_spec() |
+%%              weapon_spec() | armor_spec() | shield_spec().
 %%
 %% <p>
 %% This represents the specifica of ships hull.
@@ -126,7 +126,8 @@
 
 
 %% @type engine_spec() = {EnergyUsage, Range}
-%%   EnergyUsage, Range = integer().
+%%   EnergyUsage = integer(), 
+%%   Range = integer().
 %%
 %% <p>
 %% This represents the specifica of a combat engine.

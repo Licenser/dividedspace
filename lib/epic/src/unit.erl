@@ -70,7 +70,7 @@ fields() ->
 %% @doc
 %% This function creates a new unit. Modules are not checked!
 %% module type.
-%% @spec new(X, Y, Modules) -> UUID
+%% @spec new(X, Y, Fleet, Modules) -> UUID
 %% @end
 %%--------------------------------------------------------------------					
 
