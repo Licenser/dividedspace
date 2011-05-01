@@ -14,6 +14,7 @@
 
 -export([ % Logic
 	  foes/2,
+	  closest_foe/2,
 	  add_unit/2,
 	  get_unit/2,
 	  unit_ids/1,
@@ -52,3 +53,16 @@ get_unit(#fight{units = Units}, Unit) ->
 
 unit_ids(#fight{units = Units}) ->
     dict:fetch_keys(Units).
+
+closest_foe(#fight{}=Fight, Unit) ->
+    UID = unit:id(Unit),
+    {_, ClosestUnit, _} = lists:foldl(fun (TestedUnit, {BestId, BestUnit, BestDist}) ->
+					      TestedDist = unit:distance(TestedUnit, Unit),
+					      TestedID = unit:id(TestedUnit),
+					      if
+						  UID == TestedID -> {BestId, BestUnit, BestDist};
+						  TestedDist < BestDist -> {TestedID, TestedUnit, TestedDist};
+						  true -> {BestId, BestUnit, BestDist}
+					      end
+				      end, {nil, nil, 1000000}, foes(Fight, Unit)),
+    ClosestUnit.

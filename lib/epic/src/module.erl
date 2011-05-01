@@ -275,11 +275,14 @@ save_cycle(#module{} = M) ->
 
 hit(#module{integrety = Integrety, type = Type} = Module, 
     Damage, Partial, Prop) ->
+
     HitPropability = module_type:hit_propability(Type),
     if 
 	Integrety > 0, Prop < HitPropability ->
+	    io:format("Hit Module(~p) ~p  with ~p by ~p.~n", [Integrety, Type, Prop, HitPropability]),
 	    hit(Module, Damage, Partial);
 	true ->
+	    io:format("Missed Module(~p) ~p  with ~p by ~p.~n", [Integrety, Type, Prop, HitPropability]),
 	    {Module, Damage, Partial}
     end.
 

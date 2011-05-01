@@ -227,7 +227,6 @@ var DS = {
 		var data = Bert.decode(window.atob(evt.data));	
 		var json = data.toJS();
 		var events = translate_data(json);
-		window.console.info("Got events:", events);
 		DS.battleLog.ticks.push(events);
 		if (DS.battleLog.initial) {
 		    window.console.info("initializing");

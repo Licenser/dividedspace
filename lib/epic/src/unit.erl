@@ -29,11 +29,15 @@
 
 -export([ % Getter / Setter
 	  modules/1,
+	  id/1,
+	  id/2,
 	  modules/2,
 	  x/1,
 	  x/2,
 	  y/1,
 	  y/2,
+	  destroyed/1,
+	  destroyed/2,
 	  fleet/1,
 	  fleet/2,
 	  add_module/2,
@@ -53,7 +57,7 @@
 	]).
 
 
--record(unit, {id, fleet, x, y, modules = []}).
+-record(unit, {id, fleet, x, y, modules = [], destroyed = false}).
 
 %%%===================================================================
 %%% Meta
@@ -147,6 +151,7 @@ implode(#unit{modules = Ms} = U) ->
 
 from_template(Modules) when is_list(Modules) ->
     from_template(0,0, nil, Modules).
+
 from_template(X, Y, Fleet, Modules) when is_integer(X), is_integer(Y), is_list(Modules) ->
     ModuleIDs = create_modules(Modules),
     Unit = explode(new(X, Y, Fleet, ModuleIDs)),
@@ -176,10 +181,20 @@ fleet(#unit{fleet = Fight}) ->
 fleet(#unit{} = Unit, Fleet) when is_pid(Fleet) ->
     Unit#unit{fleet = Fleet}.
 
+id(#unit{id = Id}) ->
+    Id.
+
+id(#unit{} = Unit, Id) when is_integer(Id) ->
+    Unit#unit{id = Id}.
+
+destroyed(#unit{destroyed = Destroyed}) ->
+    Destroyed.
+
+destroyed(#unit{} = Unit, Destroyed) when is_boolean(Destroyed) ->
+    Unit#unit{destroyed = Destroyed}.
 
 x(#unit{x = X}) ->
     X.
-
 
 x(#unit{} = Unit, X) when is_integer(X) ->
     Unit#unit{x = X}.
@@ -241,10 +256,11 @@ fly(#unit{} = Unit, X, Y) when is_integer(X), is_integer(Y) ->
 cycle(#unit{modules = Modules} = Unit) ->
     Unit#unit{modules = lists:map(fun module:cycle/1, Modules)}.
 
-
+turn(#unit{destroyed = true}, Fight) ->
+    Fight;
 turn(#unit{id = UnitID} = Unit, Fight) ->
     Weapons = modules_of_kind(Unit, weapon),
-    [#unit{id = TargetID} | _] = fight:foes(Fight, Unit),
+    #unit{id = TargetID} = fight:closest_foe(Fight, Unit),
     {NewFight, Events} = lists:foldl(fun (Weapon, {NewFight, Messages}) ->
 					     Attacker = fight:get_unit(NewFight, UnitID),
 					     Target = fight:get_unit(NewFight, TargetID),
@@ -254,9 +270,14 @@ turn(#unit{id = UnitID} = Unit, Fight) ->
 								      {NewTarget, TargetMessages} = hit(Target, module:damage(Weapon)),
 								      OldHull = module:integrety(unit:hull(Target)),
 								      NewHull = module:integrety(unit:hull(Target)),
-								      {fight:add_unit(NewFight1, NewTarget), [{hit, UnitID, TargetID, OldHull - NewHull,TargetMessages} | Messages]};
+								      M = {hit, UnitID, TargetID, OldHull - NewHull,TargetMessages},
+								      NewMessages = if 
+											NewHull =< 0 -> [{destroyed, TargetID},  M, {target, UnitID, TargetID}] ++ Messages;
+											true -> [M, {target, UnitID, TargetID}] ++ Messages
+										    end,
+								      {fight:add_unit(NewFight1, NewTarget), NewMessages};
 						 {ok, false, _Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
-								       {fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID} | Messages]}
+								       {fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID}, {target, UnitID, TargetID}] ++ Messages}
 					     end
 				     end, {Fight, []}, Weapons),
     {NewFight, Events}.
@@ -267,7 +288,7 @@ hit(#unit{modules = OriginalModules} = Unit, Damage) ->
 			    {NewModule, NewDamage, MewPartial} = module:hit(Module, RemainingDamage, Partial, random:uniform()),
 			    {[NewModule | Modules], NewDamage, MewPartial}
 		    end, {[], Damage, []}, module_sort(OriginalModules)),
-    {unit:modules(Unit, NewModules), lists:reverse(Events)}.
+    {Unit#unit{modules= NewModules}, lists:reverse(Events)}.
 
 
 

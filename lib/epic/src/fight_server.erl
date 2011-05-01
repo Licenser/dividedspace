@@ -156,9 +156,10 @@ handle_call(_Request, _From, State) ->
 handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
 	      ticks  = Ticks} = State) ->
-    lists:map(fun (Tick) ->
-		      ws:send(Subscriber, Tick)
-	      end, lists:reverse(Ticks)),
+%    lists:map(fun (Tick) ->
+%		      ws:send(Subscriber, Tick)
+%	      end, lists:reverse(Ticks)),
+    ws:send(Subscriber, Ticks),
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast({end_turn, NewFight, TurnId}, #state{running_cycle = RunningCycle,
 						 running_turn = RunningTurn, 

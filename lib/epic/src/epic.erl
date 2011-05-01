@@ -8,16 +8,29 @@
 %%%-------------------------------------------------------------------
 -module(epic).
 
--export([start/0]).
+-export([start/0, start/1, start_fight/1]).
+
+
+start_fight(N) ->
+    S = trunc((N / 2) * -1),
+    E = trunc(N / 2),
+%    Spec = ["Fighter L", "Laser", "Small Battery", "Fighter Engine", "Light FF Shield"],
+    Spec = ["Fighter L", "Laser", "Small Battery", "Fighter Engine"],
+    Units = lists:foldl(fun (Pos, L) ->
+				{ok, U1} = unit:from_template(0, Pos, "one", Spec),
+				{ok, U2} = unit:from_template(2, Pos, "two", Spec),
+				[U1 | [U2 | L]]
+			end, [], lists:seq(S, E)),
+    Fight = fight:new(nil, Units),
+    epic_server:new_fight(Fight).
 
 start() ->
+    start(6).
+
+start(N) ->
     appmon:start(),
     mnesia:start(),
     application:start(epic),
     application:start(ds_web),
     loader:load(),
-    Spec = ["Fighter L", "Laser", "Small Battery", "Fighter Engine", "Light FF Shield"],
-    {ok, U1} = unit:from_template(0, 0, "one", Spec),
-    {ok, U2} = unit:from_template(2, 0, "two", Spec),
-    Fight = fight:new(nil, [U1, U2]),
-    epic_server:new_fight(Fight).
+    start_fight(N).
