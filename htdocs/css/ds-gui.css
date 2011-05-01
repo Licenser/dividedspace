@@ -1,0 +1,66 @@
+      body {
+        font-family: 'Trebuchet MS', Verdana, Arial, sans-serif;
+        margin: 0;
+        background: black;
+		overflow:hidden;
+      }
+      canvas {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+      }
+      #coordinates, #info, #biginfo, #controls {
+        opacity: 0.8;
+        position: absolute;
+        background: black;
+        border: 1px solid lime;
+        color: white;
+        text-align: center;
+      }
+      #controls {
+        top: 0px;
+        right: 0px;
+        opacity: 0.5;
+        height: auto;
+        width: auto;
+        border-top: none;
+        border-right: none;
+      }
+      #controls .button {
+        float: left;
+        font-size: 3em;
+        padding: 1px 15px;
+        cursor: pointer;
+        color: silver;
+      }
+      #controls .button:hover {
+        color: white;
+        background: gray;
+      }
+      #coordinates, #info, #biginfo {
+        bottom: 0px;
+        height: 20px;
+        border-bottom: none;
+      }
+      #coordinates {
+        opacity: 0.8;
+        position: absolute;
+        right: 0px;
+        width: 200px;
+        border-right: none;
+      }
+      #info {
+        opacity: 0.8;
+        position: absolute;
+        right: 201px;
+        width: 400px;
+        border-right: none;
+      }
+      #biginfo {
+        opacity: 0.8;
+        position: absolute;
+        left: 0px;
+        right: 602px;
+        border-right: none;
+        border-left: none;
+      }

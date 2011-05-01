@@ -61,20 +61,21 @@ function BertBinary(Obj) {
 }
 
 function ArrayToJS(Arr) {
-  var a = [];
-	for (var i = 0; i < Arr.length; i++) {
-	  var o = Arr[i]
-	  if (o.type) {
+
+    var a = [];
+    for (var i = 0; i < Arr.length; i++) {
+	var o = Arr[i]
+	if (o.toJS) {
 	    a[i] = o.toJS();
-	  } else {
-	    if(o.length) {
-	      a[i] = ArrayToJS(o);
+	} else {
+	    if(o.length && typeof (o) != "string") {
+		a[i] = ArrayToJS(o);
 	    } else {
-	      a[i] = o;
+		a[i] = o;
 	    };
+	};
     };
-  };
-  return a;
+    return a;
 }
 
 function BertTuple(Arr) {
@@ -353,32 +354,39 @@ BertClass.prototype.decode_float = function (S) {
 };
 
 BertClass.prototype.decode_string = function (S) {
-	var Size = this.bytes_to_int(S, 2);
-	S = S.substring(2);
-	return {
-		value: S.substring(0, Size),
-		rest:  S.substring(Size)
-	};
+    var Size = this.bytes_to_int(S, 2);
+    S = S.substring(2);
+    Str = S.substring(0, Size);
+    Str.toJS = function() {
+	Str
+    };
+    return {
+	value: Str,
+	rest:  S.substring(Size)
+    };
 };
 
 BertClass.prototype.decode_list = function (S) {
-	var Size, i, El, LastChar, Arr = [];
-	Size = this.bytes_to_int(S, 4);
-	S = S.substring(4);
-	for (i = 0; i < Size; i++) {
-		El = this.decode_inner(S);
-		Arr.push(El.value);
-		S = El.rest;
-	}
-	LastChar = S[0];
-	if (LastChar !== this.NIL) {
-		throw ("List does not end with NIL!");
-	}
-	S = S.substring(1);
-	return {
-		value: Arr,
-		rest: S
-	};
+    var Size, i, El, LastChar, Arr = [];
+    Size = this.bytes_to_int(S, 4);
+    S = S.substring(4);
+    for (i = 0; i < Size; i++) {
+	El = this.decode_inner(S);
+	Arr.push(El.value);
+	S = El.rest;
+    }
+    LastChar = S[0];
+    if (LastChar !== this.NIL) {
+	throw ("List does not end with NIL!");
+    }
+    S = S.substring(1);
+    Arr.toJS = function() {
+	return ArrayToJS(Arr);
+    };
+    return {
+	value: Arr,
+	rest: S
+    };
 };
 
 BertClass.prototype.decode_tuple = function (S, Count) {

@@ -1,4 +1,8 @@
 ["multi_event", [event +]]
-["new_unit", id, x, y]
-["miss", attacker-id, target-id]
+["spawn", id, fleet, x, y]
+["miss", attacker-id, target-id, sub_messages]
 ["hit", attacker-id, target-id]
+sub_message = 
+{"impact", MaxDamage, NewIntegrety}
+{"armor_impact", ActualAbsorbation, NewIntegrety}
+{"shield_impact", ShieldDamage, ShieldEnergy, Damage, NewIntegrety}

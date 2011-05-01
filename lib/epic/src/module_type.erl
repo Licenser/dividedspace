@@ -32,6 +32,8 @@
 	 hit_priority/2,
 	 mass/1,
 	 mass/2,
+	 name/1,
+	 name/2,
 	 size/1,
 	 size/2
 	]).
@@ -168,6 +170,12 @@ mass(#module_type{mass = Mass}) ->
 mass(ModuleType, Mass) when
       is_integer(Mass), Mass >= 0 ->
     ModuleType#module_type{mass = Mass}.
+
+
+name(#module_type{name = Name}) ->
+    Name.
+name(ModuleType, Name) when is_list(Name) ->
+    ModuleType#module_type{name = Name}.
 
 
 size(#module_type{size = Size}) ->

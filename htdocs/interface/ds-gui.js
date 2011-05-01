@@ -56,9 +56,7 @@ var DS = {
     this.initMap();
     this.initBattle();
     this.loadBattleLog(name);
-    this.setupDisplay();
     document.setTitle(' - Loading units...');
-    this.setupBattleMap();
     document.setTitle('');
   },
   
@@ -209,24 +207,45 @@ var DS = {
     };
   },
   
-  loadBattleLog: function(name) {
-    this.battleLog = {
-      ticks: null,
-      index: 0
-    };
-    var path = '/static/' + name + '.json';
-    if (console) console.log('Loading battle log ' + path + '...');
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', path, false);
-    try {
-      xhr.send(null);
-    }
-    catch (e) {
-      alert('Could not read battle log:' + e);
-      return;
-    }
-    this.battleLog.ticks = JSON.parse(xhr.responseText);
-  },
+    loadBattleLog: function(name) {
+	this.battleLog = {
+	    initial: true,
+	    ticks: [],
+	    index: 0
+	};
+	
+	var host = "localhost";
+	var port = "8080";
+	var FightURL = "ws://" + host + ":" + port + "/fight/" + name;
+	if ("WebSocket" in window) {
+	    // browser supports websockets
+	    var ws = new WebSocket(FightURL);
+	    ws.onopen = function() {
+		window.console.info("websocket connected!");
+	    };
+	    ws.onmessage = function (evt) {
+		var data = Bert.decode(window.atob(evt.data));
+		window.console.info("Got Bert:", data);
+		var json = data.toJS();
+		window.console.info("Got JSON:", json);
+		var events = translate_data(json);
+		window.console.info("Got events:", events);
+		DS.battleLog.ticks.push(events);
+		if (DS.battleLog.ticks.initial) {
+		    this.setupDisplay();
+		    this.setupBattleMap();
+		    DS.battleLog.ticks.initial = false;
+		};
+	    };
+	    ws.onclose = function() {
+		// websocket was closed
+		window.console.info("websocket was closed");
+	    };
+	} else {
+	    // browser does not support websockets
+	    window.console.error("sorry, your browser does not support websockets.");
+	}
+    },
   
   initBattle: function() {
     var map = this.map;

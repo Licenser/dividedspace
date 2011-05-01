@@ -31,7 +31,7 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {initial_fight, fight, map, map_id, events = [], running_turn = 0, running_cycle = 0, turn = 0, subscribers = []}).
+-record(state, {initial_fight, fight, map, map_id, events = [], running_turn = 0, running_cycle = 0, turn = 0, subscribers = [], ticks = [], tick = []}).
 
 %%%===================================================================
 %%% API
@@ -95,14 +95,21 @@ unsubscribe(Pid, Subscriber) ->
 %%--------------------------------------------------------------------
 init([Fight, MapServer]) ->
     Placement = lists:map(fun (UnitId) ->
-				 Unit = fight:get_unit(Fight, UnitId),
-				 {new_unit, UnitId, unit:x(Unit), unit:y(Unit)}
+				  Unit = fight:get_unit(Fight, UnitId),
+				  Name = unit:name(Unit),
+				  io:format("Name: ~p~n", [Name]),
+				  Hull = unit:hull(Unit),
+				  io:format("Hull: ~p~n", [Hull]),
+				  Integrety = module:integrety(Hull),
+				  io:format("Integrety: ~p~n", [Integrety]),
+				  {spawn, UnitId, unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
 			 end, fight:unit_ids(Fight)),
     {ok, #state{
        initial_fight = Fight,
        fight = Fight, 
        map = MapServer,
-       events = [{multi_event, Placement}]
+       events = [{multi_event, Placement}],
+       ticks = [Placement]
       }}.
 
     
@@ -151,13 +158,19 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
-	      events = Events} = State) ->
-    ws:send(Subscriber, {multi_event, Events}),
+	      ticks  = Ticks} = State) ->
+    lists:map(fun (Tick) ->
+		      io:format("Sending: ~p~n", [Tick]),
+		      ws:send(Subscriber, Tick)
+	      end, lists:reverse(Ticks)),
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast({end_turn, NewFight, TurnId}, #state{running_cycle = RunningCycle,
 						 running_turn = RunningTurn, 
 						 turn = Turn,
-						 events = Events} = State) ->
+						 events = Events,
+						 ticks = Ticks,
+						 tick = Tick
+						} = State) ->
     epic_event:end_turn(self(), TurnId),
     if 
 	RunningTurn =/= TurnId -> {stop, {unexpcted_turn_end, RunningTurn, TurnId}};
@@ -165,11 +178,13 @@ handle_cast({end_turn, NewFight, TurnId}, #state{running_cycle = RunningCycle,
 	TurnId =< Turn -> {stop, {turn_too_slow, Turn, TurnId}};
 	RunningCycle =/= TurnId -> {stop, {turn_head_of_cycle, TurnId, RunningCycle}};
 	true -> Event = {end_turn, TurnId},
-		inform_subscribers(State, Event),
+		inform_subscribers(State, Tick),
 		{noreply, State#state{
 			    fight = NewFight,
 			    turn = TurnId,
-			    events = [Event | Events]
+			    events = [Event | Events],
+			    tick = [],
+			    ticks = [Tick | Ticks]
 			   }}
     end;
 
@@ -184,7 +199,6 @@ handle_cast({end_cycle, NewFight, CycleId}, #state{running_cycle = RunningCycle,
 	CycleId  =< Turn -> {stop, {cycle_too_slow, Turn, CycleId}};
 	RunningCycle =/= CycleId -> {stop, {turn_head_of_cycle, CycleId, RunningCycle}};
 	true -> Event = {end_cycle, CycleId},
-		inform_subscribers(State, Event),
 		fight_server:trigger_turn(self()),
 		{noreply, State#state{
 			    fight = NewFight,
@@ -203,7 +217,6 @@ handle_cast(trigger_turn, #state{running_turn = RunningTurn,
 	Turn =/= RunningTurn -> {stop, {turn_not_in_sync, Turn, RunningTurn}};
 	true -> 
 	    Event = {start_turn, TurnId},
-	    inform_subscribers(State, Event),
 	    fight_worker:place_turn(Fight, nil, TurnId, self()),
 	    {noreply, State#state{running_turn = TurnId,
 				  events = [Event | Events]}}
@@ -218,21 +231,16 @@ handle_cast(trigger_cycle, #state{running_cycle = RunningCycle,
     if
 	Turn =/= RunningCycle -> {stop, {cycle_not_in_sync, Turn, RunningCycle}};
 	true -> Event = {start_cycle, CycleId},
-		inform_subscribers(State, Event),
 		fight_worker:place_cycle(Fight, CycleId, self()),
 		{noreply, State#state{running_cycle = CycleId,
 				  events = [Event | Events]}}
     end;
-handle_cast({add_event, [Event]}, #state{events = Events} = State) ->
-    inform_subscribers(State, Event),
-    {noreply, State#state{events = [Event | Events]}};
-handle_cast({add_event, NewEvents}, #state{events = Events} = State) when is_list(NewEvents) ->
-    inform_subscribers(State, {multi_event, NewEvents}),
-    {noreply, State#state{events = NewEvents ++ Events}};
-handle_cast({add_event, Event}, #state{events = Events} = State) ->
-
-    inform_subscribers(State, Event),
-    {noreply, State#state{events = [Event | Events]}};
+handle_cast({add_event, [Event]}, #state{events = Events, tick = Tick} = State) ->
+    {noreply, State#state{events = [Event | Events], tick = [Event | Tick]}};
+handle_cast({add_event, NewEvents}, #state{events = Events, tick = Tick} = State) when is_list(NewEvents) ->
+    {noreply, State#state{events = NewEvents ++ Events, tick = NewEvents ++ Tick}};
+handle_cast({add_event, Event}, #state{events = Events, tick = Tick} = State) ->
+    {noreply, State#state{events = [Event | Events], tick = [Event | Tick]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

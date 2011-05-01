@@ -130,7 +130,7 @@ insert(Element) ->
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
-%% This wrapps the database select into a form that can easiely be
+%% This wrapps the database select into a form that can easiely be6
 %% called, and returns the result or a handable error.
 %% @spec select(Select) -> {ok, Row} |
 %%                         {error, not_found}
@@ -165,6 +165,5 @@ select(Table, Select) when is_atom(Table) ->
         end,
     case mnesia:transaction(Fun) of      
 	{atomic, Rows} -> {ok, Rows};
-	{aborted, R} -> {error, R};
-	_ -> {error, not_found}
+	{aborted, R} -> {error, R}
     end.

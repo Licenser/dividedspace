@@ -191,39 +191,89 @@ index() ->
 </html>"].
 
 fight(FightID) ->
-    ["
+    ["<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
+\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">
 <html>
-  <head>
+<head>
+<meta http-equiv='Content-type' content='text/html; charset=utf-8'>
+<title>Divided Space</title>
+<link href='/static/css/ds-gui.css' type='text/css' rel='stylesheet' />
     <script src='/static/js/bert.js'></script>
-			<script type=\"text/javascript\">
-				function addStatus(text){
-					var date = new Date();
-					document.getElementById('status').innerHTML = document.getElementById('status').innerHTML + text + \"<br>\";
-				}
-				function ready(){
-					if (\"WebSocket\" in window) {
-						// browser supports websockets
-						var ws = new WebSocket(\"ws://localhost:", integer_to_list(?PORT) ,"/fight/", FightID,"\");
-						ws.onopen = function() {
-							addStatus(\"websocket connected!\");
-						};
-						ws.onmessage = function (evt) {
-							var data = Bert.decode(window.atob(evt.data)).toJS();
-							window.console.error(data);
-							addStatus(data);
-						};
-						ws.onclose = function() {
-							// websocket was closed
-							addStatus(\"websocket was closed\");
-						};
-					} else {
-						// browser does not support websockets
-						addStatus(\"sorry, your browser does not support websockets.\");
-					}
-				}
-			</script>
-		</head>
-		<body onload=\"ready();\">
-			<div id=\"status\"></div>
-		</body>
-	</html>"].
+    <script src='/static/js/websockets.js' type='text/javascript' charset='utf-8'></script>
+    <script src='/static/interface/lib/shapes.js' type='text/javascript' charset='utf-8'></script>
+    <script src='/static/interface/lib/draw_engine.js' type='text/javascript' charset='utf-8'></script>
+    <!-- JSON is not available on Mobile Safari, so we use this library. -->
+    <script src='/static/interface/lib/json2.js' type='text/javascript' charset='utf-8'></script>
+    <script src='/static/interface/ds-gui.js' type='text/javascript' charset='utf-8'></script>
+  </head>
+  <body>
+    <!-- <canvas id='background'>Your browser doesn't support HTML 5 Canvas.</canvas> -->
+    <canvas id='fighter'>This demo needs HTML 5 Canvas.</canvas>
+    <canvas id='fire'>---</canvas>
+    <canvas id='units'>Please install a better browser.</canvas>
+    <canvas id='grid'>---</canvas>
+    <!-- <canvas id='explosions'>-</canvas> -->
+    <canvas id='selection'>Firefox or Safari, for example.</canvas>
+    <canvas id='osd' style='display: block'>Or both.</canvas>
+    <div id='biginfo'></div>
+    <div id='coordinates'></div>
+    <div id='info'></div>
+    <div id='controls'>
+      <div class='button' id='play' style='display: none'>Play</div>
+      <!-- <div class='button' id='next'>Next</div> -->
+    </div>
+    <script type='text/javascript' charset='utf-8'>
+      if (!Prototype.Browser.IE) {
+        var waitForImages = window.setInterval(function() {
+          for (var i = document.images.length; i--;) {
+            if (!document.images[i].complete) return;
+          }
+          window.clearInterval(waitForImages);
+          DS.initialize('", FightID, "');
+/*
+          var match = location.search.match(/log=([-\w]+)/);
+          DS.initialize(match ? match[1] : 'log');
+*/
+        }, 500);
+      }
+    </script>
+    <img id='fighter-l-two' src='/static/images/fighter_light_blue.png' style='display: none;' />
+    <img id='fighter-l-one' src='/static/images/fighter_light_red.png' style='display: none;' />
+  </body>
+</html>"].
+
+%<html>
+%  <head>
+%    <script src='/static/js/bert.js'></script>
+%			<script type=\"text/javascript\">
+%				function addStatus(text){
+%					var date = new Date();
+%					document.getElementById('status').innerHTML = document.getElementById('status').innerHTML + text + \"<br>\";
+%				}
+%				function ready(){
+%					if (\"WebSocket\" in window) {
+%						// browser supports websockets
+%						var ws = new WebSocket(\"ws://localhost:", integer_to_list(?PORT) ,"/fight/", FightID,"\");
+%						ws.onopen = function() {
+%							addStatus(\"websocket connected!\");
+%						};
+%						ws.onmessage = function (evt) {
+%							var data = Bert.decode(window.atob(evt.data)).toJS();
+%							window.console.error(data);
+%							addStatus(data);
+%						};
+%						ws.onclose = function() {
+%							// websocket was closed
+%							addStatus(\"websocket was closed\");
+%						};
+%					} else {
+%						// browser does not support websockets
+%						addStatus(\"sorry, your browser does not support websockets.\");
+%					}
+%				}
+%			</script>
+%		</head>
+%		<body onload=\"ready();\">
+%			<div id=\"status\"></div>
+%		</body>
+%	</html>"].

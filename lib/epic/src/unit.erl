@@ -22,7 +22,9 @@
 	  select/1,
 	  save/1,
 	  ensure_record/1,
-	  ensure_id/1
+	  ensure_id/1,
+	  name/1,
+	  hull/1
 	]).
 
 -export([ % Getter / Setter
@@ -209,6 +211,16 @@ modules_of_kind(#unit{modules = Modules}, Kind) when is_atom(Kind) ->
 		end,
 		Modules).
 
+hull(Unit) ->
+    [Hull] = modules_of_kind(Unit, hull),
+    Hull.
+
+name(Unit) ->
+    io:format("~p~n", modules_of_kind(Unit, hull)),
+    [Hull] = modules_of_kind(Unit, hull),
+    module_type:name(module:type(Hull)).
+
+
 %%%===================================================================
 %%% Logic
 %%%===================================================================
@@ -238,12 +250,14 @@ turn(#unit{id = UnitID} = Unit, Fight) ->
 					     Attacker = fight:get_unit(NewFight, UnitID),
 					     Target = fight:get_unit(NewFight, TargetID),
 					     case module:fire_weapon(Weapon, Attacker, Target) of
-						 {ok, true, Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
-								     NewFight1 = fight:add_unit(NewFight, NewAttacker),
-								     {NewTarget, TargetMessages} = hit(Target, module:damage(Weapon)),
-								     {fight:add_unit(NewFight1, NewTarget), [{hit, UnitID, TargetID, Data} | TargetMessages] ++ Messages};
-						 {ok, false, Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
-								      {fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID, Data}| Messages]}
+						 {ok, true, _Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
+								      NewFight1 = fight:add_unit(NewFight, NewAttacker),
+								      {NewTarget, TargetMessages} = hit(Target, module:damage(Weapon)),
+								      OldHull = module:integrety(unit:hull(Target)),
+								      NewHull = module:integrety(unit:hull(Target)),
+								      {fight:add_unit(NewFight1, NewTarget), [{hit, UnitID, TargetID, OldHull - NewHull,TargetMessages} | Messages]};
+						 {ok, false, _Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
+								       {fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID} | Messages]}
 					     end
 				     end, {Fight, []}, Weapons),
     {NewFight, Events}.
