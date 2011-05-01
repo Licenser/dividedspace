@@ -224,18 +224,18 @@ var DS = {
 		window.console.info("websocket connected!");
 	    };
 	    ws.onmessage = function (evt) {
-		var data = Bert.decode(window.atob(evt.data));
-		window.console.info("Got Bert:", data);
+		var data = Bert.decode(window.atob(evt.data));	
 		var json = data.toJS();
-		window.console.info("Got JSON:", json);
 		var events = translate_data(json);
 		window.console.info("Got events:", events);
 		DS.battleLog.ticks.push(events);
-		if (DS.battleLog.ticks.initial) {
-		    this.setupDisplay();
-		    this.setupBattleMap();
-		    DS.battleLog.ticks.initial = false;
+		if (DS.battleLog.initial) {
+		    window.console.info("initializing");
+		    DS.setupDisplay();
+		    DS.setupBattleMap();
+		    DS.battleLog.initial = false;
 		};
+		DS.resumePlay();
 	    };
 	    ws.onclose = function() {
 		// websocket was closed
@@ -253,7 +253,6 @@ var DS = {
       if (!action) return false;
       switch (action.type) {
       case 'spawn':
-        action.data.team = action.team;
         map.addUnit(action.data);
         break;
       case 'move':
@@ -426,26 +425,29 @@ var DS = {
   setupImageCanvas: function() {
     this.imageCanvas = Shapes.initCanvas(null, this.WIDTH, this.HEIGHT);
   },
-  
-  playPause: function() {
-    if (this.stopped) {
-      this.stopped = false;
-      if (console) console.log('Play!');
-      this.playButton.innerHTML = 'Pause';
-      this.playPause.subtickInterval = window.setInterval(this.nextSubticks, this.REDRAW_DELAY);
-    }
-    else {
-      this.stopped = true;
-      window.clearInterval(this.playPause.subtickInterval);
-      if (console) {
-        if (DS.battleLog.ticks[DS.battleLog.index])
-          console.log('Stopped at tick ' + this.battleLog.index + '.');
-        else
-          console.log('Finished after ' + this.battleLog.index + ' ticks.');
-      }
-      this.playButton.innerHTML = 'Play';
-    }
-  },
+    
+    resumePlay: function() {
+	DS.stopped = false;
+	if (console) console.log('Play!');
+	DS.playButton.innerHTML = 'Pause';
+	DS.playPause.subtickInterval = window.setInterval(DS.nextSubticks, DS.REDRAW_DELAY);
+    },
+    playPause: function() {
+	if (this.stopped) {
+	    DS.resumePlay();
+	}
+	else {
+	    this.stopped = true;
+	    window.clearInterval(this.playPause.subtickInterval);
+	    if (console) {
+		if (DS.battleLog.ticks[DS.battleLog.index])
+		    console.log('Stopped at tick ' + this.battleLog.index + '.');
+		else
+		    console.log('Finished after ' + this.battleLog.index + ' ticks.');
+	    }
+	    this.playButton.innerHTML = 'Play';
+	}
+    },
   
   keyDown: function(event) {
     if (event.keyCode == 32) {

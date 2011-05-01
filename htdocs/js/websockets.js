@@ -69,7 +69,7 @@ function translate_data(D) {
 	Result = Result.concat(translate_data(D[1]));
 	break;
     default:
-	if (D.length) {
+	if (D.length && typeof(D) != "string") {
 	    for (var i = 0; i < D.length; i++) {
 	    	Result = Result.concat(translate_data(D[i]));
 	    }
@@ -79,5 +79,9 @@ function translate_data(D) {
 	}
     };
     window.console.info("Converted:", D, "to", Result);
-    return Result;
+    if (Result.length == 1) {
+	return Result[0];
+    } else {
+	return Result;
+    }
 };

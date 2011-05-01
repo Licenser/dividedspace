@@ -17,7 +17,7 @@ start() ->
     application:start(ds_web),
     loader:load(),
     Spec = ["Fighter L", "Laser", "Small Battery", "Fighter Engine", "Light FF Shield"],
-    {ok, U1} = unit:from_template(0, 0, 0, Spec),
-    {ok, U2} = unit:from_template(2, 0, 1, Spec),
+    {ok, U1} = unit:from_template(0, 0, "one", Spec),
+    {ok, U2} = unit:from_template(2, 0, "two", Spec),
     Fight = fight:new(nil, [U1, U2]),
     epic_server:new_fight(Fight).

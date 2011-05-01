@@ -97,11 +97,8 @@ init([Fight, MapServer]) ->
     Placement = lists:map(fun (UnitId) ->
 				  Unit = fight:get_unit(Fight, UnitId),
 				  Name = unit:name(Unit),
-				  io:format("Name: ~p~n", [Name]),
 				  Hull = unit:hull(Unit),
-				  io:format("Hull: ~p~n", [Hull]),
 				  Integrety = module:integrety(Hull),
-				  io:format("Integrety: ~p~n", [Integrety]),
 				  {spawn, UnitId, unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
 			 end, fight:unit_ids(Fight)),
     {ok, #state{
