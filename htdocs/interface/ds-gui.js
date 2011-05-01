@@ -214,7 +214,7 @@ var DS = {
       ticks: null,
       index: 0
     };
-    var path = '/' + name + '.json';
+    var path = '/static/' + name + '.json';
     if (console) console.log('Loading battle log ' + path + '...');
     var xhr = new XMLHttpRequest();
     xhr.open('GET', path, false);
