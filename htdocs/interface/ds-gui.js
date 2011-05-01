@@ -62,7 +62,7 @@ var DS = {
     document.setTitle('');
   },
   
-  initMap: function(){
+  initMap: function() {
     this.map = {
       units: { length: 0 },
       map: {},
@@ -279,7 +279,7 @@ var DS = {
     function nextSubticks() {
       var actions = DS.battleLog.ticks[DS.battleLog.index];
       if (!actions) {
-        window.clearInterval(DS.playPause.subtickInterval);
+        // window.clearInterval(DS.playPause.subtickInterval);
         return;
       }
       for (var i = DS.PARALLEL_SUBTICKS; i--;) {
@@ -293,13 +293,14 @@ var DS = {
         }
         else {  // tick finished
           window.clearInterval(DS.playPause.subtickInterval);
-          if (DS.battleLog.ticks[++DS.battleLog.index]) {  // next tick
+          ++DS.battleLog.index;
+          // if (DS.battleLog.ticks[++DS.battleLog.index]) {  // next tick
             subtickIndex = 0;
             DS.playPause.subtickInterval = window.setInterval(nextSubticks, DS.REDRAW_DELAY);
-          }
-          else {
-            DS.playButton.style.display = 'none';
-          }
+          // }
+          // else {
+            // DS.playButton.style.display = 'none';
+          // }
           break;
         }
       }
