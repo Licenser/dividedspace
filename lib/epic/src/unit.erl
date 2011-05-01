@@ -216,7 +216,6 @@ hull(Unit) ->
     Hull.
 
 name(Unit) ->
-    io:format("~p~n", modules_of_kind(Unit, hull)),
     [Hull] = modules_of_kind(Unit, hull),
     module_type:name(module:type(Hull)).
 

@@ -157,7 +157,6 @@ handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
 	      ticks  = Ticks} = State) ->
     lists:map(fun (Tick) ->
-		      io:format("Sending: ~p~n", [Tick]),
 		      ws:send(Subscriber, Tick)
 	      end, lists:reverse(Ticks)),
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
