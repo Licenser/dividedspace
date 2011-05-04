@@ -17,7 +17,7 @@ start_fight(N) ->
 %    Spec = ["Fighter L", "Laser", "Small Battery", "Fighter Engine", "Light FF Shield"],
     Spec = ["Fighter L", "Laser", "Small Battery", "Fighter Engine"],
     Units = lists:foldl(fun (Pos, L) ->
-				{ok, U1} = unit:from_template(0, Pos, "one", Spec),
+				{ok, U1} = unit:from_template(-2, Pos, "one", Spec),
 				{ok, U2} = unit:from_template(2, Pos, "two", Spec),
 				[U1 | [U2 | L]]
 			end, [], lists:seq(S, E)),

@@ -50,6 +50,16 @@ function translate_data(D) {
 		 }
 	     }]);
 	break;
+    case "move":/*{spawn, Id, Fleet, Name, Hull, X, Y}*/
+	Result.push([{
+	    "type": "move",
+	    "unit": D[1],
+	    "position": {
+		"x": D[2],
+		"y": D[3]
+	    }
+	}]);
+	break;
     case "hit": /* {hit, attacker, target, damage, partials} */
 	var P = D[4];
 	for(var i = 0; i < P.length; i++) {

@@ -12,7 +12,7 @@
 
 %% API
 -export([
-	 start_link/2,
+	 start_link/1,
 	 end_turn/3,
 	 end_cycle/3,
 	 add_event/2,
@@ -44,8 +44,8 @@
 %% @spec start_link(Fight, Map) -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Fight, Map) ->
-    gen_server:start_link(?MODULE, [Fight, Map], []).
+start_link(Fight) ->
+    gen_server:start_link(?MODULE, [Fight], []).
 
 trigger(Pid) ->
     trigger_cycle(Pid).
@@ -93,17 +93,18 @@ unsubscribe(Pid, Subscriber) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Fight, MapServer]) ->
+init([Fight]) ->
     Placement = lists:map(fun (UnitId) ->
 				  Unit = fight:get_unit(Fight, UnitId),
 				  Name = unit:name(Unit),
 				  Hull = unit:hull(Unit),
 				  Integrety = module:integrety(Hull),
 				  {spawn, UnitId, unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
-			 end, fight:unit_ids(Fight)),
+			  end, fight:unit_ids(Fight)),
+    {ok, MapServer} = map_sup:start_child(fight:units(Fight)),
     {ok, #state{
        initial_fight = Fight,
-       fight = Fight, 
+       fight = Fight,
        map = MapServer,
        events = [{multi_event, Placement}],
        ticks = [Placement]
@@ -156,10 +157,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
 	      ticks  = Ticks} = State) ->
-%    lists:map(fun (Tick) ->
-%		      ws:send(Subscriber, Tick)
-%	      end, lists:reverse(Ticks)),
-    ws:send(Subscriber, Ticks),
+    ws:send(Subscriber, lists:reverse(Ticks)),
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast({end_turn, NewFight, TurnId}, #state{running_cycle = RunningCycle,
 						 running_turn = RunningTurn, 
@@ -206,6 +204,7 @@ handle_cast({end_cycle, NewFight, CycleId}, #state{running_cycle = RunningCycle,
 handle_cast(trigger_turn, #state{running_turn = RunningTurn,
 				 turn = Turn,
 				 fight = Fight,
+				 map = Map,
 				 events = Events} = State) ->
 
     TurnId = Turn + 1,
@@ -214,7 +213,7 @@ handle_cast(trigger_turn, #state{running_turn = RunningTurn,
 	Turn =/= RunningTurn -> {stop, {turn_not_in_sync, Turn, RunningTurn}};
 	true -> 
 	    Event = {start_turn, TurnId},
-	    fight_worker:place_turn(Fight, nil, TurnId, self()),
+	    fight_worker:place_turn(Fight, Map, TurnId, self()),
 	    {noreply, State#state{running_turn = TurnId,
 				  events = [Event | Events]}}
     end;

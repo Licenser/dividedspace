@@ -40,9 +40,12 @@
 	 ensure_record/1,
 	 hit/4,
 	 energy_usage/1,
+	 weapon_range/1,
+	 engine_range/1,
 	 damage/1,
 	 energy/1,
-	 use_energy/2
+	 use_energy/2,
+	 use_engine/2
 	]).
 
 -export([
@@ -264,6 +267,11 @@ save_cycle(#module{instance = #weapon_spec{} = Instance,
 save_cycle(#module{} = M) ->
     M.
 
+engine_range(#module{instance = #engine_spec{range = Range}}) ->
+    Range.
+
+use_engine(#module{instance = #engine_spec{range = Range}} = M, Used) when Used =< Range ->
+    M#module{instance = #engine_spec{range = Range- Used}}.
 %%--------------------------------------------------------------------
 %% @doc
 %% This function abstracts the logic of hitting a module, it takes
@@ -275,14 +283,11 @@ save_cycle(#module{} = M) ->
 
 hit(#module{integrety = Integrety, type = Type} = Module, 
     Damage, Partial, Prop) ->
-
     HitPropability = module_type:hit_propability(Type),
     if 
 	Integrety > 0, Prop < HitPropability ->
-	    io:format("Hit Module(~p) ~p  with ~p by ~p.~n", [Integrety, Type, Prop, HitPropability]),
 	    hit(Module, Damage, Partial);
 	true ->
-	    io:format("Missed Module(~p) ~p  with ~p by ~p.~n", [Integrety, Type, Prop, HitPropability]),
 	    {Module, Damage, Partial}
     end.
 
@@ -600,6 +605,8 @@ fire_weapon(#module{
 fire_weapon(#module{}, _, _) ->
     {error, not_a_weapon}.
 
+weapon_range(#module{instance = #weapon_spec{range = Range}}) ->
+    Range.
 
 energy_usage(#module{instance = #weapon_spec{energy_usage = EnergyUsage}}) ->
     EnergyUsage;
@@ -656,4 +663,3 @@ ensure_record(#module{} = Module)->
 ensure_record(Module) when is_binary(Module) ->
     {ok, M} = select(Module),
     M.
-

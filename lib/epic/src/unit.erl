@@ -36,6 +36,9 @@
 	  x/2,
 	  y/1,
 	  y/2,
+	  coords/1,
+	  coords/2,
+	  coords/3,
 	  destroyed/1,
 	  destroyed/2,
 	  fleet/1,
@@ -49,9 +52,10 @@
 	  move/3,
 	  fly/3,
 	  distance/2,
+	  distance/3,
 	  mass/1,
 	  cycle/1,
-	  turn/2,
+	  turn/3,
 	  use_energy/2,
 	  hit/2
 	]).
@@ -193,6 +197,16 @@ destroyed(#unit{destroyed = Destroyed}) ->
 destroyed(#unit{} = Unit, Destroyed) when is_boolean(Destroyed) ->
     Unit#unit{destroyed = Destroyed}.
 
+coords(#unit{x = X, y = Y}) ->
+    {X, Y}.
+
+coords(#unit{} = Unit, {X, Y}) ->
+    Unit#unit{x = X, y = Y}.
+
+coords(#unit{} = Unit, X, Y) ->
+    Unit#unit{x = X, y = Y}.
+
+
 x(#unit{x = X}) ->
     X.
 
@@ -234,18 +248,18 @@ name(Unit) ->
     [Hull] = modules_of_kind(Unit, hull),
     module_type:name(module:type(Hull)).
 
-
 %%%===================================================================
 %%% Logic
 %%%===================================================================
 
-
 mass(#unit{modules = Modules}) ->
     lists:foldl(fun(Module, Sum) -> module:mass(Module) + Sum end, 0, Modules).
 
+distance(#unit{} = U1, #unit{x = X2, y = Y2}) ->
+    distance(U1, X2, Y2).
 
-distance(#unit{x = X1, y = Y1}, #unit{x = X2, y = Y2}) ->
-    abs(X1 - X2) + abs(Y1 - Y2).
+distance(#unit{x = X1, y = Y1}, X2, Y2) ->
+    map:distance(X1, Y1, X2, Y2).
 
 move(#unit{} = Unit, X, Y) when is_integer(X), is_integer(Y) ->
     Unit#unit{x = X, y = Y}.
@@ -256,30 +270,44 @@ fly(#unit{} = Unit, X, Y) when is_integer(X), is_integer(Y) ->
 cycle(#unit{modules = Modules} = Unit) ->
     Unit#unit{modules = lists:map(fun module:cycle/1, Modules)}.
 
-turn(#unit{destroyed = true}, Fight) ->
+update_unit(Fight, UnitId, F) ->
+    fight:add_unit(Fight, F(fight:get_unit(Fight, UnitId))).
+
+update_unit_energy(Fight, UnitId, E) ->
+    update_unit(Fight, UnitId, fun (Unit) ->
+				       use_energy(Unit, E)
+			       end).
+    
+
+handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage) ->
+    NewFight = update_unit_energy(Fight, AttackerId, Energy),
+    Target = fight:get_unit(Fight, TargetId),
+    {NewTarget, TargetMessages} = hit(Target, Damage),
+    OldHull = module:integrety(unit:hull(Target)),
+    NewHull = module:integrety(unit:hull(NewTarget)),
+    M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, {target, AttackerId, TargetId}],
+    NewMessages = if 
+		      NewHull =< 0 -> [{destroyed, TargetId} | M];
+		      true -> M
+		  end,
+    {fight:add_unit(NewFight, NewTarget), NewMessages};
+
+handle_weapon_hit(Fight, {ok, false, _Data}, AttackerId, TargetId, Energy, _Damage) ->
+    {update_unit_energy(Fight, AttackerId, Energy), [{miss, AttackerId, TargetId}, {target, AttackerId, TargetId}]}.
+
+handle_weapon(Weapon, {Fight, Messages}, Map, AttackerId, TargetId) ->
+    {FightAfterIntercept, InterceptMessages} = intercept(Fight, Map, AttackerId, TargetId, Weapon),
+    Attacker = fight:get_unit(FightAfterIntercept, AttackerId),
+    Target = fight:get_unit(Fight, TargetId),
+    {NewFight, NewMessages} = handle_weapon_hit(FightAfterIntercept, module:fire_weapon(Weapon, Attacker, Target), AttackerId, TargetId, module:energy_usage(Weapon), module:damage(Weapon)),
+    {NewFight, NewMessages ++ InterceptMessages ++ Messages}.
+
+turn(#unit{destroyed = true}, Fight, _Map) ->
     Fight;
-turn(#unit{id = UnitID} = Unit, Fight) ->
+turn(#unit{id = UnitId} = Unit, Fight, Map) ->
     Weapons = modules_of_kind(Unit, weapon),
-    #unit{id = TargetID} = fight:closest_foe(Fight, Unit),
-    {NewFight, Events} = lists:foldl(fun (Weapon, {NewFight, Messages}) ->
-					     Attacker = fight:get_unit(NewFight, UnitID),
-					     Target = fight:get_unit(NewFight, TargetID),
-					     case module:fire_weapon(Weapon, Attacker, Target) of
-						 {ok, true, _Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
-								      NewFight1 = fight:add_unit(NewFight, NewAttacker),
-								      {NewTarget, TargetMessages} = hit(Target, module:damage(Weapon)),
-								      OldHull = module:integrety(unit:hull(Target)),
-								      NewHull = module:integrety(unit:hull(Target)),
-								      M = {hit, UnitID, TargetID, OldHull - NewHull,TargetMessages},
-								      NewMessages = if 
-											NewHull =< 0 -> [{destroyed, TargetID},  M, {target, UnitID, TargetID}] ++ Messages;
-											true -> [M, {target, UnitID, TargetID}] ++ Messages
-										    end,
-								      {fight:add_unit(NewFight1, NewTarget), NewMessages};
-						 {ok, false, _Data} -> {ok, NewAttacker} = use_energy(Attacker, module:energy_usage(Weapon)),
-								       {fight:add_unit(NewFight, NewAttacker), [{miss, UnitID, TargetID}, {target, UnitID, TargetID}] ++ Messages}
-					     end
-				     end, {Fight, []}, Weapons),
+    [{TargetId, _} | _] = map_server:closest_foes(Map, Unit),
+    {NewFight, Events} = lists:foldl(fun (A, B) -> handle_weapon(A, B, Map, UnitId, TargetId) end, {Fight, []}, Weapons),
     {NewFight, Events}.
 
 hit(#unit{modules = OriginalModules} = Unit, Damage) ->
@@ -290,17 +318,21 @@ hit(#unit{modules = OriginalModules} = Unit, Damage) ->
 		    end, {[], Damage, []}, module_sort(OriginalModules)),
     {Unit#unit{modules= NewModules}, lists:reverse(Events)}.
 
-
-
 use_energy(Unit, Energy) ->
     AvailableEnergy = available_energy(Unit),
     if 
-	AvailableEnergy >= Energy -> {ok, consume_energy(Unit, Energy)};
+	AvailableEnergy >= Energy -> consume_energy(Unit, Energy);
 	true -> {error, not_enough_energy}
     end.
-	    
-    
-    
+
+use_engine(Unit, Range) ->
+    AvailableRange = available_range(Unit),
+    if 
+	AvailableRange >= Range -> consume_engine_usage(Unit, Range);
+	true -> {error, not_enough_energy}
+    end.
+
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -316,10 +348,18 @@ create_modules([TypeName | Modules]) ->
     storage:insert(Module),
     [module:id(Module) | create_modules(Modules)].
 
+
+
 available_energy(#unit{} = Unit) ->
     lists:foldl(fun (Generator, Energy) ->
 			Energy + module:energy(Generator)
 		end, 0, modules_of_kind(Unit, generator)).
+
+
+available_range(#unit{} = Unit) ->
+    lists:foldl(fun (Engine, Range) ->
+			Range + module:engine_range(Engine)
+		end, 0, modules_of_kind(Unit, engine)).
 
 consume_energy(#unit{modules = Modules} = Unit, Energy) ->
     {0, Ms} = lists:foldl(fun (Module, {RemainingEnergy, NewModules}) ->
@@ -331,4 +371,33 @@ consume_energy(#unit{modules = Modules} = Unit, Energy) ->
 				  end
 			  end, {Energy, []}, Modules),
     Unit#unit{modules = Ms}.
-	
+
+consume_engine_usage(#unit{modules = Modules} = Unit, Range) ->
+    {0, Ms} = lists:foldl(fun (Module, {RemainingRange, NewModules}) ->
+				  case module:kind(Module) of
+				      engine -> UsedRange = min(RemainingRange, module:engine_range(Module)),
+						{RemainingRange - UsedRange,
+						 [module:use_engine(Module, UsedRange) | NewModules]};
+				      _ -> {RemainingRange, [Module | NewModules]}
+				  end
+			  end, {Range, []}, Modules),
+    Unit#unit{modules = Ms}.
+
+
+intercept(Fight, Map, AttackerId, TargetId, Weapon) ->
+    Attacker = fight:get_unit(Fight, AttackerId),
+    Target = fight:get_unit(Fight, TargetId),
+    WeaponRange = module:weapon_range(Weapon),
+    Dist = distance(Attacker, Target),
+    if
+	WeaponRange =/= Dist ->EngineRange = available_range(Attacker),
+			       PosA = coords(Attacker),
+			       PosT = coords(Target),
+			       Range = min(Dist - WeaponRange, EngineRange),
+			       {X, Y, R} = map_server:best_distance(Map, PosA, PosT, Range),
+			       map_server:move_unit(Map, AttackerId, X, Y),
+			       {update_unit(Fight, AttackerId, fun(A) ->
+								       coords(use_engine(A, R), {X, Y})
+							       end), [{move, AttackerId, X, Y}]}; 
+	true -> {Fight, []}
+    end.

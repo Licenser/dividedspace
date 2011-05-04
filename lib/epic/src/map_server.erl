@@ -1,20 +1,23 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@schroedinger.lan>
+%%% @author Heinz N. Gies <heinz@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 26 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
+%%% Created :  2 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(fight_worker).
+-module(map_server).
 
 -behaviour(gen_server).
 
 %% API
 -export([
-	 start_link/0,
-	 place_cycle/3,
-	 place_turn/4
+	 start_link/1,
+	 unit_at/3,
+	 move_unit/4,
+	 closest_foes/2,
+	 best_distance/4,
+	 best_distance/6
 	]).
 
 %% gen_server callbacks
@@ -23,12 +26,26 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {}).
+-record(state, {u2c ,c2u, u2cf, clusters}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+move_unit(Pid, UId, X, Y) ->
+    gen_server:cast(Pid, {move_unit, UId, X, Y}).
+
+unit_at(Pid, X, Y) ->
+    gen_server:call(Pid, {unit_at, X, Y}).
+
+closest_foes(Pid, Unit) ->
+    gen_server:call(Pid, {closest_foes, Unit}).
+
+best_distance(Pid, {X1, Y1}, {X2, Y2}, Max) ->
+    gen_server:call(Pid, {best_distance, X1, Y1, X2, Y2, Max}).
+
+best_distance(Pid, X1, Y1, X2, Y2, Max) ->
+    gen_server:call(Pid, {best_distance, X1, Y1, X2, Y2, Max}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -36,14 +53,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
-
-place_cycle(Fight, Id, FightPid) ->
-    gen_server:cast(?SERVER, {place_cycle, Fight, Id, FightPid}).
-
-place_turn(Fight, Map, Id, FightPid) ->
-    gen_server:cast(?SERVER, {place_turn, Fight, Map, Id, FightPid}).
+start_link(Units) ->
+    gen_server:start_link(?MODULE, [Units], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -60,8 +71,29 @@ place_turn(Fight, Map, Id, FightPid) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    {ok, #state{}}.
+init([Units]) ->
+    UnitList = lists:map(fun ({UId, U}) ->
+				 {UId, unit:fleet(U), {unit:x(U), unit:y(U)}}
+			 end, dict:to_list(Units)),
+    U2CF = lists:foldl(fun ({UId, F, C}, Dict) ->
+			       dict:update(F,
+					   fun (D) ->
+						   dict:store(UId, C, D)
+					   end,
+					   dict:from_list([{UId, C}]),
+					   Dict)
+		       end, dict:new(), UnitList),
+    U2C = dict:from_list(lists:map(fun ({UId, _, C}) -> {UId, C} end, UnitList)),
+    C2U = dict:from_list(lists:map(fun ({UId, _, C}) -> {C, UId} end, UnitList)),
+    Clusters = lists:foldl(fun ({UId, _, C}, Dict) ->
+				   dict:update(cluster(C),
+					       fun (L) ->
+						       [UId| L]
+					       end,
+					       [],
+					       Dict)
+			   end, dict:new(), UnitList),
+    {ok, #state{u2c = U2C, u2cf = U2CF, c2u = C2U, clusters = Clusters}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -77,6 +109,26 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({best_distance, X1, Y1, X2, Y2, Max}, _From, #state{c2u = C2U} = State) ->
+    {reply, find_path(C2U, X1, Y1, X2, Y2, Max), State};
+handle_call({closest_foes, Unit}, _From, #state{u2cf = U2CF} = State) ->
+    MyFleet = unit:fleet(Unit),
+    U2CFoes = lists:foldl(fun ({_, D}, L) ->
+				  dict:to_list(D) ++ L
+			  end,
+			  [],
+			  dict:to_list(dict:filter(fun (F, _) ->
+							   F =/= MyFleet
+						   end, U2CF))),
+    FoesWithDist = lists:map(fun ({UId, {X, Y}}) -> 
+				     {UId, unit:distance(Unit, X, Y)}
+			     end, U2CFoes),
+    SortedFoes = lists:usort(fun ({_, D1}, {_, D2}) ->
+				     D1 < D2
+			     end, FoesWithDist),
+    {reply, SortedFoes, State};
+handle_call({unit_at, X, Y}, _From, #state{c2u = C2U} = State) ->
+    {reply, dict:fetch({X, Y}, C2U), State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -91,12 +143,9 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({place_cycle, Fight, Id, FightPid}, State) ->
-    fight_server:end_cycle(FightPid, handle_cycle(Fight), Id),
-    {noreply, State};
-handle_cast({place_turn, Fight, Map, Id, FightPid}, State) ->
-    fight_server:end_turn(FightPid, handle_turn(Fight, FightPid, Map), Id),
-    {noreply, State};
+handle_cast({move_unit, UId, X, Y}, #state{u2c = U2C, c2u = C2U} = State) ->
+    OldCord = dict:fetch(UId, U2C),
+    {noreply, State#state{u2c = dict:store(UId, {X, Y}, U2C), c2u = dict:store({X, Y}, UId, dict:erase(OldCord, C2U))}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -142,15 +191,50 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-handle_cycle(Fight) ->
-    fight:units(Fight,
-		dict:map(fun (_UnitID, Unit) ->
-				 unit:cycle(Unit)
-			 end, fight:units(Fight))).
 
-handle_turn(Fight, FightPid, Map) ->
-    lists:foldl(fun (UnitID, RFight) ->
-			{NewFight, Events} = unit:turn(fight:get_unit(RFight, UnitID), RFight, Map),
-			fight_server:add_event(FightPid, Events),
-			NewFight
-		end, Fight, fight:unit_ids(Fight)).
+cluster({X, Y}) ->
+    {X - (X rem 20), Y - (Y rem 20)}.
+
+find_path(_, X, Y, _, _, D) when D < 0 -> 
+    {X, Y, 0};
+
+find_path(_, X, Y, X, Y, _) -> 
+    {X, Y, 0};
+
+find_path(_, X, Y, _, _, 0) -> 
+    {X, Y, 0};
+
+find_path(C2U, X1, Y1, X2, Y2, Max) ->
+    Direction = map:direction_between(X1, Y1, X2, Y2),
+    case find_working_step(C2U, X1, Y1, Direction) of
+	error ->  {X1, X2, 0};
+	{NX, NY} -> {DX, DY, R} = find_path(C2U, NX, NY, X2, Y2, Max -1),
+		    {DX, DY, R + 1}
+    end.
+
+
+
+find_working_step(C2U, X, Y, D) ->
+  do_steps(C2U, X, Y, [D, D+1, D-1, D+2, D-3, D+4]).
+
+do_steps(_, _, _, []) ->
+  error;
+do_steps(C2U, X, Y, [D|T]) ->
+  case try_direction(C2U, X, Y, D) of
+    error -> do_steps(C2U, X, Y, T);
+    Result -> Result
+  end.
+
+							    
+try_direction(C2U, X, Y, D) ->
+    Dir = if 
+	      D < 0 -> 6 + D;
+	      true -> D rem 6
+	  end,
+    {DX, DY} =  map:in_direction(X, Y, Dir),
+    case dict:find({DX, DY}, C2U) of
+	error -> {DX, DY};
+	_ -> error
+    end.
+
+	    

@@ -34,7 +34,7 @@ start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
 start_child(Fight) -> 
-    supervisor:start_child(?SERVER, [Fight, nil]).
+    supervisor:start_child(?SERVER, [Fight]).
 
 %%%===================================================================
 %%% Supervisor callbacks
