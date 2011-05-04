@@ -7,6 +7,9 @@
 %%% Created :  2 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(map_server).
+-include("epic_types.hrl").
+
+
 
 -behaviour(gen_server).
 
@@ -120,8 +123,8 @@ handle_call({closest_foes, Unit}, _From, #state{u2cf = U2CF} = State) ->
 			  dict:to_list(dict:filter(fun (F, _) ->
 							   F =/= MyFleet
 						   end, U2CF))),
-    FoesWithDist = lists:map(fun ({UId, {X, Y}}) -> 
-				     {UId, unit:distance(Unit, X, Y)}
+    FoesWithDist = lists:map(fun ({UId, Pos}) -> 
+				     {UId, unit:distance(Unit, Pos)}
 			     end, U2CFoes),
     SortedFoes = lists:usort(fun ({_, D1}, {_, D2}) ->
 				     D1 < D2
@@ -205,7 +208,7 @@ find_path(_, X, Y, _, _, 0) ->
     {X, Y, 0};
 
 find_path(C2U, X1, Y1, X2, Y2, Max) ->
-    Direction = map:direction_between(X1, Y1, X2, Y2),
+    Direction = map:direction_between({X1, Y1}, {X2, Y2}),
     case find_working_step(C2U, X1, Y1, Direction) of
 	error ->  {X1, X2, 0};
 	{NX, NY} -> {DX, DY, R} = find_path(C2U, NX, NY, X2, Y2, Max -1),
@@ -214,24 +217,37 @@ find_path(C2U, X1, Y1, X2, Y2, Max) ->
 
 
 
+-spec find_working_step(dict(), integer(), integer(), integer()) ->
+			   error | coords().
+
+
 find_working_step(C2U, X, Y, D) ->
   do_steps(C2U, X, Y, [D, D+1, D-1, D+2, D-3, D+4]).
 
-do_steps(_, _, _, []) ->
-  error;
+
+-spec do_steps(dict(), integer(), integer(), [integer(),...]) ->
+		      coords() | error;
+	      (dict(),integer(), integer(),[]) ->
+		      error.
+
+do_steps(_A, _X, _Y, []) when is_integer(_X), is_integer(_Y), is_list(_A)->
+    error;
+
 do_steps(C2U, X, Y, [D|T]) ->
   case try_direction(C2U, X, Y, D) of
     error -> do_steps(C2U, X, Y, T);
     Result -> Result
   end.
 
+-spec try_direction(dict(), integer(), integer(), integer()) ->
+			   error | coords().
 							    
 try_direction(C2U, X, Y, D) ->
     Dir = if 
 	      D < 0 -> 6 + D;
 	      true -> D rem 6
 	  end,
-    {DX, DY} =  map:in_direction(X, Y, Dir),
+    {DX, DY} =  map:in_direction({X, Y}, Dir),
     case dict:find({DX, DY}, C2U) of
 	error -> {DX, DY};
 	_ -> error

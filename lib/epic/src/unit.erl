@@ -52,7 +52,6 @@
 	  move/3,
 	  fly/3,
 	  distance/2,
-	  distance/3,
 	  mass/1,
 	  cycle/1,
 	  turn/3,
@@ -255,11 +254,10 @@ name(Unit) ->
 mass(#unit{modules = Modules}) ->
     lists:foldl(fun(Module, Sum) -> module:mass(Module) + Sum end, 0, Modules).
 
-distance(#unit{} = U1, #unit{x = X2, y = Y2}) ->
-    distance(U1, X2, Y2).
-
-distance(#unit{x = X1, y = Y1}, X2, Y2) ->
-    map:distance(X1, Y1, X2, Y2).
+distance(#unit{x = X1, y = Y1}, #unit{x = X2, y = Y2}) ->
+    map:distance({X1, Y1}, {X2, Y2});
+distance(#unit{x = X1, y = Y1}, {X2, Y2}) ->
+    map:distance({X1, Y1}, {X2, Y2}).
 
 move(#unit{} = Unit, X, Y) when is_integer(X), is_integer(Y) ->
     Unit#unit{x = X, y = Y}.

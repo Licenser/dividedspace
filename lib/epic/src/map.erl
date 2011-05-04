@@ -7,90 +7,128 @@
 %%% Created :  3 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(map).
+-include("epic_types.hrl").
+
+
 -export([
 	 in_direction/2,
-	 in_direction/3,
-	 to_evil/1,
-	 to_evil/2,
 	 to_cartesian/1,
-	 to_cartesian/2,
 	 friction_direction_between/2,
-	 friction_direction_between/4,
 	 direction_between/2,
-	 direction_between/4,
-	 distance/2,
-	 distance/4
+	 distance/2
 	]).
 
 
-in_direction({X, Y}, D) when 
-      is_integer(D),
-      is_integer(X),
-      is_integer(Y) ->
-    in_direction(D, X, Y).
+-spec in_direction(coords(), 0 | 1 | 2 | 3 | 4 | 5) -> 
+			  coords().
 
-in_direction(X, Y, 0) when 
-      is_integer(X),
-      is_integer(Y) ->
-    {X+1, Y+1};
-in_direction(X, Y, 1) when 
-      is_integer(X),
-      is_integer(Y) ->
-    {X+1, Y};
-in_direction(X, Y, 2) when 
+in_direction({X, Y}, 0) when 
       is_integer(X),
       is_integer(Y) ->
     {X, Y-1};
-in_direction(X, Y, 3) when 
+in_direction({X, Y}, 1) when 
       is_integer(X),
       is_integer(Y) ->
-    {X-1, Y-1};
-in_direction(X, Y, 4) when 
+    {X+1, Y-1};
+in_direction({X, Y}, 2) when 
+      is_integer(X),
+      is_integer(Y) ->
+    {X+1, Y};
+in_direction({X, Y}, 3) when 
+      is_integer(X),
+      is_integer(Y) ->
+    {X, Y+1};
+in_direction({X, Y}, 4) when 
       is_integer(X),
       is_integer(Y) ->
     {X-1, Y};
-in_direction(X, Y, 5) when 
+in_direction({X, Y}, 5) when 
       is_integer(X),
       is_integer(Y) ->
-    {X, Y+1}.
+    {X-1, Y-1}.
 
-to_evil({X,Y}) ->
-    to_evil(X,Y).
-to_evil(X,Y) ->
-    {X - Y, trunc(-1 * (X + Y) / 2.0)}.
+-spec to_cartesian(coords()) ->
+			  {integer(), float()}.
 
 to_cartesian({X, Y}) ->
-    to_cartesian(X, Y).
-to_cartesian(X, Y) ->
-    {EX, EY} = to_evil(X, Y),
-    CY = case (EX rem 2) of
-	     0 -> EY;
-	     1 -> EY + 0.5
+    CY = case (X rem 2) of
+	     0 -> Y;
+	     1 -> Y + 0.5;
+	     -1 -> Y + 0.5		      
 	 end,
-    {EX, CY * -1 / math:sqrt(3)}.
+    {X, CY * -1 / math:sqrt(3)}.
 
-friction_direction_between({X1, Y1}, {X2, Y2}) ->
-    friction_direction_between(X1, Y1, X2, Y2).
-friction_direction_between(X1, Y1, X2, Y2) ->
-    {CX1, CY1} = to_cartesian(X1, Y1),
-    {CX2, CY2} = to_cartesian(X2, Y2),
-    round((0 - (math:atan2(CY2 - CY1, CX2 - CX1) / math:pi()) + 0.5) * 3) rem 6.
+-spec friction_direction_between(coords(), coords()) ->
+					float().
+friction_direction_between(A, B) ->
+    {CX1, CY1} = to_cartesian(A),
+    {CX2, CY2} = to_cartesian(B),
+    D = ((0 - (math:atan2(CY2 - CY1, CX2 - CX1) / math:pi()) + 0.5) * 3),
+    if 
+	D < 0 -> D + 6;
+	true -> D
+    end.
 
-direction_between({X1, Y1}, {X2, Y2}) ->
-    direction_between(X1, Y1, X2, Y2).
 
-direction_between(X1, Y1, X2, Y2) ->
-    round(friction_direction_between(X1, Y1, X2, Y2)).
+-spec direction_between(coords(), coords()) ->
+					integer().
+direction_between(A, B) ->
+    round(friction_direction_between(A, B)) rem 6.
 
-distance({X1, Y1}, {X2, Y2}) ->
-    distance(X1, Y1, X2, Y2).
-distance(X1, Y1, X2, Y2) ->
+
+-spec int_max(integer(), integer()) ->
+		     integer().
+
+int_max(A, B) when is_integer(A),
+		   is_integer(B) ->
+    if 
+	A > B -> A;
+	true -> B
+    end.
+
+-spec int_abs(integer()) ->
+		     non_neg_integer().
+
+int_abs(A) when is_integer(A)->
+    abs(A).
+%    if 
+%	A < 0 ->
+%	    A*-1;
+%	true -> A
+%    end.
+
+-spec distance(coords(), coords()) ->
+		      non_neg_integer().
+
+distance({X1, Y1}, {X2, Y2}) when is_integer(X1), 
+				  is_integer(Y1),
+				  is_integer(X2), 
+				  is_integer(Y2) ->
     DX = X1 - X2,
     DY = Y1 - Y2,
-    AX = abs(DX),
-    AY = abs(DY),
-    case {DX > 0, DY > 0} of
-	{_R, _R} ->  max(AY, AY);
-	_ -> AX + AY
+    AX = int_abs(DX),
+    AY = int_abs(DY),
+    XPos = DX > 0,
+    YPos = DY > 0,
+    if 
+	XPos == YPos -> int_max(AX, AY);
+	true -> AX + AY
     end.
 				   
+
+
+floor(X) ->
+    T = erlang:trunc(X),
+    case (X - T) of
+        Neg when Neg < 0 -> T - 1;
+        Pos when Pos > 0 -> T;
+        _ -> T
+    end.
+
+ceiling(X) ->
+    T = erlang:trunc(X),
+    case (X - T) of
+        Neg when Neg < 0 -> T;
+        Pos when Pos > 0 -> T + 1;
+        _ -> T
+    end.
