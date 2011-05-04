@@ -230,7 +230,7 @@ find_working_step(C2U, X, Y, D) ->
 	      (dict(),integer(), integer(),[]) ->
 		      error.
 
-do_steps(_A, _X, _Y, []) when is_integer(_X), is_integer(_Y), is_list(_A)->
+do_steps(_A, _X, _Y, []) when is_integer(_X), is_integer(_Y), is_tuple(_A)->
     error;
 
 do_steps(C2U, X, Y, [D|T]) ->

@@ -70,14 +70,10 @@ var DS = {
       animate: false,
       attacks: [],
       epic2evil: function(epicX, epicY) {
-        var evilX = epicX - epicY;
-        var evilY = Math.floor(-(epicX + epicY) / 2);
-        return { x: evilX, y: evilY };
+        return { x: epicX, y: epicY };
       },
       evil2epic: function(evilX, evilY) {
-        var epicX = -evilY + Math.floor(evilX / 2);
-        var epicY = -evilY + Math.floor(-evilX / 2);
-        return { x: epicX, y: epicY };
+        return { x: evilX, y: evilY };
       },
       coord: function(x, y) {
         var row = this.coords[x];
