@@ -4,8 +4,8 @@
 
 require 'rake/clean'
 
-if File.file?('erlang_config.rb') 
-  require 'erlang_config'  
+if File.file?('./erlang_config.rb') 
+  require './erlang_config.rb'  
 else
   puts "erlang_config.rb file is missing."
   puts "You need to fill it with your local configuration."
