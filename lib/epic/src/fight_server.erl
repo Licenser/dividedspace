@@ -31,7 +31,7 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {initial_fight, fight, map, map_id, events = [], running_turn = 0, running_cycle = 0, turn = 0, subscribers = [], ticks = [], tick = []}).
+-record(state, {initial_fight, fight, map, map_id, events = [], running_turn = 0, running_cycle = 0, turn = 0, subscribers = [], ticks = [], tick = [], tick_start = 0}).
 
 %%%===================================================================
 %%% API
@@ -164,8 +164,10 @@ handle_cast({end_turn, NewFight, TurnId}, #state{running_cycle = RunningCycle,
 						 turn = Turn,
 						 events = Events,
 						 ticks = Ticks,
-						 tick = Tick
+						 tick = Tick,
+						 tick_start = TickStart
 						} = State) ->
+    io:format("Tick time: ~fs.~n", [timer:now_diff(now(), TickStart) / 1000000]),
     epic_event:end_turn(self(), TurnId),
     if 
 	RunningTurn =/= TurnId -> {stop, {unexpcted_turn_end, RunningTurn, TurnId}};
@@ -215,7 +217,8 @@ handle_cast(trigger_turn, #state{running_turn = RunningTurn,
 	    Event = {start_turn, TurnId},
 	    fight_worker:place_turn(Fight, Map, TurnId, self()),
 	    {noreply, State#state{running_turn = TurnId,
-				  events = [Event | Events]}}
+				  events = [Event | Events],
+				  tick_start = now()}}
     end;
 
 handle_cast(trigger_cycle, #state{running_cycle = RunningCycle,
