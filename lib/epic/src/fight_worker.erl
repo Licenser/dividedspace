@@ -14,7 +14,8 @@
 -export([
 	 start_link/0,
 	 place_cycle/3,
-	 place_turn/4
+	 place_turn/4,
+	 report_idle/1
 	]).
 
 %% gen_server callbacks
@@ -23,7 +24,11 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {}).
+-define(WORKER_COUNT, 6).
+
+-record(state, {workers = [], 
+		idle_workers = [],
+		tasks=[]}).
 
 %%%===================================================================
 %%% API
@@ -45,6 +50,8 @@ place_cycle(Fight, Id, FightPid) ->
 place_turn(Fight, Map, Id, FightPid) ->
     gen_server:cast(?SERVER, {place_turn, Fight, Map, Id, FightPid}).
 
+report_idle(Worker) ->
+    gen_server:cast(?SERVER, {report_idle, Worker}).
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -61,7 +68,9 @@ place_turn(Fight, Map, Id, FightPid) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, #state{}}.
+    {ok, #state{workers=
+		    [ worker_sup:start_child() || _ <- lists:seq(1,?WORKER_COUNT)]
+	       }}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -91,12 +100,24 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({place_cycle, Fight, Id, FightPid}, State) ->
-    fight_server:end_cycle(FightPid, handle_cycle(Fight), Id),
-    {noreply, State};
-handle_cast({place_turn, Fight, Map, Id, FightPid}, State) ->
-    fight_server:end_turn(FightPid, handle_turn(Fight, FightPid, Map), Id),
-    {noreply, State};
+handle_cast({place_cycle, Fight, Id, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
+    {noreply, State#state{tasks=Tasks ++ [{cycle, Fight, Id, FightPid}]}};
+handle_cast({place_cycle, Fight, Id, FightPid}, #state{idle_workers = [W | R]} = State) ->
+    worker_fsm:cycle(W, Fight, Id, FightPid),
+    {noreply, State#state{idle_workers=R}};
+handle_cast({place_turn, Fight, Map, Id, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
+    {noreply, State#state{tasks=Tasks ++ [{turn, Fight, Map, Id, FightPid}]}};
+handle_cast({place_turn, Fight, Map, Id, FightPid}, #state{idle_workers = [W | R]} = State) ->
+    worker_fsm:tick(W, Fight, Map, Id, FightPid),
+    {noreply, State#state{idle_workers=R}};
+handle_cast({report_idle, Worker}, #state{idle_workers = W, tasks=[]} = State) ->
+    {noreply, State#state{idle_workers=[Worker | W]}};
+handle_cast({report_idle, Worker}, #state{tasks=[{turn, Fight, Map, Id, FightPid} | R]} = State) ->
+    worker_fsm:tick(Worker, Fight, Map, Id, FightPid),
+    {noreply, State#state{tasks=R}};
+handle_cast({report_idle, Worker}, #state{tasks=[{cycle, Fight, Id, FightPid} | R]} = State) ->
+    worker_fsm:cycle(Worker, Fight, Id, FightPid),
+    {noreply, State#state{tasks=R}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -138,19 +159,9 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
-
-handle_cycle(Fight) ->
-    fight:units(Fight,
-		dict:map(fun (_UnitID, Unit) ->
-				 unit:cycle(Unit)
-			 end, fight:units(Fight))).
-
-handle_turn(Fight, FightPid, Map) ->
-    lists:foldl(fun (UnitID, RFight) ->
-			{NewFight, Events} = unit:turn(fight:get_unit(RFight, UnitID), RFight, Map),
-			fight_server:add_event(FightPid, Events),
-			NewFight
-		end, Fight, fight:unit_ids(Fight)).
+check_workers(Workers) ->
+    [ case is_process_alive(W) of
+	  true -> W;
+	  false -> worker_sup:start_child()
+      end
+      || W <- Workers].

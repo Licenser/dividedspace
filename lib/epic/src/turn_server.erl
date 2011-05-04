@@ -23,7 +23,7 @@
 
 -define(SERVER, ?MODULE). 
 
--define(TURN_INTERVAL, 120000).
+-define(TURN_INTERVAL, 30000).
 
 -record(state, {workers = [], fights = []}).
 
