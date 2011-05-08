@@ -1,0 +1,3 @@
+[submodule "lib/erlv8"]
+	path = lib/erlv8
+	url = https://github.com/beamjs/erlv8.git
