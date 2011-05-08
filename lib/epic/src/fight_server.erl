@@ -99,7 +99,7 @@ init([Fight]) ->
 				  Name = unit:name(Unit),
 				  Hull = unit:hull(Unit),
 				  Integrety = module:integrety(Hull),
-				  {spawn, UnitId, unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
+				  {spawn, uuid:to_string(UnitId), unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
 			  end, fight:unit_ids(Fight)),
     {ok, MapServer} = map_sup:start_child(fight:units(Fight)),
     {ok, #state{
