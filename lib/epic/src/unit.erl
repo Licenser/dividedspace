@@ -283,7 +283,7 @@ handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage
     {NewTarget, TargetMessages} = hit(Target, Damage),
     OldHull = module:integrety(unit:hull(Target)),
     NewHull = module:integrety(unit:hull(NewTarget)),
-    M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, {target, AttackerId, TargetId}],
+    M = [{hit, uuid:to_string(AttackerId), uuid:to_string(TargetId), OldHull - NewHull, TargetMessages}, {target, uuid:to_string(AttackerId), uuid:to_string(TargetId)}],
     NewMessages = if 
 		      NewHull =< 0 -> [{destroyed, TargetId} | M];
 		      true -> M
@@ -291,7 +291,7 @@ handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage
     {fight:add_unit(NewFight, NewTarget), NewMessages};
 
 handle_weapon_hit(Fight, {ok, false, _Data}, AttackerId, TargetId, Energy, _Damage) ->
-    {update_unit_energy(Fight, AttackerId, Energy), [{miss, AttackerId, TargetId}, {target, AttackerId, TargetId}]}.
+    {update_unit_energy(Fight, AttackerId, Energy), [{miss, uuid:to_string(AttackerId), uuid:to_string(TargetId)}, {target, uuid:to_string(AttackerId), uuid:to_string(TargetId)}]}.
 
 handle_weapon(Weapon, {Fight, Messages}, Map, AttackerId, TargetId) ->
     {FightAfterIntercept, InterceptMessages} = intercept(Fight, Map, AttackerId, TargetId, Weapon),
@@ -396,6 +396,6 @@ intercept(Fight, Map, AttackerId, TargetId, Weapon) ->
 			       map_server:move_unit(Map, AttackerId, X, Y),
 			       {update_unit(Fight, AttackerId, fun(A) ->
 								       coords(use_engine(A, R), {X, Y})
-							       end), [{move, AttackerId, X, Y}]}; 
+							       end), [{move, uuid:to_string(AttackerId), X, Y}]}; 
 	true -> {Fight, []}
     end.
