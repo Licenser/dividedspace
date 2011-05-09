@@ -13,12 +13,10 @@
 %% API
 -export([
 	 start_link/1,
-	 end_turn/3,
-	 end_cycle/3,
-	 add_event/2,
-	 trigger_turn/1,
-	 trigger_cycle/1,
 	 trigger/1,
+	 trigger_tick/1,
+	 end_tick/1,
+	 add_event/2,
 	 get_events/1,
 	 subscribe/2,
 	 unsubscribe/2,
@@ -31,7 +29,7 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {initial_fight, fight, map, map_id, events = [], running_turn = 0, running_cycle = 0, turn = 0, subscribers = [], ticks = [], tick = [], tick_start = 0}).
+-record(state, {initial_fight, fight, map, map_id, events = [], tick = 0, subscribers = [], all_tick_events = [], current_tick_events = [], tick_start = 0, storage, tick_in_progress = false}).
 
 %%%===================================================================
 %%% API
@@ -48,22 +46,16 @@ start_link(Fight) ->
     gen_server:start_link(?MODULE, [Fight], []).
 
 trigger(Pid) ->
-    trigger_cycle(Pid).
+    trigger_tick(Pid).
     
-end_turn(Pid, NewUnits, TurnId) ->
-    gen_server:cast(Pid, {end_turn, NewUnits, TurnId}).
-
-end_cycle(Pid, NewUnits, CycleId) ->
-    gen_server:cast(Pid, {end_cycle, NewUnits, CycleId}).
+end_tick(Pid) ->
+    gen_server:cast(Pid, end_tick).
 
 add_event(Pid, Event) ->
     gen_server:cast(Pid, {add_event, Event}).
 
-trigger_turn(Pid) ->
-    gen_server:cast(Pid, trigger_turn).
-    
-trigger_cycle(Pid) ->
-    gen_server:cast(Pid, trigger_cycle).
+trigger_tick(Pid) ->
+    gen_server:cast(Pid, trigger_tick).
 
 get_events(Pid) ->
     gen_server:call(Pid, events).
@@ -99,15 +91,18 @@ init([Fight]) ->
 				  Name = unit:name(Unit),
 				  Hull = unit:hull(Unit),
 				  Integrety = module:integrety(Hull),
-				  {spawn, uuid:to_string(UnitId), unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
+				  {spawn, UnitId, unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
 			  end, fight:unit_ids(Fight)),
-    {ok, MapServer} = map_sup:start_child(fight:units(Fight)),
+    Units = fight:units(Fight),
+    {ok, MapServer} = map_sup:start_child(Units),
+    {ok, FightStorage} = storage_sup:start_child(Units),
     {ok, #state{
        initial_fight = Fight,
        fight = Fight,
        map = MapServer,
+       storage = FightStorage,
        events = [{multi_event, Placement}],
-       ticks = [Placement]
+       all_tick_events = [Placement]
       }}.
 
     
@@ -128,18 +123,10 @@ init([Fight]) ->
 %%--------------------------------------------------------------------
 handle_call(events, _Form, #state{events = Events} = State) ->
     {reply, Events, State};
-handle_call(status, _Form, #state{running_cycle = RunningCycle,
-				  running_turn = RunningTurn, 
-				  turn = Turn} = State) ->
-    if
-	RunningCycle == RunningTurn,
-	RunningTurn == Turn -> {reply, {ok, idle}, State};
-	RunningCycle == RunningTurn,
-	RunningTurn >= Turn -> {reply, {ok, in_turn}, State};
-	RunningCycle >= RunningTurn,
-	RunningTurn== Turn -> {reply, {ok, in_cycle}, State};
-	true -> {reply, {error, {bad_state, RunningCycle, RunningTurn, Turn}}, State}
-    end;
+handle_call(status, _Form, #state{tick_in_progress = false} = State) ->
+    {reply, {ok, idle}, State};
+handle_call(status, _Form, #state{tick_in_progress = true} = State) ->
+    {reply, {ok, in_turn}, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -156,90 +143,45 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
-	      ticks  = Ticks} = State) ->
+	      all_tick_events  = Ticks} = State) ->
     ws:send(Subscriber, lists:reverse(Ticks)),
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
-handle_cast({end_turn, NewFight, TurnId}, #state{running_cycle = RunningCycle,
-						 running_turn = RunningTurn, 
-						 turn = Turn,
-						 events = Events,
-						 ticks = Ticks,
-						 tick = Tick,
-						 tick_start = TickStart
-						} = State) ->
+handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
+    {noreply, State};
+handle_cast(end_tick, #state{events = Events,
+                             all_tick_events = Ticks,
+                             current_tick_events = TickEvent,
+                             tick_start = TickStart
+                            } = State) ->
     io:format("Tick time: ~fs.~n", [timer:now_diff(now(), TickStart) / 1000000]),
-    epic_event:end_turn(self(), TurnId),
-    if 
-	RunningTurn =/= TurnId -> {stop, {unexpcted_turn_end, RunningTurn, TurnId}};
-	TurnId  > Turn + 1 -> {stop, {turn_runaway, Turn, TurnId}};
-	TurnId =< Turn -> {stop, {turn_too_slow, Turn, TurnId}};
-	RunningCycle =/= TurnId -> {stop, {turn_head_of_cycle, TurnId, RunningCycle}};
-	true -> Event = {end_turn, TurnId},
-		inform_subscribers(State, Tick),
-		{noreply, State#state{
-			    fight = NewFight,
-			    turn = TurnId,
-			    events = [Event | Events],
-			    tick = [],
-			    ticks = [Tick | Ticks]
-			   }}
-    end;
-
-handle_cast({end_cycle, NewFight, CycleId}, #state{running_cycle = RunningCycle,
-						   running_turn = RunningTurn, 
-						   turn = Turn,
-						   events = Events} = State) ->
-    epic_event:end_cycle(self(), CycleId),
-    if 
-	RunningTurn == CycleId -> {stop, {turn_started_to_early, RunningTurn, CycleId}};
-	CycleId   > Turn +1 -> {stop, {cycle_runaway, Turn, CycleId}};
-	CycleId  =< Turn -> {stop, {cycle_too_slow, Turn, CycleId}};
-	RunningCycle =/= CycleId -> {stop, {turn_head_of_cycle, CycleId, RunningCycle}};
-	true -> Event = {end_cycle, CycleId},
-		fight_server:trigger_turn(self()),
-		{noreply, State#state{
-			    fight = NewFight,
-			    events = [Event | Events]
-			   }}
-    end;
-
-handle_cast(trigger_turn, #state{running_turn = RunningTurn,
-				 turn = Turn,
-				 fight = Fight,
+    epic_event:end_turn(self()),
+    Event = {end_turn},
+    inform_subscribers(State, TickEvent),
+    {noreply, State#state{
+                events = [Event | Events],
+                current_tick_events = [],
+                tick_in_progress = false,
+                all_tick_events = [TickEvent | Ticks]
+               }};
+handle_cast(trigger_tick, #state{tick_in_progress = true} = State) ->
+    {noreply, State};
+handle_cast(trigger_tick, #state{fight = Fight,
 				 map = Map,
-				 events = Events} = State) ->
+				 events = Events,
+                                 storage = Storage} = State) ->
 
-    TurnId = Turn + 1,
-    epic_event:start_turn(self(), TurnId),
-    if
-	Turn =/= RunningTurn -> {stop, {turn_not_in_sync, Turn, RunningTurn}};
-	true -> 
-	    Event = {start_turn, TurnId},
-	    fight_worker:place_turn(Fight, Map, TurnId, self()),
-	    {noreply, State#state{running_turn = TurnId,
-				  events = [Event | Events],
-				  tick_start = now()}}
-    end;
-
-handle_cast(trigger_cycle, #state{running_cycle = RunningCycle,
-				  turn = Turn,
-				  fight = Fight,
-				  events = Events} = State) ->
-    CycleId = Turn + 1,
-    epic_event:start_cycle(self(), CycleId),
-    if
-	Turn =/= RunningCycle -> {stop, {cycle_not_in_sync, Turn, RunningCycle}};
-	true -> Event = {start_cycle, CycleId},
-		fight_worker:place_cycle(Fight, CycleId, self()),
-		{noreply, State#state{running_cycle = CycleId,
-				  events = [Event | Events]}}
-    end;
-handle_cast({add_event, [Event]}, #state{events = Events, tick = Tick} = State) ->
-    {noreply, State#state{events = [Event | Events], tick = [Event | Tick]}};
-handle_cast({add_event, NewEvents}, #state{events = Events, tick = Tick} = State) when is_list(NewEvents) ->
-    {noreply, State#state{events = NewEvents ++ Events, tick = NewEvents ++ Tick}};
-handle_cast({add_event, Event}, #state{events = Events, tick = Tick} = State) ->
-    {noreply, State#state{events = [Event | Events], tick = [Event | Tick]}};
+    epic_event:start_turn(self()),
+    Event = {start_turn},
+    fight_worker:place_tick(Map, Storage, self()),
+    {noreply, State#state{events = [Event | Events],
+                          tick_start = now(),
+                          tick_in_progress = true}};
+handle_cast({add_event, [Event]}, #state{events = Events, current_tick_events = Tick} = State) ->
+    {noreply, State#state{events = [Event | Events], current_tick_events = [Event | Tick]}};
+handle_cast({add_event, NewEvents}, #state{events = Events, current_tick_events = Tick} = State) when is_list(NewEvents) ->
+    {noreply, State#state{events = NewEvents ++ Events, current_tick_events = NewEvents ++ Tick}};
+handle_cast({add_event, Event}, #state{events = Events, current_tick_events = Tick} = State) ->
+    {noreply, State#state{events = [Event | Events], current_tick_events = [Event | Tick]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

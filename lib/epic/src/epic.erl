@@ -48,6 +48,7 @@ start_group([F | L]) ->
 start() ->
     appmon:start(),
     mnesia:start(),
+    application:start(erlv8),
     application:start(epic),
     application:start(ds_web),
     loader:load().

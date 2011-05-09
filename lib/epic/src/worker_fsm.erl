@@ -8,10 +8,12 @@
 %%%-------------------------------------------------------------------
 -module(worker_fsm).
 
+-include("../../erlv8/include/erlv8.hrl").
+
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/0, cycle/4, tick/5]).
+-export([start_link/0, tick/4]).
 
 %% gen_fsm callbacks
 -export([init/1, waiting/2, handle_event/3,
@@ -19,7 +21,15 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-define(UNIT_SCRIPT,
+"
+var weapons = unit.weapons;
+for (var i = 0; i < weapons.length; i++) {
+      log(weapons[i].range);
+}
+").
+
+-record(state, {vm}).
 
 %%%===================================================================
 %%% API
@@ -37,11 +47,8 @@
 start_link() ->
     gen_fsm:start_link(?MODULE, [], []).
 
-cycle(Worker, Fight, Id, FightPid) ->
-    gen_fsm:send_event(Worker, {cycle, Fight, FightPid, Id}).
-
-tick(Worker, Fight, Map, Id, FightPid) ->
-    gen_fsm:send_event(Worker, {tick, Fight, Map, FightPid, Id}).
+tick(Worker, Map, Storage, FightPid) ->
+    gen_fsm:send_event(Worker, {tick, Map, Storage, FightPid}).
 
 
 %%%===================================================================
@@ -63,7 +70,8 @@ tick(Worker, Fight, Map, Id, FightPid) ->
 %%--------------------------------------------------------------------
 init([]) ->
     fight_worker:report_idle(self()),
-    {ok, waiting, #state{}}.
+    {ok, VM} = erlv8_vm:start(),
+    {ok, waiting, #state{vm = VM}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -80,13 +88,9 @@ init([]) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
-waiting({cycle, Fight, FightPid, Id}, State) ->
-    fight_server:end_cycle(FightPid, handle_cycle(Fight), Id),
-    fight_worker:report_idle(self()),
-    {next_state, waiting, State};
-
-waiting({tick, Fight, Map, FightPid, Id}, State) ->
-    fight_server:end_turn(FightPid, handle_turn(Fight, FightPid, Map), Id),
+waiting({tick, Map, Storage, FightPid}, #state{vm = VM} = State) ->
+    handle_turn(Map, Storage, FightPid, VM),
+    fight_server:end_tick(FightPid),
     fight_worker:report_idle(self()),
     {next_state, waiting, State}.
 
@@ -177,15 +181,126 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-handle_cycle(Fight) ->
-    fight:units(Fight,
-		dict:map(fun (_UnitID, Unit) ->
-				 unit:cycle(Unit)
-			 end, fight:units(Fight))).
 
-handle_turn(Fight, FightPid, Map) ->
-    lists:foldl(fun (UnitID, RFight) ->
-			{NewFight, Events} = unit:turn(fight:get_unit(RFight, UnitID), RFight, Map),
-			fight_server:add_event(FightPid, Events),
-			NewFight
-		end, Fight, fight:unit_ids(Fight)).
+handle_turn(Map, Storage, FightPid, VM) ->
+    lists:map(fun (UnitId) ->
+                      Unit = fight_storage:get_unit(Storage, UnitId),
+                      case unit:destroyed(Unit) of
+                          false -> handle_unit(FightPid, Map, Storage, UnitId, FightPid, VM);
+                          true -> ok
+                      end
+              end, fight_storage:get_ids(Storage)).
+
+handle_unit(FightPid, Map, Storage, UnitId, FightPid, VM) ->
+    Context = erlv8_context:new(VM),
+    ContextGlobal = erlv8_context:global(Context),
+    ContextGlobal:set_value("unit", create_unit(FightPid, Map, Storage, FightPid, VM, UnitId)),
+    ContextGlobal:set_value("log", fun (#erlv8_fun_invocation{}, V) ->
+                                           io:format("JS-LOG(~p)> ~p.~n", [FightPid, V])
+                                   end),
+    erlv8_vm:run(VM, Context, ?UNIT_SCRIPT),
+    ok.
+
+
+unit_getter(Storage, UnitId, Field) ->
+    fun (#erlv8_fun_invocation{}, _) ->
+            U = fight_storage:get_unit(Storage, UnitId),
+            unit:get(U, Field)
+    end.
+
+weapon_getter(Weapon, Attr) ->
+    fun (#erlv8_fun_invocation{}, _) ->
+            module:get(Weapon, Attr)
+    end.
+    
+
+add_accessors(Object, _, []) ->
+    Object;
+add_accessors(Object, AccessorFun, [V | R]) ->
+    Object:set_accessor(erlang:atom_to_list(V), AccessorFun(V)),
+    add_accessors(Object, AccessorFun, R).
+
+create_foe(Storage, VM, UnitId) ->
+    Unit = erlv8_vm:taint(VM, erlv8_object:new([])),
+    add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [x, y, id, mass, fleet]).
+    
+create_unit(FightPid, Map, Storage, FightPid, VM, UnitId) ->
+    Unit = create_foe(Storage, VM, UnitId),
+    Unit = erlv8_vm:taint(VM, erlv8_object:new([])),
+    add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [range, energy]),
+    Unit:set_accessor("weapons", fun (#erlv8_fun_invocation{}, _) ->
+                                         U = fight_storage:get_unit(Storage, UnitId),
+                                         W = unit:modules_of_kind(U, weapon),
+                                         io:format("1~n", []),
+                                         Ws = [ create_weapon(FightPid, Storage, VM, UnitId, Weapon) || Weapon <- W ],
+                                         io:format("Weapons: ~p.~n", [Ws]),
+                                         ?V8Arr(Ws)
+                                 end),
+    Unit:set_value("move", move_fun(FightPid, Storage, Map, UnitId)),
+    Unit:set_value("intercept", intercept_fun(FightPid, Storage, Map, UnitId)),
+    Unit.
+
+create_weapon(FightPid, Storage, VM, UnitId, Weapon) ->
+    WeaponO = erlv8_vm:taint(VM, erlv8_object:new([
+                                                   {"fire", fire_fun(FightPid, Storage, UnitId, Weapon)}
+                                                  ])),
+    add_accessors(WeaponO, fun(V) -> weapon_getter(Weapon, V) end, [integrety, accuracy, variation, range, rotatability, damage]).
+
+intercept(FightPid, Storage, Map, UnitId, Destination, Distance) ->
+    Unit = fight_storage:get_unit(Storage, UnitId),
+    Dist = unit:distance(Unit, Destination),
+    if
+	Distance =/= Dist ->EngineRange = unit:available_range(Unit),
+                            Start = unit:coords(Unit),
+                            Range = min(Dist - Distance, EngineRange),
+                            {X, Y, R} = map_server:best_distance(Map, Start, Destination, Range),
+                            map_server:move_unit(Map, UnitId, X, Y),
+                            fight_storage:set_unit(Storage, unit:coords(unit:use_engine(Unit, R), {X, Y})),
+                            fight_server:add_event(FightPid, {move, UnitId, X, Y}),
+                            {ok, {X, Y}};
+	Distance == Dist -> {ok, Destination}
+    end.
+
+
+move_fun(FightPid, Storage, Map, UnitId) ->
+    fun (#erlv8_fun_invocation{}, [X, Y]) ->
+            intercept(FightPid, Storage, Map, UnitId, {X, Y}, 0)
+                                                % TODO: Add Event
+    end.
+
+intercept_fun(FightPid, Storage, Map, UnitId) ->
+    fun (#erlv8_fun_invocation{}, [Target, Range]) ->
+            TargetId = Target:get_value("id"),
+            TargetUniut = fight_storage:get_unit(Storage, TargetId),
+            intercept(FightPid, Storage, Map, UnitId, unit:coords(TargetUniut), Range)
+    end.
+
+fire_fun(FightPid, Storage, UnitId, Weapon) ->
+    fun (#erlv8_fun_invocation{}, [Target]) ->
+            U = fight_storage:get_unit(Storage, UnitId),
+            TargetId = Target:get_value("id"),
+            TargetUnit = fight_storage:get_unit(Storage, TargetId),
+            handle_weapon(FightPid, Storage, Weapon, U, TargetUnit)
+    end.
+
+handle_weapon_hit(FightPid, Storage, {ok, true, _Data}, Attacker, Target, Energy, Damage) ->
+    fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)),
+    {NewTarget, TargetMessages} = unit:hit(Target, Damage),
+    fight_storage:set_unit(Storage, NewTarget),
+    AttackerId = unit:id(Attacker),
+    TargetId = unit:id(Target),
+    OldHull = module:integrety(unit:hull(Target)),
+    NewHull = module:integrety(unit:hull(NewTarget)),
+    M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, 
+         {target, AttackerId, TargetId}],
+    if 
+        NewHull =< 0 -> fight_server:add_event(FightPid, [{destroyed, TargetId} | M]);
+        true -> fight_server:add_event(FightPid, M)
+    end,
+    ok;
+
+handle_weapon_hit(_FightPid, Storage, {ok, false, _Data}, Attacker, _Target, Energy, _Damage) ->
+    fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)).
+
+handle_weapon(FightPid, Storage, Weapon, Attacker, Target) ->
+    handle_weapon_hit(FightPid, Storage, module:fire_weapon(Weapon, Attacker, Target), Attacker, Target, module:energy_usage(Weapon), module:damage(Weapon)).

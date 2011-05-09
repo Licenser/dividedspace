@@ -14,12 +14,12 @@
 -export([
 	 start_link/0,
 	 add_handler/0,
-	 start_turn/2,
-	 end_turn/2,
+	 start_turn/1,
+	 end_turn/1,
 	 start_global_turn/0,
 	 end_global_turn/0,
-	 start_cycle/2,
-	 end_cycle/2,
+	 start_cycle/1,
+	 end_cycle/1,
 	 fight_error/2,
 	 fight_problem/2,
 	 register_with_logger/0
@@ -37,11 +37,11 @@
 %%% API
 %%%===================================================================
 
-start_cycle(FightID, CycleID) ->
-    gen_event:notify(?SERVER, {start_cycle, FightID, CycleID}).
+start_cycle(FightID) ->
+    gen_event:notify(?SERVER, {start_cycle, FightID}).
 
-end_cycle(FightID, CycleID) ->
-    gen_event:notify(?SERVER, {end_cycle, FightID, CycleID}).
+end_cycle(FightID) ->
+    gen_event:notify(?SERVER, {end_cycle, FightID}).
 
 start_global_turn() ->
     gen_event:notify(?SERVER, {start_global_turn}).
@@ -49,11 +49,11 @@ start_global_turn() ->
 end_global_turn() ->
     gen_event:notify(?SERVER, {end_global_turn}).
 
-start_turn(FightID, TurnID) ->
-    gen_event:notify(?SERVER, {start_turn, FightID, TurnID}).
+start_turn(FightID) ->
+    gen_event:notify(?SERVER, {start_turn, FightID}).
 
-end_turn(FightID, TurnID) ->
-    gen_event:notify(?SERVER, {end_turn, FightID, TurnID}).
+end_turn(FightID) ->
+    gen_event:notify(?SERVER, {end_turn, FightID}).
 
 fight_problem(FightID, Problem) ->
     gen_event:notify(?SERVER, {fight_problem, FightID, Problem}).
@@ -124,18 +124,18 @@ handle_event({fight_problem, FightID, Problem}, State) ->
 handle_event({fight_error, FightID, Error}, State) ->
     error_logger:error_msg("EPIC - FIGHT<~p> ERROR: ~p.~n", [FightID, Error]),
     {ok, State};
-handle_event({start_cycle, FightID, CycleID}, State) ->
-    io:format("EPIC - FIGHT<~p>: Cycle<~p> started.~n", [FightID, CycleID]),
-    error_logger:error_msg("EPIC - FIGHT<~p>: Cycle<~p> started.~n", [FightID, CycleID]),
+handle_event({start_cycle, FightID}, State) ->
+    io:format("EPIC - FIGHT<~p>: Cycle started.~n", [FightID]),
+    error_logger:error_msg("EPIC - FIGHT<~p>: Cycle started.~n", [FightID]),
     {ok, State};
-handle_event({end_cycle, FightID, CycleID}, State) ->
-    error_logger:info_msg("EPIC - FIGHT<~p>: Cycle<~p> ended.~n", [FightID, CycleID]),
+handle_event({end_cycle, FightID}, State) ->
+    error_logger:info_msg("EPIC - FIGHT<~p>: Cycle ended.~n", [FightID]),
     {ok, State};
-handle_event({start_turn, FightID, TurnID}, State) ->
-    error_logger:info_msg("EPIC - FIGHT<~p>: Turn<~p> started.~n", [FightID, TurnID]),
+handle_event({start_turn, FightID}, State) ->
+    error_logger:info_msg("EPIC - FIGHT<~p>: Turn started.~n", [FightID]),
     {ok, State};
-handle_event({end_turn, FightID, TurnID}, State) ->
-    error_logger:info_msg("EPIC - FIGHT<~p>: Turn<~p> ended.~n", [FightID, TurnID]),
+handle_event({end_turn, FightID}, State) ->
+    error_logger:info_msg("EPIC - FIGHT<~p>: Turn ended.~n", [FightID]),
     {ok, State};
 handle_event({start_global_turn}, State) ->
     error_logger:info_msg("EPIC: Global turn started.~n", []),

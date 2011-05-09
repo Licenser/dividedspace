@@ -17,6 +17,7 @@
 	 explode/1,
 	 implode/1,
 	 is_a/1,
+         get/2,
 	 reset/1]).
 
 -export([
@@ -663,3 +664,16 @@ ensure_record(#module{} = Module)->
 ensure_record(Module) when is_binary(Module) ->
     {ok, M} = select(Module),
     M.
+
+get(#module{integrety = Integrety}, integrety) ->
+    Integrety;
+get(#module{instance = #weapon_spec{accuracy = Accuracy}}, accuracy) ->
+    Accuracy;
+get(#module{instance = #weapon_spec{variation = Variation}}, variation) ->
+    Variation;
+get(#module{instance = #weapon_spec{range = Range}}, range) ->
+    Range;
+get(#module{instance = #weapon_spec{rotatability = Rotatability}}, rotatability) ->
+    Rotatability;
+get(#module{instance = #weapon_spec{damage = Damage}}, damage) ->
+    Damage.

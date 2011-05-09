@@ -45,7 +45,8 @@
 	  fleet/2,
 	  add_module/2,
 	  remove_module/2,
-	  modules_of_kind/2
+	  modules_of_kind/2,
+          get/2
 	]).
 
 -export([ % Logic
@@ -84,7 +85,7 @@ fields() ->
 %%--------------------------------------------------------------------					
 
 new(X, Y, Fleet, Modules) ->
-    create(uuid:v4(), X, Y, Fleet, Modules).
+    create(uuid:to_string(uuid:v4()), X, Y, Fleet, Modules).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -95,7 +96,7 @@ new(X, Y, Fleet, Modules) ->
 %% @end
 %%--------------------------------------------------------------------
 
-select(ID) when is_binary(ID) ->
+select(ID) when is_list(ID) ->
     storage:select({unit, ID}).
 
 is_a(#unit{}) ->
@@ -103,7 +104,7 @@ is_a(#unit{}) ->
 is_a(_) ->
     false.
 
-create(Id, X, Y, Fleet, Modules) when is_binary(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
+create(Id, X, Y, Fleet, Modules) when is_list(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
     #unit{
 	   id = Id,
 	   x = X,
@@ -161,14 +162,14 @@ from_template(X, Y, Fleet, Modules) when is_integer(X), is_integer(Y), is_list(M
     storage:insert(Unit),
     {ok, Unit}.
 
-ensure_id(Unit) when is_binary(Unit) ->
+ensure_id(Unit) when is_list(Unit) ->
     Unit;
 ensure_id(#unit{id = ID})->
     ID.
 
 ensure_record(#unit{} = Unit)->
     Unit;
-ensure_record(Unit) when is_binary(Unit) ->
+ensure_record(Unit) when is_list(Unit) ->
     {ok, U} = select(Unit),
     explode(U).
 
@@ -283,7 +284,7 @@ handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage
     {NewTarget, TargetMessages} = hit(Target, Damage),
     OldHull = module:integrety(unit:hull(Target)),
     NewHull = module:integrety(unit:hull(NewTarget)),
-    M = [{hit, uuid:to_string(AttackerId), uuid:to_string(TargetId), OldHull - NewHull, TargetMessages}, {target, uuid:to_string(AttackerId), uuid:to_string(TargetId)}],
+    M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, {target, AttackerId, TargetId}],
     NewMessages = if 
 		      NewHull =< 0 -> [{destroyed, TargetId} | M];
 		      true -> M
@@ -291,7 +292,7 @@ handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage
     {fight:add_unit(NewFight, NewTarget), NewMessages};
 
 handle_weapon_hit(Fight, {ok, false, _Data}, AttackerId, TargetId, Energy, _Damage) ->
-    {update_unit_energy(Fight, AttackerId, Energy), [{miss, uuid:to_string(AttackerId), uuid:to_string(TargetId)}, {target, uuid:to_string(AttackerId), uuid:to_string(TargetId)}]}.
+    {update_unit_energy(Fight, AttackerId, Energy), [{miss, AttackerId, TargetId}, {target, AttackerId, TargetId}]}.
 
 handle_weapon(Weapon, {Fight, Messages}, Map, AttackerId, TargetId) ->
     {FightAfterIntercept, InterceptMessages} = intercept(Fight, Map, AttackerId, TargetId, Weapon),
@@ -396,6 +397,21 @@ intercept(Fight, Map, AttackerId, TargetId, Weapon) ->
 			       map_server:move_unit(Map, AttackerId, X, Y),
 			       {update_unit(Fight, AttackerId, fun(A) ->
 								       coords(use_engine(A, R), {X, Y})
-							       end), [{move, uuid:to_string(AttackerId), X, Y}]}; 
+							       end), [{move, AttackerId, X, Y}]}; 
 	true -> {Fight, []}
     end.
+
+get(#unit{x = X}, x) ->
+    X;
+get(#unit{y = Y}, y) ->
+    Y;
+get(#unit{id = Id}, id) ->
+    Id;
+get(#unit{} = Unit, mass) ->
+    unit:mass(Unit);
+get(#unit{} = Unit, range) ->
+    unit:available_range(Unit);
+get(#unit{} = Unit, energy) ->
+    unit:available_energy(Unit);
+get(#unit{fleet = Fleet}, fleet) ->
+    Fleet.

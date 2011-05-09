@@ -13,9 +13,8 @@
 %% API
 -export([
 	 start_link/0,
-	 place_cycle/3,
-	 place_turn/4,
-	 report_idle/1
+	 place_tick/3,
+         report_idle/1
 	]).
 
 %% gen_server callbacks
@@ -44,11 +43,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-place_cycle(Fight, Id, FightPid) ->
-    gen_server:cast(?SERVER, {place_cycle, Fight, Id, FightPid}).
-
-place_turn(Fight, Map, Id, FightPid) ->
-    gen_server:cast(?SERVER, {place_turn, Fight, Map, Id, FightPid}).
+place_tick(Map, Storage, FightPid) ->
+    gen_server:cast(?SERVER, {place_tick, Map, Storage, FightPid}).
 
 report_idle(Worker) ->
     gen_server:cast(?SERVER, {report_idle, Worker}).
@@ -100,23 +96,15 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({place_cycle, Fight, Id, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
-    {noreply, State#state{tasks=Tasks ++ [{cycle, Fight, Id, FightPid}]}};
-handle_cast({place_cycle, Fight, Id, FightPid}, #state{idle_workers = [W | R]} = State) ->
-    worker_fsm:cycle(W, Fight, Id, FightPid),
-    {noreply, State#state{idle_workers=R}};
-handle_cast({place_turn, Fight, Map, Id, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
-    {noreply, State#state{tasks=Tasks ++ [{turn, Fight, Map, Id, FightPid}]}};
-handle_cast({place_turn, Fight, Map, Id, FightPid}, #state{idle_workers = [W | R]} = State) ->
-    worker_fsm:tick(W, Fight, Map, Id, FightPid),
+handle_cast({place_tick, Map, Storage, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
+    {noreply, State#state{tasks=Tasks ++ [{place_tick, Map, Storage, FightPid}]}};
+handle_cast({place_tick, Map, Storage, FightPid}, #state{idle_workers = [Worker | R]} = State) ->
+    worker_fsm:tick(Worker, Map, Storage, FightPid),
     {noreply, State#state{idle_workers=R}};
 handle_cast({report_idle, Worker}, #state{idle_workers = W, tasks=[]} = State) ->
     {noreply, State#state{idle_workers=[Worker | W]}};
-handle_cast({report_idle, Worker}, #state{tasks=[{turn, Fight, Map, Id, FightPid} | R]} = State) ->
-    worker_fsm:tick(Worker, Fight, Map, Id, FightPid),
-    {noreply, State#state{tasks=R}};
-handle_cast({report_idle, Worker}, #state{tasks=[{cycle, Fight, Id, FightPid} | R]} = State) ->
-    worker_fsm:cycle(Worker, Fight, Id, FightPid),
+handle_cast({report_idle, Worker}, #state{tasks=[{place_tick, Map, Storage, FightPid} | R]} = State) ->
+    worker_fsm:tick(Worker, Map, Storage, FightPid),
     {noreply, State#state{tasks=R}};
 handle_cast(_Msg, State) ->
     {noreply, State}.

@@ -1,29 +1,30 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@schroedinger.lan>
+%%% @author Heinz N. Gies <heinz@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 21 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
+%%% Created :  8 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(epic_sup).
+-module(storage_sup).
 
 -behaviour(supervisor).
 
 %% API
--export([start_link/0]).
+-export([start_link/0, start_child/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
-
-%% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
 -define(SERVER, ?MODULE).
 
 %%%===================================================================
 %%% API functions
 %%%===================================================================
+
+start_child(Fight) -> 
+    supervisor:start_child(?SERVER, [Fight]).
+
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -53,26 +54,11 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    RestartStrategy = one_for_one,
-    MaxRestarts = 1000,
-    MaxSecondsBetweenRestarts = 3600,
-
-    SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
-
-    %Restart = permanent,
-    %Shutdown = 2000,
-    %Type = worker,
-
-    EPICServer = ?CHILD(epic_server, worker),
-    FightWorker = ?CHILD(fight_worker, worker),
-    TurnServer = ?CHILD(turn_server, worker),
-    EpicEvent =  ?CHILD(epic_event, worker),
-    FightSup = ?CHILD(fight_sup, supervisor),
-    MapSup = ?CHILD(map_sup, supervisor),
-    StorageSup = ?CHILD(storage_sup, supervisor),
-    WorkerSup = ?CHILD(worker_sup, supervisor),
-    {ok, {SupFlags, [FightSup, MapSup, WorkerSup, StorageSup, EPICServer, FightWorker, EpicEvent, TurnServer]}}.
-
+    Element = {fight_storage, {fight_storage, start_link, []},
+	       temporary, brutal_kill, worker, [fight_storage]}, 
+    Children = [Element],
+    RestartStrategy = {simple_one_for_one, 0, 1}, 
+    {ok, {RestartStrategy, Children}}.
 
 %%%===================================================================
 %%% Internal functions

@@ -4,28 +4,23 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created : 27 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
+%%% Created :  8 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(turn_server).
+-module(fight_storage).
 
 -behaviour(gen_server).
 
 %% API
--export([
-	 start_link/0,
-	 register_free_worker/1,
-	 register_fight/1
-	]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3, get_unit/2, set_unit/2, set_unit/3,
+         get_ids/1]).
 
 -define(SERVER, ?MODULE). 
 
--define(TURN_INTERVAL, 10000).
-
--record(state, {workers = [], fights = []}).
+-record(state, {units, ids}).
 
 %%%===================================================================
 %%% API
@@ -38,14 +33,21 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Units) ->
+    gen_server:start_link(?MODULE, [Units], []).
 
-register_free_worker(Worker) ->
-    gen_server:cast(?SERVER, {register_worker, Worker}).
+get_unit(Pid, Id) ->
+    gen_server:call(Pid, {get, Id}).
 
-register_fight(Fight) ->
-    gen_server:cast(?SERVER, {register_fight, Fight}).
+set_unit(Pid, Unit) ->
+    gen_server:cast(Pid, {set, Unit}).
+
+set_unit(Pid, Id, Unit) ->
+    gen_server:cast(Pid, {set, Id, Unit}).
+
+get_ids(Pid) ->
+    gen_server:call(Pid, {get_ids}).
+
 
 
 %%%===================================================================
@@ -63,9 +65,9 @@ register_fight(Fight) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    timer:send_interval(?TURN_INTERVAL, interval),
-    {ok, #state{}}.
+init([Units]) ->
+    {ok, #state{units = Units,
+                ids = dict:fetch_keys(Units)}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -81,6 +83,11 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({get, Id}, _From, #state{units = Units} = State) ->
+    {ok, Unit} = dict:find(Id, Units),
+    {reply, Unit, State};
+handle_call({get_ids}, _From, #state{ids = Ids} = State) ->
+    {reply, Ids, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -95,10 +102,10 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({register_worker, Worker}, #state{workers = Workers} = State) ->
-    {noreply, State#state{workers = [Worker | Workers]}};
-handle_cast({register_fight, Fight}, #state{fights = Fights} = State) ->
-    {noreply, State#state{fights = [Fight | Fights]}};
+handle_cast({set, Unit}, #state{units = Units, ids = Ids} = State) ->
+    {noreply, State#state{units = dict:store(unit:id(Unit), Unit, Units), ids = fix_ids(Ids, Units)}};
+handle_cast({set, Id, Unit}, #state{units = Units, ids = Ids} = State) ->
+    {noreply, State#state{units = dict:store(Id, Unit, Units), ids = fix_ids(Ids, Units)}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -112,17 +119,6 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(interval, #state{fights = Fights} = State) ->
-    epic_event:start_global_turn(),
-    lists:map(fun(Fight) ->
-		      case fight_server:status(Fight) of
-			  {ok, idle} -> fight_server:trigger(Fight);
-			  {ok, in_turn} -> epic_event:fight_problem(Fight, cycle_taking_long);
-			  {error, Reason} -> epic_event:fight_problem(Fight, Reason)
-		      end
-	      end, Fights),
-    epic_event:end_global_turn(),
-    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -154,3 +150,16 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+fix_ids(Ids, Unit) ->
+    case unit:destroyed(Unit) of
+        false -> Ids;
+        true -> Id = unit:id(Unit),
+                lists:filter(fun (I) ->
+                                     I =/= Id
+                             end, Ids)
+    end.
+                                     
+
+                     
+            
