@@ -43,8 +43,8 @@
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-place_tick(Map, Storage, FightPid) ->
-    gen_server:cast(?SERVER, {place_tick, Map, Storage, FightPid}).
+place_tick(VM, Storage, FightPid) ->
+    gen_server:cast(?SERVER, {place_tick, VM, Storage, FightPid}).
 
 report_idle(Worker) ->
     gen_server:cast(?SERVER, {report_idle, Worker}).
@@ -96,15 +96,15 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({place_tick, Map, Storage, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
-    {noreply, State#state{tasks=Tasks ++ [{place_tick, Map, Storage, FightPid}]}};
-handle_cast({place_tick, Map, Storage, FightPid}, #state{idle_workers = [Worker | R]} = State) ->
-    worker_fsm:tick(Worker, Map, Storage, FightPid),
+handle_cast({place_tick, VM, Storage, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
+    {noreply, State#state{tasks=Tasks ++ [{place_tick, VM, Storage, FightPid}]}};
+handle_cast({place_tick, VM, Storage, FightPid}, #state{idle_workers = [Worker | R]} = State) ->
+    worker_fsm:tick(Worker, VM, Storage, FightPid),
     {noreply, State#state{idle_workers=R}};
 handle_cast({report_idle, Worker}, #state{idle_workers = W, tasks=[]} = State) ->
     {noreply, State#state{idle_workers=[Worker | W]}};
-handle_cast({report_idle, Worker}, #state{tasks=[{place_tick, Map, Storage, FightPid} | R]} = State) ->
-    worker_fsm:tick(Worker, Map, Storage, FightPid),
+handle_cast({report_idle, Worker}, #state{tasks=[{place_tick, VM, Storage, FightPid} | R]} = State) ->
+    worker_fsm:tick(Worker, VM, Storage, FightPid),
     {noreply, State#state{tasks=R}};
 handle_cast(_Msg, State) ->
     {noreply, State}.

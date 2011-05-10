@@ -17,7 +17,6 @@
 	 trigger_tick/1,
 	 end_tick/1,
 	 add_event/2,
-	 get_events/1,
 	 subscribe/2,
 	 unsubscribe/2,
 	 status/1
@@ -29,7 +28,7 @@
 
 -define(SERVER, ?MODULE). 
 
--record(state, {initial_fight, fight, map, map_id, events = [], tick = 0, subscribers = [], all_tick_events = [], current_tick_events = [], tick_start = 0, storage, tick_in_progress = false}).
+-record(state, {initial_fight, fight, map, map_id, tick = 0, subscribers = [], all_tick_events = [], current_tick_events = [], tick_start = 0, storage, tick_in_progress = false, vm}).
 
 %%%===================================================================
 %%% API
@@ -56,9 +55,6 @@ add_event(Pid, Event) ->
 
 trigger_tick(Pid) ->
     gen_server:cast(Pid, trigger_tick).
-
-get_events(Pid) ->
-    gen_server:call(Pid, events).
 
 status(Pid) ->
     gen_server:call(Pid, status).
@@ -94,14 +90,15 @@ init([Fight]) ->
 				  {spawn, UnitId, unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
 			  end, fight:unit_ids(Fight)),
     Units = fight:units(Fight),
+    {ok, VM} = erlv8_vm:start(),
     {ok, MapServer} = map_sup:start_child(Units),
-    {ok, FightStorage} = storage_sup:start_child(Units),
+    {ok, FightStorage} = storage_sup:start_child(Units, VM, self(), MapServer),
     {ok, #state{
+       vm = VM,
        initial_fight = Fight,
        fight = Fight,
        map = MapServer,
        storage = FightStorage,
-       events = [{multi_event, Placement}],
        all_tick_events = [Placement]
       }}.
 
@@ -121,8 +118,6 @@ init([Fight]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(events, _Form, #state{events = Events} = State) ->
-    {reply, Events, State};
 handle_call(status, _Form, #state{tick_in_progress = false} = State) ->
     {reply, {ok, idle}, State};
 handle_call(status, _Form, #state{tick_in_progress = true} = State) ->
@@ -148,8 +143,7 @@ handle_cast({subscribe, Subscriber}, #state{
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
     {noreply, State};
-handle_cast(end_tick, #state{events = Events,
-                             all_tick_events = Ticks,
+handle_cast(end_tick, #state{all_tick_events = Ticks,
                              current_tick_events = TickEvent,
                              tick_start = TickStart
                             } = State) ->
@@ -158,7 +152,6 @@ handle_cast(end_tick, #state{events = Events,
     Event = {end_turn},
     inform_subscribers(State, TickEvent),
     {noreply, State#state{
-                events = [Event | Events],
                 current_tick_events = [],
                 tick_in_progress = false,
                 all_tick_events = [TickEvent | Ticks]
@@ -166,25 +159,21 @@ handle_cast(end_tick, #state{events = Events,
 handle_cast(trigger_tick, #state{tick_in_progress = true} = State) ->
     {noreply, State};
 handle_cast(trigger_tick, #state{fight = Fight,
-				 map = Map,
-				 events = Events,
-                                 storage = Storage} = State) ->
+				 vm = VM,
+                                 storage = Storage
+                                } = State) ->
 
     epic_event:start_turn(self()),
     Event = {start_turn},
-    fight_worker:place_tick(Map, Storage, self()),
-    {noreply, State#state{events = [Event | Events],
-                          tick_start = now(),
+    fight_worker:place_tick(VM, Storage, self()),
+    {noreply, State#state{tick_start = now(),
                           tick_in_progress = true}};
-handle_cast({add_event, [Event]}, #state{events = Events, current_tick_events = Tick} = State) ->
-    io:format("Event: ~p~n.", [Event]),
-    {noreply, State#state{events = [Event | Events], current_tick_events = [Event | Tick]}};
-handle_cast({add_event, NewEvents}, #state{events = Events, current_tick_events = Tick} = State) when is_list(NewEvents) ->
-    io:format("Events: ~p~n.", [NewEvents]),
-    {noreply, State#state{events = NewEvents ++ Events, current_tick_events = NewEvents ++ Tick}};
-handle_cast({add_event, Event}, #state{events = Events, current_tick_events = Tick} = State) ->
-    io:format("Event42: ~p~n.", [Event]),
-    {noreply, State#state{events = [Event | Events], current_tick_events = [Event | Tick]}};
+handle_cast({add_event, [Event]}, #state{current_tick_events = Tick} = State) ->
+    {noreply, State#state{current_tick_events = [Event | Tick]}};
+handle_cast({add_event, NewEvents}, #state{current_tick_events = Tick} = State) when is_list(NewEvents) ->
+    {noreply, State#state{current_tick_events = NewEvents ++ Tick}};
+handle_cast({add_event, Event}, #state{current_tick_events = Tick} = State) ->
+    {noreply, State#state{current_tick_events = [Event | Tick]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
