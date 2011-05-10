@@ -211,17 +211,17 @@ find_path(C2U, X1, Y1, X2, Y2, D, Max) ->
     Dir = map:direction_between({X1, Y1}, {X2, Y2}),
     Dist = map:distance({X1, Y1}, {X2, Y2}),
     if 
-        Dist == D -> {X1, X2, 0};
+        Dist == D -> {X1, Y1, 0};
         Dist =< D -> Direction = 6 - Dir,
                      case find_working_step(C2U, X1, Y1, Direction) of
-                         error ->  {X1, X2, 0};
+                         error ->  {X1, Y1, 0};
                          {NX, NY} -> 
                              {DX, DY, R} = find_path(C2U, NX, NY, X2, Y2, D, Max -1),
                              {DX, DY, R + 1}
                      end;
         Dist >= D -> Direction = Dir,
                      case find_working_step(C2U, X1, Y1, Direction) of
-                         error ->  {X1, X2, 0};
+                         error ->  {X1, Y1, 0};
                          {NX, NY} -> 
                              {DX, DY, R} = find_path(C2U, NX, NY, X2, Y2, D, Max -1),
                              {DX, DY, R + 1}

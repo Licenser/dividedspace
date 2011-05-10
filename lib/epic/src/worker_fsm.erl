@@ -298,11 +298,8 @@ intercept_fun(FightPid, Storage, Map, UnitId) ->
 fire_fun(FightPid, Storage, UnitId, Weapon) ->
     fun (#erlv8_fun_invocation{}, [Target]) ->
             U = fight_storage:get_unit(Storage, UnitId),
-            io:format("1~n"),
             TargetIdFun = Target:get_value("id"),
-            io:format("2~n"),
             TargetId = TargetIdFun:call(),
-            io:format("3~n"),
             TargetUnit = fight_storage:get_unit(Storage, TargetId),
             io:format("4~n"),
             handle_weapon(FightPid, Storage, Weapon, U, TargetUnit),
@@ -333,7 +330,8 @@ handle_weapon_hit(FightPid, Storage, {ok, true, _Data}, Attacker, Target, Energy
     end,
     ok;
 
-handle_weapon_hit(_FightPid, Storage, {ok, false, _Data}, Attacker, _Target, Energy, _Damage) ->
+handle_weapon_hit(FightPid, Storage, {ok, false, _Data}, Attacker, Target, Energy, _Damage) ->
+    fight_server:add_event(FightPid, {target, unit:id(Attacker), unit:id(Target)}),
     fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)).
 
 handle_weapon(FightPid, Storage, Weapon, Attacker, Target) ->

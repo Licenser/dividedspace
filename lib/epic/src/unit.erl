@@ -26,7 +26,8 @@
 	  name/1,
 	  hull/1,
           available_range/1,
-          use_engine/2
+          use_engine/2,
+          consume_energy/2
 	]).
 
 -export([ % Getter / Setter
