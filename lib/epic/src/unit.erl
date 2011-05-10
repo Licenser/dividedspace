@@ -24,7 +24,9 @@
 	  ensure_record/1,
 	  ensure_id/1,
 	  name/1,
-	  hull/1
+	  hull/1,
+          available_range/1,
+          use_engine/2
 	]).
 
 -export([ % Getter / Setter

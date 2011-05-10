@@ -23,9 +23,21 @@
 
 -define(UNIT_SCRIPT,
 "
-var weapons = unit.weapons;
-for (var i = 0; i < weapons.length; i++) {
-      log(weapons[i].range);
+var foes = unit.closest_foes();
+if (foes.length > 0) {
+  var foe = foes[0];
+  log('foe: ', foe);
+  var weapons = unit.weapons();
+
+  for (var i = 0; i < weapons.length; i++) {
+    var weapon = weapons[i];
+    var range = weapon.range();
+    log('weapon: ', weapon);
+    log('weapon-range: ', range);
+    unit.intercept(foe, range);
+    weapon.fire(foe);
+    log('intercepted');
+  }
 }
 ").
 
@@ -217,25 +229,30 @@ weapon_getter(Weapon, Attr) ->
 add_accessors(Object, _, []) ->
     Object;
 add_accessors(Object, AccessorFun, [V | R]) ->
-    Object:set_accessor(erlang:atom_to_list(V), AccessorFun(V)),
+    Object:set_value(erlang:atom_to_list(V), AccessorFun(V)),
     add_accessors(Object, AccessorFun, R).
 
 create_foe(Storage, VM, UnitId) ->
     Unit = erlv8_vm:taint(VM, erlv8_object:new([])),
-    add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [x, y, id, mass, fleet]).
+    add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [x, y, id, fleet, mass]),
+    Unit.
     
 create_unit(FightPid, Map, Storage, FightPid, VM, UnitId) ->
     Unit = create_foe(Storage, VM, UnitId),
     Unit = erlv8_vm:taint(VM, erlv8_object:new([])),
     add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [range, energy]),
-    Unit:set_accessor("weapons", fun (#erlv8_fun_invocation{}, _) ->
-                                         U = fight_storage:get_unit(Storage, UnitId),
-                                         W = unit:modules_of_kind(U, weapon),
-                                         io:format("1~n", []),
-                                         Ws = [ create_weapon(FightPid, Storage, VM, UnitId, Weapon) || Weapon <- W ],
-                                         io:format("Weapons: ~p.~n", [Ws]),
-                                         ?V8Arr(Ws)
-                                 end),
+    Unit:set_value("closest_foes", fun (#erlv8_fun_invocation{}, _) ->
+                                           U = fight_storage:get_unit(Storage, UnitId),
+                                           Foes = map_server:closest_foes(Map, U),
+                                           Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
+                                           erlv8_vm:taint(VM, ?V8Arr(Fs))
+                                    end),
+    Unit:set_value("weapons", fun (#erlv8_fun_invocation{}, _) ->
+                                      U = fight_storage:get_unit(Storage, UnitId),
+                                      W = unit:modules_of_kind(U, weapon),
+                                      Ws = [ create_weapon(FightPid, Storage, VM, UnitId, Weapon) || Weapon <- W ],
+                                      erlv8_vm:taint(VM, ?V8Arr(Ws))
+                              end),
     Unit:set_value("move", move_fun(FightPid, Storage, Map, UnitId)),
     Unit:set_value("intercept", intercept_fun(FightPid, Storage, Map, UnitId)),
     Unit.
@@ -250,47 +267,64 @@ intercept(FightPid, Storage, Map, UnitId, Destination, Distance) ->
     Unit = fight_storage:get_unit(Storage, UnitId),
     Dist = unit:distance(Unit, Destination),
     if
-	Distance =/= Dist ->EngineRange = unit:available_range(Unit),
-                            Start = unit:coords(Unit),
-                            Range = min(Dist - Distance, EngineRange),
-                            {X, Y, R} = map_server:best_distance(Map, Start, Destination, Range),
-                            map_server:move_unit(Map, UnitId, X, Y),
-                            fight_storage:set_unit(Storage, unit:coords(unit:use_engine(Unit, R), {X, Y})),
-                            fight_server:add_event(FightPid, {move, UnitId, X, Y}),
-                            {ok, {X, Y}};
-	Distance == Dist -> {ok, Destination}
+	Distance =/= Dist ->
+            EngineRange = unit:available_range(Unit),
+            Start = unit:coords(Unit),
+            Range = min(Dist - Distance, EngineRange),
+            {X, Y, R} = map_server:best_distance(Map, Start, Destination, Range, Distance),
+            map_server:move_unit(Map, UnitId, X, Y),
+            NewUnit = unit:coords(unit:use_engine(Unit, R), {X, Y}),
+            fight_storage:set_unit(Storage, NewUnit),
+            fight_server:add_event(FightPid, {move, UnitId, X, Y}),
+            {ok, {X, Y}};
+	true -> {ok, Destination}
     end.
 
 
 move_fun(FightPid, Storage, Map, UnitId) ->
     fun (#erlv8_fun_invocation{}, [X, Y]) ->
             intercept(FightPid, Storage, Map, UnitId, {X, Y}, 0)
-                                                % TODO: Add Event
     end.
 
 intercept_fun(FightPid, Storage, Map, UnitId) ->
     fun (#erlv8_fun_invocation{}, [Target, Range]) ->
-            TargetId = Target:get_value("id"),
-            TargetUniut = fight_storage:get_unit(Storage, TargetId),
-            intercept(FightPid, Storage, Map, UnitId, unit:coords(TargetUniut), Range)
+            TargetIdFun = Target:get_value("id"),
+            TargetId = TargetIdFun:call(),
+            TargetUnit = fight_storage:get_unit(Storage, TargetId),
+            Coords = unit:coords(TargetUnit),
+            intercept(FightPid, Storage, Map, UnitId, Coords, Range)
     end.
 
 fire_fun(FightPid, Storage, UnitId, Weapon) ->
     fun (#erlv8_fun_invocation{}, [Target]) ->
             U = fight_storage:get_unit(Storage, UnitId),
-            TargetId = Target:get_value("id"),
+            io:format("1~n"),
+            TargetIdFun = Target:get_value("id"),
+            io:format("2~n"),
+            TargetId = TargetIdFun:call(),
+            io:format("3~n"),
             TargetUnit = fight_storage:get_unit(Storage, TargetId),
-            handle_weapon(FightPid, Storage, Weapon, U, TargetUnit)
+            io:format("4~n"),
+            handle_weapon(FightPid, Storage, Weapon, U, TargetUnit),
+            io:format("5~n")
     end.
 
 handle_weapon_hit(FightPid, Storage, {ok, true, _Data}, Attacker, Target, Energy, Damage) ->
+    io:format("4.1.1~n"),
     fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)),
+    io:format("4.1.2~n"),
     {NewTarget, TargetMessages} = unit:hit(Target, Damage),
+    io:format("4.1.3~n"),
     fight_storage:set_unit(Storage, NewTarget),
+    io:format("4.1.4~n"),
     AttackerId = unit:id(Attacker),
+    io:format("4.1.5~n"),
     TargetId = unit:id(Target),
+    io:format("4.1.6~n"),
     OldHull = module:integrety(unit:hull(Target)),
+    io:format("4.1.7~n"),
     NewHull = module:integrety(unit:hull(NewTarget)),
+    io:format("4.1.8~n"),
     M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, 
          {target, AttackerId, TargetId}],
     if 
@@ -303,4 +337,11 @@ handle_weapon_hit(_FightPid, Storage, {ok, false, _Data}, Attacker, _Target, Ene
     fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)).
 
 handle_weapon(FightPid, Storage, Weapon, Attacker, Target) ->
-    handle_weapon_hit(FightPid, Storage, module:fire_weapon(Weapon, Attacker, Target), Attacker, Target, module:energy_usage(Weapon), module:damage(Weapon)).
+    io:format("4.1~n"),
+    R = module:fire_weapon(Weapon, Attacker, Target),
+    io:format("4.2 ~p~n", [R]),
+    E = module:energy_usage(Weapon),
+    io:format("4.3~n"),
+    D = module:damage(Weapon),
+    io:format("4.4~n"),
+    handle_weapon_hit(FightPid, Storage, R, Attacker, Target,E , D).

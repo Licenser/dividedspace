@@ -19,8 +19,8 @@
 	 unit_at/3,
 	 move_unit/4,
 	 closest_foes/2,
-	 best_distance/4,
-	 best_distance/6
+	 best_distance/5,
+	 best_distance/7
 	]).
 
 %% gen_server callbacks
@@ -44,11 +44,11 @@ unit_at(Pid, X, Y) ->
 closest_foes(Pid, Unit) ->
     gen_server:call(Pid, {closest_foes, Unit}).
 
-best_distance(Pid, {X1, Y1}, {X2, Y2}, Max) ->
-    gen_server:call(Pid, {best_distance, X1, Y1, X2, Y2, Max}).
+best_distance(Pid, {X1, Y1}, {X2, Y2}, D, Max) ->
+    gen_server:call(Pid, {best_distance, X1, Y1, X2, Y2, D, Max}).
 
-best_distance(Pid, X1, Y1, X2, Y2, Max) ->
-    gen_server:call(Pid, {best_distance, X1, Y1, X2, Y2, Max}).
+best_distance(Pid, X1, Y1, X2, Y2, D, Max) ->
+    gen_server:call(Pid, {best_distance, X1, Y1, X2, Y2, D, Max}).
 %%--------------------------------------------------------------------
 %% @doc
 %% Starts the server
@@ -112,8 +112,8 @@ init([Units]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({best_distance, X1, Y1, X2, Y2, Max}, _From, #state{c2u = C2U} = State) ->
-    {reply, find_path(C2U, X1, Y1, X2, Y2, Max), State};
+handle_call({best_distance, X1, Y1, X2, Y2, D, Max}, _From, #state{c2u = C2U} = State) ->
+    {reply, find_path(C2U, X1, Y1, X2, Y2, D, Max), State};
 handle_call({closest_foes, Unit}, _From, #state{u2cf = U2CF} = State) ->
     MyFleet = unit:fleet(Unit),
     U2CFoes = lists:foldl(fun ({_, D}, L) ->
@@ -198,21 +198,34 @@ code_change(_OldVsn, State, _Extra) ->
 cluster({X, Y}) ->
     {X - (X rem 20), Y - (Y rem 20)}.
 
-find_path(_, X, Y, _, _, D) when D < 0 -> 
+find_path(_, X, Y, _, _, _, R) when R < 0 -> 
     {X, Y, 0};
 
-find_path(_, X, Y, X, Y, _) -> 
+find_path(_, X, Y, X, Y, _, _) -> 
     {X, Y, 0};
 
-find_path(_, X, Y, _, _, 0) -> 
+find_path(_, X, Y, _, _, D, 0) -> 
     {X, Y, 0};
 
-find_path(C2U, X1, Y1, X2, Y2, Max) ->
-    Direction = map:direction_between({X1, Y1}, {X2, Y2}),
-    case find_working_step(C2U, X1, Y1, Direction) of
-	error ->  {X1, X2, 0};
-	{NX, NY} -> {DX, DY, R} = find_path(C2U, NX, NY, X2, Y2, Max -1),
-		    {DX, DY, R + 1}
+find_path(C2U, X1, Y1, X2, Y2, D, Max) ->
+    Dir = map:direction_between({X1, Y1}, {X2, Y2}),
+    Dist = map:distance({X1, Y1}, {X2, Y2}),
+    if 
+        Dist == D -> {X1, X2, 0};
+        Dist =< D -> Direction = 6 - Dir,
+                     case find_working_step(C2U, X1, Y1, Direction) of
+                         error ->  {X1, X2, 0};
+                         {NX, NY} -> 
+                             {DX, DY, R} = find_path(C2U, NX, NY, X2, Y2, D, Max -1),
+                             {DX, DY, R + 1}
+                     end;
+        Dist >= D -> Direction = Dir,
+                     case find_working_step(C2U, X1, Y1, Direction) of
+                         error ->  {X1, X2, 0};
+                         {NX, NY} -> 
+                             {DX, DY, R} = find_path(C2U, NX, NY, X2, Y2, D, Max -1),
+                             {DX, DY, R + 1}
+                     end
     end.
 
 

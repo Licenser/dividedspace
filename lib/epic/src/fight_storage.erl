@@ -46,7 +46,7 @@ set_unit(Pid, Id, Unit) ->
     gen_server:cast(Pid, {set, Id, Unit}).
 
 get_ids(Pid) ->
-    gen_server:call(Pid, {get_ids}).
+    gen_server:call(Pid, get_ids).
 
 
 
@@ -86,7 +86,7 @@ init([Units]) ->
 handle_call({get, Id}, _From, #state{units = Units} = State) ->
     {ok, Unit} = dict:find(Id, Units),
     {reply, Unit, State};
-handle_call({get_ids}, _From, #state{ids = Ids} = State) ->
+handle_call(get_ids, _From, #state{ids = Ids} = State) ->
     {reply, Ids, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -103,9 +103,9 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({set, Unit}, #state{units = Units, ids = Ids} = State) ->
-    {noreply, State#state{units = dict:store(unit:id(Unit), Unit, Units), ids = fix_ids(Ids, Units)}};
+    {noreply, State#state{units = dict:store(unit:id(Unit), Unit, Units), ids = Ids}}; %fix_ids(Ids, Units)}};
 handle_cast({set, Id, Unit}, #state{units = Units, ids = Ids} = State) ->
-    {noreply, State#state{units = dict:store(Id, Unit, Units), ids = fix_ids(Ids, Units)}};
+    {noreply, State#state{units = dict:store(Id, Unit, Units), ids = Ids}}; %fix_ids(Ids, Units)}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -153,11 +153,11 @@ code_change(_OldVsn, State, _Extra) ->
 
 fix_ids(Ids, Unit) ->
     case unit:destroyed(Unit) of
-        false -> Ids;
         true -> Id = unit:id(Unit),
                 lists:filter(fun (I) ->
                                      I =/= Id
-                             end, Ids)
+                             end, Ids);
+        _ -> Ids
     end.
                                      
 

@@ -177,10 +177,13 @@ handle_cast(trigger_tick, #state{fight = Fight,
                           tick_start = now(),
                           tick_in_progress = true}};
 handle_cast({add_event, [Event]}, #state{events = Events, current_tick_events = Tick} = State) ->
+    io:format("Event: ~p~n.", [Event]),
     {noreply, State#state{events = [Event | Events], current_tick_events = [Event | Tick]}};
 handle_cast({add_event, NewEvents}, #state{events = Events, current_tick_events = Tick} = State) when is_list(NewEvents) ->
+    io:format("Events: ~p~n.", [NewEvents]),
     {noreply, State#state{events = NewEvents ++ Events, current_tick_events = NewEvents ++ Tick}};
 handle_cast({add_event, Event}, #state{events = Events, current_tick_events = Tick} = State) ->
+    io:format("Event42: ~p~n.", [Event]),
     {noreply, State#state{events = [Event | Events], current_tick_events = [Event | Tick]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
