@@ -5,7 +5,7 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
--define(CORE, 'dscore@schroedinger').
+-define(CORE, 'dscore@dividedspace').
 
 %% ===================================================================
 %% Application callbacks
