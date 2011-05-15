@@ -18,12 +18,12 @@ namespace :otp do
 
   desc "Start an erlang shell"
   task :shell do
-    sh %{#{ERL_TOP}/bin/erl -pa lib/*/ebin -pa lib/*/test}
+    sh %{#{ERL_TOP}/bin/erl  #{ERL_FLAGS} -pa lib/*/ebin -pa lib/*/test}
   end
 
   desc "Start release"
   task :start_release, :version do |t, args|
-    sh %{#{ERL_TOP}/bin/erl -boot releases/#{args.version}/start -config releases/#{args.version}/sys}
+    sh %{#{ERL_TOP}/bin/erl #{ERL_FLAGS} -boot releases/#{args.version}/start -config releases/#{args.version}/sys}
   end
 
   desc "Create a new OTP application"
