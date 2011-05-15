@@ -1,48 +1,35 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@schroedinger.lan>
+%%% @author Heinz N. Gies <heinz@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 21 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
+%%% Created : 27 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(epic_server).
+-module(turn_server).
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, list_fights/0, add_fight/2, new_fight/1, get_fight/1]).
+-export([
+	 start_link/0,
+	 register_free_worker/1,
+	 register_fight/1
+	]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3, start_fight/1]).
+	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
 
--record(state, {fights = dict:new(), ref}).
+-define(TURN_INTERVAL, 10000).
+
+-record(state, {workers = [], fights = []}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
-
-list_fights() ->
-    gen_server:call(?MODULE, list_fights).
-
-
-get_fight(Id) ->
-    gen_server:call(?MODULE, {get_fight, Id}).
-
-add_fight(Id, Units) ->
-    gen_server:cast(?MODULE, {add_fight, Id, Units}).
-
-new_fight(Fight) ->
-    UUID = uuid:v4(),
-    {ok, FPid} = fight_sup:start_child(Fight),
-    add_fight(UUID, FPid),
-    {ok, UUID}.
-
-start_fight(N) ->
-    gen_server:cast(?SERVER, {start_fight, N}).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -53,6 +40,13 @@ start_fight(N) ->
 %%--------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+
+register_free_worker(Worker) ->
+    gen_server:cast(?SERVER, {register_worker, Worker}).
+
+register_fight(Fight) ->
+    gen_server:cast(?SERVER, {register_fight, Fight}).
+
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -70,8 +64,8 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    storage:init(),
-    {ok, #state{fights = dict:new()}, 1000}.
+    timer:send_interval(?TURN_INTERVAL, interval),
+    {ok, #state{}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -87,14 +81,6 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
-    case dict:find(Id, Fights) of
-	{ok, Fight} -> {reply, {ok, Fight}, State};
-	error -> {reply, {error, not_found}, State}
-    end;
-
-handle_call(list_fights, _From, #state{fights = Fights} = State) ->
-    {reply, {ok, dict:fetch_keys(Fights)}, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -109,19 +95,10 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({add_fight, UUID, Units}, #state{fights = Fights} = State) ->
-    Us = lists:map(fun ({X, Y, Team, Spec}) ->
-                           {ok, Unit} = unit:from_template(X, Y, Team, Spec),
-                           Unit
-                   end, Units),
-    Fight = fight:new(nil, Us),
-    {ok, FPid} = fight_sup:start_child(Fight),
-    {noreply, State#state{fights = dict:store(UUID, FPid, Fights)}};
-handle_cast(tick, #state{fights = Fights} = State) ->
-    lists:map(fun ({_UUID, Pid}) ->
-                      fight_server:trigger(Pid)
-              end, dict:to_list(Fights)),
-    {noreply, State};
+handle_cast({register_worker, Worker}, #state{workers = Workers} = State) ->
+    {noreply, State#state{workers = [Worker | Workers]}};
+handle_cast({register_fight, Fight}, #state{fights = Fights} = State) ->
+    {noreply, State#state{fights = [Fight | Fights]}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -135,13 +112,17 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(timeout, State) ->
-    {ok, Pid} = center:register(self()),
-    io:format("Pid: ~p.~n", [Pid]),
-    Ref = erlang:monitor(process, Pid),
-    io:format("Ref: ~p.~n", [Ref]),
-    {noreply, State#state{ref = Ref}};
-handle_info({'DOWN', _Ref, process, _Pid, _Reason}, #state{ref = _Ref} = State) ->
+handle_info(interval, #state{fights = Fights} = State) ->
+%    epic_event:start_global_turn(),
+    center_server:tick(),
+%    lists:map(fun(Fight) ->
+%		      case fight_server:status(Fight) of
+%			  {ok, idle} -> fight_server:trigger(Fight);
+%			  {ok, in_turn} -> epic_event:fight_problem(Fight, cycle_taking_long);
+%			  {error, Reason} -> epic_event:fight_problem(Fight, Reason)
+%		      end
+%	      end, Fights),
+%    epic_event:end_global_turn(),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -157,8 +138,7 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason,  #state{ref = Ref} = _State) ->
-    erlang:demonitor(Ref),
+terminate(_Reason, _State) ->
     ok.
 
 %%--------------------------------------------------------------------

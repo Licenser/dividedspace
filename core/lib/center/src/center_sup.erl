@@ -1,12 +1,12 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@schroedinger.lan>
+%%% @author Heinz N. Gies <heinz@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 21 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
+%%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(epic_sup).
+-module(center_sup).
 
 -behaviour(supervisor).
 
@@ -16,10 +16,10 @@
 %% Supervisor callbacks
 -export([init/1]).
 
-%% Helper macro for declaring children of supervisor
+-define(SERVER, ?MODULE).
+
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
--define(SERVER, ?MODULE).
 
 %%%===================================================================
 %%% API functions
@@ -59,19 +59,10 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    %Restart = permanent,
-    %Shutdown = 2000,
-    %Type = worker,
+    CenterServer = ?CHILD(center_server, worker),
+    TurnServer = ?CHILD(turn_server, worker),
 
-    EPICServer = ?CHILD(epic_server, worker),
-    FightWorker = ?CHILD(fight_worker, worker),
-    EpicEvent =  ?CHILD(epic_event, worker),
-    FightSup = ?CHILD(fight_sup, supervisor),
-    MapSup = ?CHILD(map_sup, supervisor),
-    StorageSup = ?CHILD(storage_sup, supervisor),
-    WorkerSup = ?CHILD(worker_sup, supervisor),
-    {ok, {SupFlags, [FightSup, MapSup, WorkerSup, StorageSup, EPICServer, FightWorker, EpicEvent]}}.
-
+    {ok, {SupFlags, [CenterServer, TurnServer]}}.
 
 %%%===================================================================
 %%% Internal functions

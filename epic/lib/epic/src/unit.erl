@@ -395,8 +395,7 @@ intercept(Fight, Map, AttackerId, TargetId, Weapon) ->
 	WeaponRange =/= Dist ->EngineRange = available_range(Attacker),
 			       PosA = coords(Attacker),
 			       PosT = coords(Target),
-			       Range = min(Dist - WeaponRange, EngineRange),
-			       {X, Y, R} = map_server:best_distance(Map, PosA, PosT, Range),
+			       {X, Y, R} = map_server:best_distance(Map, PosA, PosT, EngineRange, WeaponRange),
 			       map_server:move_unit(Map, AttackerId, X, Y),
 			       {update_unit(Fight, AttackerId, fun(A) ->
 								       coords(use_engine(A, R), {X, Y})

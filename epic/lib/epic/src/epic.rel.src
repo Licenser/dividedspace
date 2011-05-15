@@ -4,7 +4,6 @@
 [{kernel, "_"},
 {stdlib, "_"},
 {sasl, "_"},
-{ds_web, "_"},
 {mnesia, "_"},
 {epic, "_"}
 ]

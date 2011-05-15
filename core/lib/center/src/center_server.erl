@@ -4,28 +4,22 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created : 27 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
+%%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(turn_server).
+-module(center_server).
 
 -behaviour(gen_server).
 
 %% API
--export([
-	 start_link/0,
-	 register_free_worker/1,
-	 register_fight/1
-	]).
+-export([start_link/0, tick/0, add_fight/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3]).
+         terminate/2, code_change/3]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, {global, ?MODULE}). 
 
--define(TURN_INTERVAL, 10000).
-
--record(state, {workers = [], fights = []}).
+-record(state, {epic_servers = dict:new(), fights = dict:new()}).
 
 %%%===================================================================
 %%% API
@@ -39,14 +33,13 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link(?SERVER, ?MODULE, [], []).
 
-register_free_worker(Worker) ->
-    gen_server:cast(?SERVER, {register_worker, Worker}).
+add_fight(Units) ->
+    gen_server:cast(?SERVER, {add_fight, Units}).
 
-register_fight(Fight) ->
-    gen_server:cast(?SERVER, {register_fight, Fight}).
-
+tick() ->
+    gen_server:cast(?SERVER, tick).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -64,7 +57,6 @@ register_fight(Fight) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    timer:send_interval(?TURN_INTERVAL, interval),
     {ok, #state{}}.
 
 %%--------------------------------------------------------------------
@@ -81,6 +73,10 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State) when is_pid(Pid) ->
+    io:format("REGISTER: ~p~n", [Pid]),
+    erlang:monitor(process, Pid),
+    {reply, {ok, self()}, State#state{epic_servers = dict:store(Pid, [], Servers)}};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -95,10 +91,18 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({register_worker, Worker}, #state{workers = Workers} = State) ->
-    {noreply, State#state{workers = [Worker | Workers]}};
-handle_cast({register_fight, Fight}, #state{fights = Fights} = State) ->
-    {noreply, State#state{fights = [Fight | Fights]}};
+handle_cast({add_fight, Units}, #state{epic_servers = Servers} = State) ->
+    [Pid | _] = dict:fetch_keys(Servers),
+    UUID = uuid:v4(),
+    io:format("Sending: ~p.~n", [{add_fight, UUID, Units}]),
+    gen_server:cast(Pid, {add_fight, UUID, Units}),
+    {noreply, State#state{epic_servers = dict:append(Pid, UUID, Servers)}};
+handle_cast(tick, #state{epic_servers = Servers} = State) ->
+    lists:map(fun (Pid) ->
+                      gen_server:cast(Pid, tick)
+              end, dict:fetch_keys(Servers)),                      
+    {noreply, State};
+%    turn_server:register_fight(FPid),
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -112,16 +116,9 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(interval, #state{fights = Fights} = State) ->
-    epic_event:start_global_turn(),
-    lists:map(fun(Fight) ->
-		      case fight_server:status(Fight) of
-			  {ok, idle} -> fight_server:trigger(Fight);
-			  {ok, in_turn} -> epic_event:fight_problem(Fight, cycle_taking_long);
-			  {error, Reason} -> epic_event:fight_problem(Fight, Reason)
-		      end
-	      end, Fights),
-    epic_event:end_global_turn(),
+handle_info({'DOWN', Ref, process, Pid, Reason}, #state{epic_servers = Servers} = State) ->
+    io:format("Client down: ~p.~n", [Pid]),
+    State#state{epic_servers = dict:erase(Pid, Servers)},
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.

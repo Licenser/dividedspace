@@ -23,7 +23,7 @@
 
 -define(SERVER, ?MODULE). 
 
--define(WORKER_COUNT, 6).
+-define(WORKER_COUNT, 1).
 
 -record(state, {workers = [], 
 		idle_workers = [],

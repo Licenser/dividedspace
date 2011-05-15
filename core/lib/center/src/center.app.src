@@ -3,5 +3,6 @@
 {vsn, %VSN%},
 {modules, [%MODULES%]},
 {registered, []},
-{applications, [kernel, stdlib, sasl]}
+{applications, [kernel, stdlib, sasl]},
+{mod, { center_app, []}}
 ]}.
