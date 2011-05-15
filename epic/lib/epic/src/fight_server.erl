@@ -139,7 +139,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
 	      all_tick_events  = Ticks} = State) ->
-    ws:send(Subscriber, lists:reverse(Ticks)),
+    gen_server:cast(Subscriber, {send, lists:reverse(Ticks)}),
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
     {noreply, State};
@@ -220,5 +220,5 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 inform_subscribers(#state{subscribers = Subscribers}, Data) ->
     lists:map(fun (Subscriber) ->
-		      ws:send(Subscriber, Data)
+                      gen_server:cast(Subscriber, {send, Data})
 	      end, Subscribers).

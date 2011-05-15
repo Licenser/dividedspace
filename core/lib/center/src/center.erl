@@ -12,7 +12,8 @@
 
 start() ->
     application:start(sasl),
-    application:start(center).
+    application:start(center),
+    application:start(ds_web).
 
 start_fight(N) ->
     S = trunc((N / 2) * -1),

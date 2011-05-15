@@ -72,8 +72,7 @@ init([]) ->
 	% start misultin & set monitor
     misultin:start_link([{port, ?PORT}, {loop, fun(Req) -> handle_http(Req) end}, {ws_loop, fun (Ws) ->
 												    "/fight/" ++ Fight = Ws:get(path),
-												    FightId = uuid:to_binary(Fight),
-												    {ok, FPid} = epic_server:get_fight(FightId),
+												    {ok, FPid} = center_server:get_fight(Fight),
 												    {ok, Server} = ws_sup:start_child(Ws, FPid),
 												    handle_websocket(Ws, Server)
 											    end}, {ws_autoexit, false}]),
@@ -166,8 +165,6 @@ handle_websocket(Ws, Server) ->
 	    closed;
 	_Ignore ->
 	    handle_websocket(Ws, Server)
-%    after 5000 ->
-%	    handle_websocket(Ws, Server)
     end.
 
 % ---------------------------- /\ misultin requests --------------------------------------------------------
@@ -175,15 +172,14 @@ handle_websocket(Ws, Server) ->
 % ============================ /\ INTERNAL FUNCTIONS =======================================================
 
 index() ->
-    {ok, Fights} = epic_server:list_fights(),
+    Fights = center_server:get_fights(),
     ["
 <html>
   <head>
   </head>
   <body onload=\"ready();\">
     <ul>",
-     string:join(lists:map(fun (Id) ->
-				   UUID = uuid:to_string(Id),
+     string:join(lists:map(fun (UUID) ->
 				   "<li><a href='/fight/" ++ UUID ++ "'>" ++ UUID  ++ "</a></li>"
 			   end, Fights), "~n"),"
     </ul>
@@ -241,39 +237,3 @@ fight(FightID) ->
     <img id='fighter-l-one' src='/static/images/fighter_light_red.png' style='display: none;' />
   </body>
 </html>"].
-
-%<html>
-%  <head>
-%    <script src='/static/js/bert.js'></script>
-%			<script type=\"text/javascript\">
-%				function addStatus(text){
-%					var date = new Date();
-%					document.getElementById('status').innerHTML = document.getElementById('status').innerHTML + text + \"<br>\";
-%				}
-%				function ready(){
-%					if (\"WebSocket\" in window) {
-%						// browser supports websockets
-%						var ws = new WebSocket(\"ws://localhost:", integer_to_list(?PORT) ,"/fight/", FightID,"\");
-%						ws.onopen = function() {
-%							addStatus(\"websocket connected!\");
-%						};
-%						ws.onmessage = function (evt) {
-%							var data = Bert.decode(window.atob(evt.data)).toJS();
-%							window.console.error(data);
-%							addStatus(data);
-%						};
-%						ws.onclose = function() {
-%							// websocket was closed
-%							addStatus(\"websocket was closed\");
-%						};
-%					} else {
-%						// browser does not support websockets
-%						addStatus(\"sorry, your browser does not support websockets.\");
-%					}
-%				}
-%			</script>
-%		</head>
-%		<body onload=\"ready();\">
-%			<div id=\"status\"></div>
-%		</body>
-%	</html>"].

@@ -116,6 +116,7 @@ handle_cast({add_fight, UUID, Units}, #state{fights = Fights} = State) ->
                    end, Units),
     Fight = fight:new(nil, Us),
     {ok, FPid} = fight_sup:start_child(Fight),
+    gen_server:cast({global, center_server}, {register_fight, UUID, FPid}),
     {noreply, State#state{fights = dict:store(UUID, FPid, Fights)}};
 handle_cast(tick, #state{fights = Fights} = State) ->
     lists:map(fun ({_UUID, Pid}) ->

@@ -11,7 +11,11 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, tick/0, add_fight/1]).
+-export([start_link/0, 
+         tick/0,
+         add_fight/1,
+         get_fight/1,
+         get_fights/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -37,6 +41,13 @@ start_link() ->
 
 add_fight(Units) ->
     gen_server:cast(?SERVER, {add_fight, Units}).
+
+get_fights() ->
+    gen_server:call(?SERVER, get_fights).
+
+get_fight(Id) ->
+    gen_server:call(?SERVER, {get_fight, Id}).
+
 
 tick() ->
     gen_server:cast(?SERVER, tick).
@@ -73,6 +84,10 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
+    {reply, dict:find(Id, Fights), State};
+handle_call(get_fights, _From, #state{fights = Fights} = State) ->
+    {reply, dict:fetch_keys(Fights), State};
 handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State) when is_pid(Pid) ->
     io:format("REGISTER: ~p~n", [Pid]),
     erlang:monitor(process, Pid),
@@ -91,6 +106,8 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({register_fight, UUID, Pid},  #state{fights = Fights} = State) ->
+    {noreply, State#state{fights = dict:store(uuid:to_string(UUID), Pid, Fights)}};
 handle_cast({add_fight, Units}, #state{epic_servers = Servers} = State) ->
     [Pid | _] = dict:fetch_keys(Servers),
     UUID = uuid:v4(),

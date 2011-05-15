@@ -61,7 +61,7 @@ stop(Pid) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Ws, Fight]) ->
-    fight_server:subscribe(Fight, self()),
+    gen_server:cast(Fight, {subscribe, self()}),
     {ok, #state{ws = Ws, fight = Fight}}.
 
 %%--------------------------------------------------------------------
@@ -93,7 +93,7 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast(stop, #state{fight = Fight} = State) ->
-    fight_server:unsubscribe(Fight, self()),
+    gen_server:cast(Fight, {unsubscribe, self()}),
     {stop, stopped, State};
 handle_cast({send, Data}, #state{ws = Ws} = State) ->
     Ws:send(base64:encode(term_to_binary(Data))),
