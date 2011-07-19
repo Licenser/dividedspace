@@ -70,12 +70,14 @@ init([]) ->
 	% trap_exit -> this gen_server needs to be supervised
     process_flag(trap_exit, true),
 	% start misultin & set monitor
-    misultin:start_link([{port, ?PORT}, {loop, fun(Req) -> handle_http(Req) end}, {ws_loop, fun (Ws) ->
-												    "/fight/" ++ Fight = Ws:get(path),
-												    {ok, FPid} = center_server:get_fight(Fight),
-												    {ok, Server} = ws_sup:start_child(Ws, FPid),
-												    handle_websocket(Ws, Server)
-											    end}, {ws_autoexit, false}]),
+    misultin:start_link([{port, ?PORT}, 
+                         {loop, fun(Req) -> handle_http(Req) end}, 
+                         {ws_loop, fun (Ws) ->
+                                           "/fight/" ++ Fight = Ws:get(path),
+                                           {ok, FPid} = center_server:get_fight(Fight),
+                                           {ok, Server} = ws_sup:start_child(Ws, FPid),
+                                           handle_websocket(Ws, Server)
+                                   end}, {ws_autoexit, false}]),
     erlang:monitor(process, misultin),
     {ok, #state{port = ?PORT}}.
 
