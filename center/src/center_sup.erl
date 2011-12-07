@@ -61,7 +61,6 @@ init([]) ->
 
     CenterServer = ?CHILD(center_server, worker),
     TurnServer = ?CHILD(turn_server, worker),
-    WebServer = ?CHILD(misultin_server, worker),
 
     {ok, {SupFlags, [CenterServer, TurnServer]}}.
 

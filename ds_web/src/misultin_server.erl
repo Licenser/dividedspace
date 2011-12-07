@@ -147,6 +147,22 @@ handle_http(Req) ->
 	{abs_path, "/"} ->
 	    Req:ok([{"Content-Type", "text/html"}],
 		   index());
+	{abs_path, "/server"} ->
+	    Req:ok([{"Content-Type", "application/json"}],
+		   mochijson2:encode(gen_server:call({global,center_server}, get_epic_servers)));
+	{abs_path, "/server/" ++ UUID} ->
+	    {ok, Pid} = gen_server:call({global,center_server}, {get_server_pid, list_to_binary(UUID)}),
+	    {ok, Fights} = gen_server:call(Pid, list_fights),
+	    io:format("~p~n", [Fights]),
+	    FightData = lists:map(fun ({FightUUID, {State, Ticks, Time}}) ->
+					  [{id, list_to_binary(uuid:to_string(FightUUID))},
+					   {state, State},
+					   {ticks, Ticks},
+					   {time, Time}]
+				  end,Fights),
+	    io:format("~p~n", [FightData]),
+	    Req:ok([{"Content-Type", "application/json"}],
+		   mochijson2:encode(FightData));
 	{abs_path,"/static/" ++ File} ->
 	    Req:file("./htdocs/" ++ File);
 	{abs_path,"/fight/" ++ FightId} ->
@@ -174,30 +190,12 @@ handle_websocket(Ws, Server) ->
 % ============================ /\ INTERNAL FUNCTIONS =======================================================
 
 index() ->
-    Servers = center_server:get_epic_servers(),
     ["
 <html>
   <head>
+    <script src='/static/cljs/boot.js' type='text/javascript' charset='utf-8'></script>
   </head>
-  <body onload=\"ready();\">
-    <ul>",
-     lists:map(fun (Pid) ->
-		       {ok, Fights} = gen_server:call(Pid, list_fights),
-		       {Time, Cnt} = lists:foldl(fun ({_, {_, _, TickTime}}, {Sum, Cnt}) -> 
-							 {Sum + TickTime, Cnt + 1}
-						 end,{0.0, 0}, Fights),
-		       [io_lib:format("<li>~w (~w, ~.3fs)<ul>", [Pid, Cnt, Time])] ++
-			   lists:map(fun ({UUID, {Status, Tick, TickTime}}) ->
-					     UUIDString = uuid:to_string(UUID),
-					     StatusString = if
-								Status == true -> "running";
-								true -> "idle"
-							    end,
-					     io_lib:format("<li><a href='/fight/~s'>~s</a> (~w, ~s, ~.3fs)</li>", [UUIDString, UUIDString, Tick, StatusString, TickTime])
-				     end, Fights) ++ 
-			   ["</ul>"]
-	       end, Servers),
-"    </ul>
+  <body onload=\"evil.core.init();\">
   </body>
 </html>"].
 

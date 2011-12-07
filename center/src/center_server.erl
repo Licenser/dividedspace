@@ -52,7 +52,6 @@ get_epic_servers() ->
 get_fight(Id) ->
     gen_server:call(?SERVER, {get_fight, Id}).
 
-
 tick() ->
     gen_server:cast(?SERVER, tick).
 
@@ -94,10 +93,14 @@ handle_call(get_fights, _From, #state{fights = Fights} = State) ->
     {reply, dict:fetch_keys(Fights), State};
 handle_call(get_epic_servers, _From, #state{epic_servers = Servers} = State) ->
     {reply, dict:fetch_keys(Servers), State};
+handle_call({get_server_pid, UUID}, _From, #state{epic_servers = Servers} = State) ->
+    {reply, dict:find(UUID, Servers), State};
 handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State) when is_pid(Pid) ->
     io:format("REGISTER: ~p~n", [Pid]),
     erlang:monitor(process, Pid),
-    {reply, {ok, self()}, State#state{epic_servers = dict:store(Pid, [], Servers)}};
+    UUID = list_to_binary(uuid:to_string(uuid:v4())),
+    {reply, {ok, self()}, State#state{epic_servers = dict:store(UUID, Pid, Servers)}};
+
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -115,15 +118,15 @@ handle_call(_Request, _From, State) ->
 handle_cast({register_fight, UUID, Pid},  #state{fights = Fights} = State) ->
     {noreply, State#state{fights = dict:store(uuid:to_string(UUID), Pid, Fights)}};
 handle_cast({add_fight, Units}, #state{epic_servers = Servers} = State) ->
-    [Pid | _] = dict:fetch_keys(Servers),
+    [{_, Pid} | _] = dict:to_list(Servers),
     UUID = uuid:v4(),
     io:format("Sending: ~p.~n", [{add_fight, UUID, Units}]),
     gen_server:cast(Pid, {add_fight, UUID, Units}),
-    {noreply, State#state{epic_servers = dict:append(Pid, UUID, Servers)}};
+    {noreply, State};
 handle_cast(tick, #state{epic_servers = Servers} = State) ->
-    lists:map(fun (Pid) ->
+    lists:map(fun ({_, Pid}) ->
                       gen_server:cast(Pid, tick)
-              end, dict:fetch_keys(Servers)),                      
+              end, dict:to_list(Servers)),                      
     {noreply, State};
 %    turn_server:register_fight(FPid),
 handle_cast(_Msg, State) ->
@@ -141,7 +144,9 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({'DOWN', Ref, process, Pid, Reason}, #state{epic_servers = Servers} = State) ->
     io:format("Client down: ~p.~n", [Pid]),
-    State = State#state{epic_servers = dict:erase(Pid, Servers)},
+    State = State#state{epic_servers = dict:filter(fun ({_, APid}) ->
+							   APid =:= Pid
+						   end, Servers)},
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
