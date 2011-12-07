@@ -10,6 +10,8 @@ deps:
 erlv8: deps force_look
 	@make -C deps/erlv8
 
+clean:
+	@$(REBAR) clean
 
 force_look:
 	@true

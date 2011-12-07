@@ -8,7 +8,7 @@
 %%%-------------------------------------------------------------------
 -module(worker_fsm).
 
--include("../../erlv8/include/erlv8.hrl").
+-include("erlv8.hrl").
 
 -behaviour(gen_fsm).
 
