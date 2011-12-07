@@ -198,6 +198,7 @@ weapon_getter(Weapon, Attr) ->
 
 add_accessors(Object, _, []) ->
     Object;
+
 add_accessors(Object, AccessorFun, [V | R]) ->
     Object:set_value(erlang:atom_to_list(V), AccessorFun(V)),
     add_accessors(Object, AccessorFun, R).
@@ -206,7 +207,7 @@ create_foe(Storage, VM, UnitId) ->
     Unit = erlv8_vm:taint(VM, erlv8_object:new([])),
     add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [x, y, id, fleet, mass]),
     Unit.
-    
+
 create_unit(FightPid, Map, Storage, VM, UnitId) ->
     Unit = create_foe(Storage, VM, UnitId),
     Unit = erlv8_vm:taint(VM, erlv8_object:new([])),
@@ -216,7 +217,7 @@ create_unit(FightPid, Map, Storage, VM, UnitId) ->
                                            Foes = map_server:closest_foes(Map, U),
                                            Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
                                            erlv8_vm:taint(VM, ?V8Arr(Fs))
-                                    end),
+				   end),
     Unit:set_value("weapons", fun (#erlv8_fun_invocation{}, _) ->
                                       U = fight_storage:get_unit(Storage, UnitId),
                                       W = unit:modules_of_kind(U, weapon),
