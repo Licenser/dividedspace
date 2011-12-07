@@ -12,8 +12,13 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
+    
     erlang:monitor_node(?CORE, true),
-    net_adm:ping(?CORE),
+    Core = application:get_key(center),
+    if
+	Core == undefined -> undefined;
+	true -> net_adm:ping(Core)
+    end,
     epic_sup:start_link().
 
 stop(_State) ->
