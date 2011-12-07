@@ -174,17 +174,27 @@ handle_websocket(Ws, Server) ->
 % ============================ /\ INTERNAL FUNCTIONS =======================================================
 
 index() ->
-    Fights = center_server:get_fights(),
+    Servers = center_server:get_epic_servers(),
     ["
 <html>
   <head>
   </head>
   <body onload=\"ready();\">
     <ul>",
-     string:join(lists:map(fun (UUID) ->
-				   "<li><a href='/fight/" ++ UUID ++ "'>" ++ UUID  ++ "</a></li>"
-			   end, Fights), "~n"),"
-    </ul>
+     lists:map(fun (Pid) ->
+		       {ok, Fights} = gen_server:call(Pid, list_fights),
+		       [io_lib:format("<li>~w (~w)<ul>", [Pid, length(Fights)])] ++
+			   lists:map(fun ({UUID, {Status, Tick, TickTime}}) ->
+					     UUIDString = uuid:to_string(UUID),
+					     StatusString = if
+								Status == true -> "running";
+								true -> "idle"
+							    end,
+					     io_lib:format("<li><a href='/fight/~s'>~s</a> (~w, ~s, ~.3fs)</li>", [UUIDString, UUIDString, Tick, StatusString, TickTime])
+				     end, Fights) ++ 
+			   ["</ul>"]
+	       end, Servers),
+"    </ul>
   </body>
 </html>"].
 

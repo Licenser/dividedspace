@@ -192,6 +192,7 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 handle_turn(Storage, FightPid, VM) ->
     lists:map(fun (UnitId) ->
                       {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
+%		      io:format("~p~n", [Unit]),
                       case unit:destroyed(Unit) of
                           false ->
                               fight_storage:set_unit(Storage, unit:cycle(Unit)),

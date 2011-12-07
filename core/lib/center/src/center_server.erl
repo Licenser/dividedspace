@@ -15,6 +15,7 @@
          tick/0,
          add_fight/1,
          get_fight/1,
+	 get_epic_servers/0,
          get_fights/0]).
 
 %% gen_server callbacks
@@ -44,6 +45,9 @@ add_fight(Units) ->
 
 get_fights() ->
     gen_server:call(?SERVER, get_fights).
+
+get_epic_servers() ->
+    gen_server:call(?SERVER, get_epic_servers).
 
 get_fight(Id) ->
     gen_server:call(?SERVER, {get_fight, Id}).
@@ -88,6 +92,8 @@ handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
     {reply, dict:find(Id, Fights), State};
 handle_call(get_fights, _From, #state{fights = Fights} = State) ->
     {reply, dict:fetch_keys(Fights), State};
+handle_call(get_epic_servers, _From, #state{epic_servers = Servers} = State) ->
+    {reply, dict:fetch_keys(Servers), State};
 handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State) when is_pid(Pid) ->
     io:format("REGISTER: ~p~n", [Pid]),
     erlang:monitor(process, Pid),
@@ -135,7 +141,7 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({'DOWN', Ref, process, Pid, Reason}, #state{epic_servers = Servers} = State) ->
     io:format("Client down: ~p.~n", [Pid]),
-    State#state{epic_servers = dict:erase(Pid, Servers)},
+    State = State#state{epic_servers = dict:erase(Pid, Servers)},
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.

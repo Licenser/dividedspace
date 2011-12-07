@@ -58,7 +58,7 @@
 	  distance/2,
 	  mass/1,
 	  cycle/1,
-	  turn/3,
+%	  turn/3,
 	  use_energy/2,
 	  hit/2
 	]).
@@ -281,36 +281,40 @@ update_unit_energy(Fight, UnitId, E) ->
 			       end).
     
 
-handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage) ->
+handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage, Map) ->
     NewFight = update_unit_energy(Fight, AttackerId, Energy),
     Target = fight:get_unit(Fight, TargetId),
     {NewTarget, TargetMessages} = hit(Target, Damage),
     OldHull = module:integrety(unit:hull(Target)),
     NewHull = module:integrety(unit:hull(NewTarget)),
     M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, {target, AttackerId, TargetId}],
-    NewMessages = if 
-		      NewHull =< 0 -> [{destroyed, TargetId} | M];
-		      true -> M
+    {NewMessages, NewNewTarget}  = if 
+		      NewHull =< 0 -> map_server:remove_unit(Map, unit:id(NewTarget)),
+				      {[{destroyed, TargetId} | M], unit:destroyed(NewTarget, true)};
+		      true -> {M, NewTarget}
 		  end,
-    {fight:add_unit(NewFight, NewTarget), NewMessages};
+    {fight:add_unit(NewFight, NewNewTarget), NewMessages};
 
-handle_weapon_hit(Fight, {ok, false, _Data}, AttackerId, TargetId, Energy, _Damage) ->
+handle_weapon_hit(Fight, {ok, false, _Data}, AttackerId, TargetId, Energy, _Damage, _Map) ->
     {update_unit_energy(Fight, AttackerId, Energy), [{miss, AttackerId, TargetId}, {target, AttackerId, TargetId}]}.
 
 handle_weapon(Weapon, {Fight, Messages}, Map, AttackerId, TargetId) ->
     {FightAfterIntercept, InterceptMessages} = intercept(Fight, Map, AttackerId, TargetId, Weapon),
     Attacker = fight:get_unit(FightAfterIntercept, AttackerId),
     Target = fight:get_unit(Fight, TargetId),
-    {NewFight, NewMessages} = handle_weapon_hit(FightAfterIntercept, module:fire_weapon(Weapon, Attacker, Target), AttackerId, TargetId, module:energy_usage(Weapon), module:damage(Weapon)),
+    {NewFight, NewMessages} = handle_weapon_hit(FightAfterIntercept, module:fire_weapon(Weapon, Attacker, Target), AttackerId, TargetId, module:energy_usage(Weapon), module:damage(Weapon), Map),
     {NewFight, NewMessages ++ InterceptMessages ++ Messages}.
 
 turn(#unit{destroyed = true}, Fight, _Map) ->
-    Fight;
+    {Fight, []};
 turn(#unit{id = UnitId} = Unit, Fight, Map) ->
     Weapons = modules_of_kind(Unit, weapon),
-    [{TargetId, _} | _] = map_server:closest_foes(Map, Unit),
-    {NewFight, Events} = lists:foldl(fun (A, B) -> handle_weapon(A, B, Map, UnitId, TargetId) end, {Fight, []}, Weapons),
-    {NewFight, Events}.
+    case map_server:closest_foes(Map, Unit) of
+	[{TargetId, _} | _] ->
+	    {NewFight, Events} = lists:foldl(fun (A, B) -> handle_weapon(A, B, Map, UnitId, TargetId) end, {Fight, []}, Weapons),
+	    {NewFight, Events};
+	[] -> {Fight, []}
+    end.
 
 hit(#unit{modules = OriginalModules} = Unit, Damage) ->
     {NewModules, _, Events} = 
@@ -318,7 +322,13 @@ hit(#unit{modules = OriginalModules} = Unit, Damage) ->
 			    {NewModule, NewDamage, MewPartial} = module:hit(Module, RemainingDamage, Partial, random:uniform()),
 			    {[NewModule | Modules], NewDamage, MewPartial}
 		    end, {[], Damage, []}, module_sort(OriginalModules)),
-    {Unit#unit{modules= NewModules}, lists:reverse(Events)}.
+    NewUnit = Unit#unit{modules= NewModules},
+    Hull = module:integrety(unit:hull(NewUnit)),    
+    DamagedUnit = if 
+		      Hull =< 0 -> unit:destroyed(NewUnit, true);
+		      true -> NewUnit
+		  end,
+    {DamagedUnit, lists:reverse(Events)}.
 
 use_energy(Unit, Energy) ->
     AvailableEnergy = available_energy(Unit),

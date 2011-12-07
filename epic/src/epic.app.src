@@ -28,7 +28,7 @@ weapon,
 worker_fsm,
 worker_sup
 ]},
-  {applications, [kernel, stdlib, mnesia]},
+  {applications, [kernel, stdlib, mnesia, erlv8]},
   {mod, { epic_app, []}},
   {env, []}
  ]}.

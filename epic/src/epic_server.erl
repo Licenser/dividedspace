@@ -11,15 +11,15 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, list_fights/0, add_fight/2, new_fight/1, get_fight/1]).
+-export([start_link/0, list_fights/0, add_fight/2, new_fight/1, get_fight/1, next_fight/0, start_fight/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-	 terminate/2, code_change/3, start_fight/1]).
+	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
 
--record(state, {fights = dict:new(), ref}).
+-record(state, {fights = dict:new(), ref, fights_done = [], fight_running=undefined, fights_pending=[], tick_status=idle}).
 
 %%%===================================================================
 %%% API
@@ -28,6 +28,8 @@
 list_fights() ->
     gen_server:call(?MODULE, list_fights).
 
+next_fight() ->
+    gen_server:cast(?MODULE, next_fight).
 
 get_fight(Id) ->
     gen_server:call(?MODULE, {get_fight, Id}).
@@ -94,7 +96,10 @@ handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
     end;
 
 handle_call(list_fights, _From, #state{fights = Fights} = State) ->
-    {reply, {ok, dict:fetch_keys(Fights)}, State};
+    {reply, {ok, lists:map(fun ({UUID, Pid}) -> 
+				   {ok, Report} = fight_server:report(Pid),
+				   {UUID, Report}
+			   end, dict:to_list(Fights))}, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -118,11 +123,26 @@ handle_cast({add_fight, UUID, Units}, #state{fights = Fights} = State) ->
     {ok, FPid} = fight_sup:start_child(Fight),
     gen_server:cast({global, center_server}, {register_fight, UUID, FPid}),
     {noreply, State#state{fights = dict:store(UUID, FPid, Fights)}};
-handle_cast(tick, #state{fights = Fights} = State) ->
-    lists:map(fun ({_UUID, Pid}) ->
-                      fight_server:trigger(Pid)
-              end, dict:to_list(Fights)),
+handle_cast(tick, #state{tick_status=running} = State) ->
     {noreply, State};
+handle_cast(tick, #state{fights = Fights, tick_status=idle} = State) ->
+    FightPids = lists:map(fun ({_, Pid}) ->
+			       Pid
+		       end, dict:to_list(Fights)),
+    next_fight(),
+    {noreply, State#state{fights_done=[],
+			  fights_pending=FightPids,
+			  fight_running=undefined,
+			  tick_status=running}};
+handle_cast(next_fight, #state{fights_done = Done, fight_running = Current, fights_pending = [Next | Rest]} = State) ->
+    fight_server:trigger(Next),
+    {noreply, State#state{fights_done=[Current | Done],
+			  fights_pending = Rest,
+			  fight_running=Next}};
+handle_cast(next_fight, #state{fights_pending = []} = State) ->
+    {noreply, State#state{fights_done=[],
+			  fight_running=undefined,
+			  tick_status=idle}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -137,7 +157,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(timeout, State) ->
-    {ok, Pid} = center:register(self()),
+    {ok, Pid} = epic_center:register(self()),
     io:format("Pid: ~p.~n", [Pid]),
     Ref = erlang:monitor(process, Pid),
     io:format("Ref: ~p.~n", [Ref]),

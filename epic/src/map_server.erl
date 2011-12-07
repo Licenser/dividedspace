@@ -20,7 +20,8 @@
 	 move_unit/4,
 	 closest_foes/2,
 	 best_distance/5,
-	 best_distance/7
+	 best_distance/7,
+	 remove_unit/2
 	]).
 
 %% gen_server callbacks
@@ -35,11 +36,14 @@
 %%% API
 %%%===================================================================
 
-move_unit(Pid, UId, X, Y) ->
-    gen_server:cast(Pid, {move_unit, UId, X, Y}).
+move_unit(Pid, Unit, X, Y) ->
+    gen_server:cast(Pid, {move_unit, Unit, X, Y}).
 
 unit_at(Pid, X, Y) ->
     gen_server:call(Pid, {unit_at, X, Y}).
+
+remove_unit(Pid, Unit) ->
+    gen_server:cast(Pid, {remove_unit, Unit}).
 
 closest_foes(Pid, Unit) ->
     gen_server:call(Pid, {closest_foes, Unit}).
@@ -146,9 +150,27 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({move_unit, UId, X, Y}, #state{u2c = U2C, c2u = C2U} = State) ->
+handle_cast({move_unit, Unit, X, Y}, #state{u2c = U2C, c2u = C2U, u2cf = U2CF} = State) ->
+    UId = unit:id(Unit),
+    Fleet = unit:fleet(Unit),
     OldCord = dict:fetch(UId, U2C),
-    {noreply, State#state{u2c = dict:store(UId, {X, Y}, U2C), c2u = dict:store({X, Y}, UId, dict:erase(OldCord, C2U))}};
+    {noreply, State#state{
+		u2cf = dict:update(Fleet,fun (D) ->
+						 dict:store(UId, {X, Y}, D)
+					 end, U2CF),
+		u2c = dict:store(UId, {X, Y}, U2C), 
+		c2u = dict:store({X, Y}, UId, dict:erase(OldCord, C2U))}};
+handle_cast({remove_unit, Unit}, #state{u2c = U2C, c2u = C2U, u2cf = U2CF} = State) ->
+    UId = unit:id(Unit),
+    Fleet = unit:fleet(Unit),
+    Cords = dict:fetch(UId, U2C),
+    {noreply, State#state{	
+		u2cf = dict:update(Fleet,fun (D) ->
+						 dict:erase(UId, D)
+					 end,U2CF),
+		u2c = dict:erase(UId, U2C), 
+		c2u = dict:erase(Cords, C2U)}};
+
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

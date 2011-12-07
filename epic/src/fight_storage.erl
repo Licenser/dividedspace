@@ -184,11 +184,6 @@ fix_ids(Ids, Unit) ->
                              end, Ids);
         _ -> Ids
     end.
-                                     
-
-                     
-            
-
 
 unit_getter(Storage, UnitId, Field) ->
     fun (#erlv8_fun_invocation{}, _) ->
@@ -200,7 +195,6 @@ weapon_getter(Weapon, Attr) ->
     fun (#erlv8_fun_invocation{}, _) ->
             module:get(Weapon, Attr)
     end.
-    
 
 add_accessors(Object, _, []) ->
     Object;
@@ -226,16 +220,16 @@ create_unit(FightPid, Map, Storage, VM, UnitId) ->
     Unit:set_value("weapons", fun (#erlv8_fun_invocation{}, _) ->
                                       U = fight_storage:get_unit(Storage, UnitId),
                                       W = unit:modules_of_kind(U, weapon),
-                                      Ws = [ create_weapon(FightPid, Storage, VM, UnitId, Weapon) || Weapon <- W ],
+                                      Ws = [ create_weapon(FightPid, Storage, VM, UnitId, Weapon, Map) || Weapon <- W ],
                                       erlv8_vm:taint(VM, ?V8Arr(Ws))
                               end),
     Unit:set_value("move", move_fun(FightPid, Storage, Map, UnitId)),
     Unit:set_value("intercept", intercept_fun(FightPid, Storage, Map, UnitId)),
     Unit.
 
-create_weapon(FightPid, Storage, VM, UnitId, Weapon) ->
+create_weapon(FightPid, Storage, VM, UnitId, Weapon, Map) ->
     WeaponO = erlv8_vm:taint(VM, erlv8_object:new([
-                                                   {"fire", fire_fun(FightPid, Storage, UnitId, Weapon)}
+                                                   {"fire", fire_fun(FightPid, Storage, UnitId, Weapon, Map)}
                                                   ])),
     add_accessors(WeaponO, fun(V) -> weapon_getter(Weapon, V) end, [integrety, accuracy, variation, range, rotatability, damage]).
 
@@ -248,7 +242,7 @@ intercept(FightPid, Storage, Map, UnitId, Destination, Distance) ->
             Start = unit:coords(Unit),
             Range = min(Dist - Distance, EngineRange),
             {X, Y, R} = map_server:best_distance(Map, Start, Destination, Range, Distance),
-            map_server:move_unit(Map, UnitId, X, Y),
+            map_server:move_unit(Map, Unit, X, Y),
             NewUnit = unit:coords(unit:use_engine(Unit, R), {X, Y}),
             fight_storage:set_unit(Storage, NewUnit),
             fight_server:add_event(FightPid, {move, UnitId, X, Y}),
@@ -271,16 +265,16 @@ intercept_fun(FightPid, Storage, Map, UnitId) ->
             intercept(FightPid, Storage, Map, UnitId, Coords, Range)
     end.
 
-fire_fun(FightPid, Storage, UnitId, Weapon) ->
+fire_fun(FightPid, Storage, UnitId, Weapon, Map) ->
     fun (#erlv8_fun_invocation{}, [Target]) ->
             U = fight_storage:get_unit(Storage, UnitId),
             TargetIdFun = Target:get_value("id"),
             TargetId = TargetIdFun:call(),
             TargetUnit = fight_storage:get_unit(Storage, TargetId),
-            handle_weapon(FightPid, Storage, Weapon, U, TargetUnit)
+            handle_weapon(FightPid, Storage, Weapon, U, TargetUnit, Map)
     end.
 
-handle_weapon_hit(FightPid, Storage, {ok, true, _Data}, Attacker, Target, Energy, Damage) ->
+handle_weapon_hit(FightPid, Storage, {ok, true, _Data}, Attacker, Target, Energy, Damage, Map) ->
     fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)),
     {NewTarget, TargetMessages} = unit:hit(Target, Damage),
     fight_storage:set_unit(Storage, NewTarget),
@@ -291,17 +285,19 @@ handle_weapon_hit(FightPid, Storage, {ok, true, _Data}, Attacker, Target, Energy
     M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, 
          {target, AttackerId, TargetId}],
     if 
-        NewHull =< 0 -> fight_server:add_event(FightPid, [{destroyed, TargetId} | M]);
+        NewHull =< 0 -> map_server:remove_unit(Map, NewTarget),
+			fight_storage:set_unit(Storage, unit:destroyed(Target, true)),
+			fight_server:add_event(FightPid, [{destroyed, TargetId} | M]);
         true -> fight_server:add_event(FightPid, M)
     end,
     ok;
 
-handle_weapon_hit(FightPid, Storage, {ok, false, _Data}, Attacker, Target, Energy, _Damage) ->
+handle_weapon_hit(FightPid, Storage, {ok, false, _Data}, Attacker, Target, Energy, _Damage, _Map) ->
     fight_server:add_event(FightPid, {target, unit:id(Attacker), unit:id(Target)}),
     fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)).
 
-handle_weapon(FightPid, Storage, Weapon, Attacker, Target) ->
+handle_weapon(FightPid, Storage, Weapon, Attacker, Target, Map) ->
     R = module:fire_weapon(Weapon, Attacker, Target),
     E = module:energy_usage(Weapon),
     D = module:damage(Weapon),
-    handle_weapon_hit(FightPid, Storage, R, Attacker, Target,E , D).
+    handle_weapon_hit(FightPid, Storage, R, Attacker, Target,E , D, Map).

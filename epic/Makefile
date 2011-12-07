@@ -1,8 +1,15 @@
+REBAR=./rebar
+
+
+all: deps erlv8 force_look
+	@$(REBAR) compile
+
 deps:
-	./rebar get-deps
+	@$(REBAR) get-deps
 
-erlv8: deps
-	make -C deps/erlv8
+erlv8: deps force_look
+	@make -C deps/erlv8
 
-all: deps erlv8
-	./rebar compile
+
+force_look:
+	@true

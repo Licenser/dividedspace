@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(center).
+-module(epic_center).
 
 %% API
 -export([register/1]).

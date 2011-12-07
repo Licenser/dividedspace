@@ -19,7 +19,8 @@
 	 add_event/2,
 	 subscribe/2,
 	 unsubscribe/2,
-	 status/1
+	 status/1,
+	 report/1
 	]).
 
 %% gen_server callbacks
@@ -27,8 +28,9 @@
 	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE). 
+-define(MAX_IDLE, 5).
 
--record(state, {initial_fight, fight, map, map_id, tick = 0, subscribers = [], all_tick_events = [], current_tick_events = [], tick_start = 0, storage, tick_in_progress = false, vm}).
+-record(state, {initial_fight, fight, map, map_id, tick = 0, subscribers = [], all_tick_events = [], current_tick_events = [], tick_start = 0, tick_time = 0.0, storage, tick_in_progress = false, vm, idle_count = 0}).
 
 %%%===================================================================
 %%% API
@@ -65,6 +67,8 @@ subscribe(Pid, Subscriber) ->
 unsubscribe(Pid, Subscriber) ->
     gen_server:cast(Pid, {unsubscribe, Subscriber}).
 
+report(Pid) ->
+    gen_server:call(Pid, report).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -118,10 +122,22 @@ init([Fight]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(status, _Form, #state{tick_in_progress = false, idle_count = IdleCount} = State) when IdleCount > ?MAX_IDLE ->
+    {reply, {ok, ended}, State};
 handle_call(status, _Form, #state{tick_in_progress = false} = State) ->
     {reply, {ok, idle}, State};
 handle_call(status, _Form, #state{tick_in_progress = true} = State) ->
     {reply, {ok, in_turn}, State};
+handle_call(report, _From, #state{tick_in_progress = InProgress,
+				  tick = Tick,
+				  idle_count = IdleCount,
+				  tick_time = TickTime} = State) ->
+    Status = if
+		 IdleCount > ?MAX_IDLE -> ended;
+		 tick_in_progress == true -> in_turn;
+		 true -> idle
+	     end,
+    {reply, {ok, {Status, Tick, TickTime}}, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -145,28 +161,40 @@ handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
     {noreply, State};
 handle_cast(end_tick, #state{all_tick_events = Ticks,
                              current_tick_events = TickEvent,
-                             tick_start = TickStart
+                             tick_start = TickStart,
+			     idle_count = IdleCount
                             } = State) ->
-    io:format("Tick time: ~fs.~n", [timer:now_diff(now(), TickStart) / 1000000]),
     epic_event:end_turn(self()),
     Event = {end_turn},
     inform_subscribers(State, TickEvent),
+    epic_server:next_fight(),
+    NewIdleCount = case TickEvent of
+		       [] -> IdleCount + 1;
+		       _ -> 0
+		   end,
     {noreply, State#state{
+		tick_time = timer:now_diff(now(), TickStart) / 1000000,
                 current_tick_events = [],
                 tick_in_progress = false,
+		idle_count = NewIdleCount,
                 all_tick_events = [TickEvent | Ticks]
                }};
 handle_cast(trigger_tick, #state{tick_in_progress = true} = State) ->
     {noreply, State};
+handle_cast(trigger_tick, #state{idle_count = IdleCount} = State) when IdleCount > ?MAX_IDLE ->
+    epic_server:next_fight(),
+    {noreply, State};
 handle_cast(trigger_tick, #state{fight = Fight,
+				 tick = Tick,
 				 vm = VM,
-                                 storage = Storage
-                                } = State) ->
+				 storage = Storage
+				} = State) ->
 
     epic_event:start_turn(self()),
     Event = {start_turn},
     fight_worker:place_tick(VM, Storage, self()),
     {noreply, State#state{tick_start = now(),
+			  tick = Tick + 1,
                           tick_in_progress = true}};
 handle_cast({add_event, [Event]}, #state{current_tick_events = Tick} = State) ->
     {noreply, State#state{current_tick_events = [Event | Tick]}};
