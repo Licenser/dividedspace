@@ -327,7 +327,7 @@ damage(#module{integrety = Integrety} = Module, Damage) when is_number(Damage) a
 
 hit(#module{instance = #hull_spec{}} = Module, Damage, Partial) when is_number(Damage) ->
     {#module{integrety = NewIntegrety} = NewModule, MaxDamage} = damage(Module, Damage),
-    {NewModule, MaxDamage, [{impact, MaxDamage, NewIntegrety} | Partial]};
+    {NewModule, MaxDamage, [[{type, impact}, {damage, MaxDamage}, {integrety, NewIntegrety}] | Partial]};
 
 hit(#module{instance = #armor_spec{
 	      damage_absorbation = DamageAbsorbation
@@ -337,7 +337,7 @@ hit(#module{instance = #armor_spec{
 	{#module{} = NewModule, 0} -> 
 	    {NewModule, Damage, Partial};
 	{#module{integrety = NewIntegrety} = NewModule, ActualAbsorbation} ->
-	    {NewModule, Damage - ActualAbsorbation, [{armor_impact, ActualAbsorbation, NewIntegrety} | Partial]}
+	    {NewModule, Damage - ActualAbsorbation, [[{type, armor_impact}, {damage, ActualAbsorbation}, {integrety, NewIntegrety}] | Partial]}
     end;
 
 hit(#module{instance = #shield_spec{
@@ -351,7 +351,7 @@ hit(#module{instance = #shield_spec{
 				   energy = Energy - ShieldDamage
 				  }}, PhysicalDamage, case ShieldDamage of
 							  0 -> Partial;
-							  _ -> [{shield_impact, ShieldDamage, ShieldEnergy,NewIntegrety} | Partial]
+							  _ -> [[{type, shield_impact}, {damage, ShieldDamage}, {energy, ShieldEnergy}, {integrety, NewIntegrety}] | Partial]
 						      end};
 
 

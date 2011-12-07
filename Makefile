@@ -1,4 +1,4 @@
-all: core epic
+all: core epic ds_web
 
 core: force_look
 	cd core; rake
@@ -6,8 +6,11 @@ core: force_look
 epic: force_look
 	make -C epic
 
-shell: core epic force_look
-	erl -pa core/lib/*/ebin/ epic/ebin epic/deps/erlv8/ebin --config standalone.config
+ds_web: force_look
+	make -C ds_web
+
+shell: all force_look
+	erl -pa core/lib/*/ebin/ epic/ebin epic/deps/erlv8/ebin ds_web/ebin --config standalone.config
 
 force_look:
 	@true

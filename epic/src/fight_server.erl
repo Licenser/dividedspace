@@ -86,13 +86,15 @@ report(Pid) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Fight]) ->
-    Placement = lists:map(fun (UnitId) ->
-				  Unit = fight:get_unit(Fight, UnitId),
-				  Name = unit:name(Unit),
-				  Hull = unit:hull(Unit),
-				  Integrety = module:integrety(Hull),
-				  {spawn, UnitId, unit:fleet(Unit), Name, Integrety, unit:x(Unit), unit:y(Unit)}
-			  end, fight:unit_ids(Fight)),
+    Placement = lists:foldl(fun (UnitId, L) ->
+				    Unit = fight:get_unit(Fight, UnitId),
+				    Name = unit:name(Unit),
+				    Hull = unit:hull(Unit),
+				    Integrety = module:integrety(Hull),
+				    UnitIDBin = list_to_binary(UnitId),
+				    [[{type, move}, {unit, UnitIDBin}, {position, [{x, unit:x(Unit)}, {y, unit:y(Unit)}]}] |
+				     [[{type, spawn}, {data, [{id, UnitIDBin}, {damage, 0}, {team, list_to_binary(unit:fleet(Unit))}, {type, [{name, list_to_binary(Name)}, {hull, Integrety}]}]}] | L]]
+			    end, [], fight:unit_ids(Fight)),
     Units = fight:units(Fight),
     {ok, VM} = erlv8_vm:start(),
     {ok, MapServer} = map_sup:start_child(Units),
@@ -103,7 +105,7 @@ init([Fight]) ->
        fight = Fight,
        map = MapServer,
        storage = FightStorage,
-       all_tick_events = [Placement]
+       all_tick_events = Placement
       }}.
 
     
@@ -165,8 +167,9 @@ handle_cast(end_tick, #state{all_tick_events = Ticks,
 			     idle_count = IdleCount
                             } = State) ->
     epic_event:end_turn(self()),
+    OrderedEvents=lists:reverse(TickEvent),
     Event = {end_turn},
-    inform_subscribers(State, TickEvent),
+    inform_subscribers(State, OrderedEvents),
     epic_server:next_fight(),
     NewIdleCount = case TickEvent of
 		       [] -> IdleCount + 1;
@@ -177,7 +180,7 @@ handle_cast(end_tick, #state{all_tick_events = Ticks,
                 current_tick_events = [],
                 tick_in_progress = false,
 		idle_count = NewIdleCount,
-                all_tick_events = [TickEvent | Ticks]
+                all_tick_events = [OrderedEvents | Ticks]
                }};
 handle_cast(trigger_tick, #state{tick_in_progress = true} = State) ->
     {noreply, State};
@@ -196,9 +199,9 @@ handle_cast(trigger_tick, #state{fight = Fight,
     {noreply, State#state{tick_start = now(),
 			  tick = Tick + 1,
                           tick_in_progress = true}};
-handle_cast({add_event, [Event]}, #state{current_tick_events = Tick} = State) ->
-    {noreply, State#state{current_tick_events = [Event | Tick]}};
-handle_cast({add_event, NewEvents}, #state{current_tick_events = Tick} = State) when is_list(NewEvents) ->
+%handle_cast({add_event, [Event]}, #state{current_tick_events = Tick} = State) ->
+%    {noreply, State#state{current_tick_events = [Event | Tick]}};
+handle_cast({add_event, {multi, NewEvents}}, #state{current_tick_events = Tick} = State) ->
     {noreply, State#state{current_tick_events = NewEvents ++ Tick}};
 handle_cast({add_event, Event}, #state{current_tick_events = Tick} = State) ->
     {noreply, State#state{current_tick_events = [Event | Tick]}};

@@ -246,7 +246,7 @@ intercept(FightPid, Storage, Map, UnitId, Destination, Distance) ->
             map_server:move_unit(Map, Unit, X, Y),
             NewUnit = unit:coords(unit:use_engine(Unit, R), {X, Y}),
             fight_storage:set_unit(Storage, NewUnit),
-            fight_server:add_event(FightPid, {move, UnitId, X, Y}),
+            fight_server:add_event(FightPid, [{type, move}, {unit, list_to_binary(UnitId)}, {position, [{x, X}, {y, Y}]}]),
             {ok, {X, Y}};
 	true -> {ok, Destination}
     end.
@@ -283,18 +283,18 @@ handle_weapon_hit(FightPid, Storage, {ok, true, _Data}, Attacker, Target, Energy
     TargetId = unit:id(Target),
     OldHull = module:integrety(unit:hull(Target)),
     NewHull = module:integrety(unit:hull(NewTarget)),
-    M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, 
-         {target, AttackerId, TargetId}],
+    fight_server:add_event(FightPid, [{type, target}, {unit, list_to_binary(AttackerId)}, {target, list_to_binary(TargetId)}]),
+    fight_server:add_event(FightPid, [{type, attack}, {unit, list_to_binary(AttackerId)}, {target, list_to_binary(TargetId)}, {damage, OldHull - NewHull}, {partials, TargetMessages}]),
     if 
         NewHull =< 0 -> map_server:remove_unit(Map, NewTarget),
 			fight_storage:set_unit(Storage, unit:destroyed(Target, true)),
-			fight_server:add_event(FightPid, [{destroyed, TargetId} | M]);
-        true -> fight_server:add_event(FightPid, M)
+			fight_server:add_event(FightPid, [{type, destroyed}, {unit, list_to_binary(TargetId)}]);
+        true -> true
     end,
     ok;
 
 handle_weapon_hit(FightPid, Storage, {ok, false, _Data}, Attacker, Target, Energy, _Damage, _Map) ->
-    fight_server:add_event(FightPid, {target, unit:id(Attacker), unit:id(Target)}),
+    fight_server:add_event(FightPid, [{type, target}, {unit, list_to_binary(unit:id(Attacker))}, {target, list_to_binary(unit:id(Target))}]),
     fight_storage:set_unit(Storage, unit:consume_energy(Attacker, Energy)).
 
 handle_weapon(FightPid, Storage, Weapon, Attacker, Target, Map) ->

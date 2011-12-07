@@ -183,7 +183,10 @@ index() ->
     <ul>",
      lists:map(fun (Pid) ->
 		       {ok, Fights} = gen_server:call(Pid, list_fights),
-		       [io_lib:format("<li>~w (~w)<ul>", [Pid, length(Fights)])] ++
+		       {Time, Cnt} = lists:foldl(fun ({_, {_, _, TickTime}}, {Sum, Cnt}) -> 
+							 {Sum + TickTime, Cnt + 1}
+						 end,{0.0, 0}, Fights),
+		       [io_lib:format("<li>~w (~w, ~.3fs)<ul>", [Pid, Cnt, Time])] ++
 			   lists:map(fun ({UUID, {Status, Tick, TickTime}}) ->
 					     UUIDString = uuid:to_string(UUID),
 					     StatusString = if

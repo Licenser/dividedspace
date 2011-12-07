@@ -10,11 +10,10 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    Core = application:get_key(center),
-    if
-	Core == undefined -> undefined;
-	true -> erlang:monitor_node(Core, true),
-		net_adm:ping(Core)
+    case application:get_key(center) of
+	undefined -> undefined;
+	Center -> erlang:monitor_node(Center, true),
+		  net_adm:ping(Center)
     end,
     epic_sup:start_link().
 

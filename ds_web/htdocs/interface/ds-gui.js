@@ -220,9 +220,10 @@ var DS = {
 		window.console.info("websocket connected!");
 	    };
 	    ws.onmessage = function (evt) {
-		var data = Bert.decode(window.atob(evt.data));	
+/*		var data = Bert.decode(window.atob(evt.data));	
 		var json = data.toJS();
-		var events = translate_data(json);
+		var events = translate_data(json); */
+		var events = JSON.parse(evt.data);
 		DS.battleLog.ticks.push(events);
 		if (DS.battleLog.initial) {
 		    window.console.info("initializing");

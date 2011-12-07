@@ -22,7 +22,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
--define(SERVER, {global, ?MODULE}). 
+-define(SERVER, {global, ?MODULE}).
 
 -record(state, {epic_servers = dict:new(), fights = dict:new()}).
 

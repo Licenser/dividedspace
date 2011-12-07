@@ -96,9 +96,9 @@ handle_cast(stop, #state{fight = Fight} = State) ->
     gen_server:cast(Fight, {unsubscribe, self()}),
     {stop, stopped, State};
 handle_cast({send, Data}, #state{ws = Ws} = State) ->
-    Ws:send(base64:encode(term_to_binary(Data))),
+    Ws:send(mochijson2:encode(Data)),
     {noreply, State};
-handle_cast({incoming, Data}, #state{} = State) ->
+handle_cast({incoming, _Data}, #state{} = State) ->
     {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
