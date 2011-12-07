@@ -209,8 +209,6 @@ fight(FightID) ->
 <meta http-equiv='Content-type' content='text/html; charset=utf-8'>
 <title>Divided Space</title>
 <link href='/static/css/ds-gui.css' type='text/css' rel='stylesheet' />
-    <script src='/static/js/bert.js'></script>
-    <script src='/static/js/websockets.js' type='text/javascript' charset='utf-8'></script>
     <script src='/static/interface/lib/shapes.js' type='text/javascript' charset='utf-8'></script>
     <script src='/static/interface/lib/draw_engine.js' type='text/javascript' charset='utf-8'></script>
     <!-- JSON is not available on Mobile Safari, so we use this library. -->
