@@ -74,7 +74,7 @@ init([]) ->
                          {loop, fun(Req) -> handle_http(Req) end}, 
                          {ws_loop, fun (Ws) ->
                                            "/fight/" ++ Fight = Ws:get(path),
-                                           {ok, FPid} = center_server:get_fight(Fight),
+                                           {ok, FPid} = gen_server:call({global, center_server}, {get_fight, Fight}),
                                            {ok, Server} = ws_sup:start_child(Ws, FPid),
                                            handle_websocket(Ws, Server)
                                    end}, {ws_autoexit, false}]),

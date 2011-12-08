@@ -15,6 +15,7 @@
 	      misultin_websocket,
 	      misultin_ws,
 	      ws,
+	      uuid,
 	      ws_sup]},
    {registered,[ds_web_sup]},
    {applications, [kernel, stdlib]},
