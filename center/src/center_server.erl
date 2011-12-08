@@ -117,12 +117,15 @@ handle_call(_Request, _From, State) ->
 handle_cast({register_fight, UUID, Pid},  #state{fights = Fights} = State) ->
     {noreply, State#state{fights = dict:store(uuid:to_string(UUID), Pid, Fights)}};
 handle_cast({add_fight, Units}, #state{epic_servers = Servers} = State) ->
-    {Pid, _} = lists:foldl(fun ({_, Pid}, {OldPid, OldTime}) ->
+    io:format("~p~n", [dict:to_list(Servers)]),
+    {Pid, _} = lists:foldl(fun ({_, ServerPid}, {OldPid, OldTime}) ->
+				   io:format("~p~n", [gen_server:call(ServerPid, list_fights)]),
+				   {ok, Fights} = gen_server:call(ServerPid, list_fights),
 				   Time = lists:foldl(fun ({_, {_, _, FightTime}}, Total) ->
 							      Total + FightTime
-						      end, 0.0, gen_server:call(Pid, list_fights)),
+						      end, 0.0, Fights),
 				   if
-				       Time < OldTime -> {Pid, Time};
+				       Time < OldTime -> {ServerPid, Time};
 				       true -> {OldPid, OldTime}
 				   end				       
 			   end, {error, 100000.0}, dict:to_list(Servers)),
@@ -135,7 +138,6 @@ handle_cast(tick, #state{epic_servers = Servers} = State) ->
                       gen_server:cast(Pid, tick)
               end, dict:to_list(Servers)),                      
     {noreply, State};
-%    turn_server:register_fight(FPid),
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -151,10 +153,10 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({'DOWN', Ref, process, Pid, Reason}, #state{epic_servers = Servers} = State) ->
     io:format("Client down: ~p.~n", [Pid]),
-    State = State#state{epic_servers = dict:filter(fun (_, APid) ->
-							   APid =:= Pid
-						   end, Servers)},
-    {noreply, State};
+    NewState = State#state{epic_servers = dict:filter(fun (_, APid) ->
+							      APid =/= Pid
+						      end, Servers)},
+    {noreply, NewState};
 handle_info(_Info, State) ->
     {noreply, State}.
 
