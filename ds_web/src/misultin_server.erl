@@ -143,29 +143,27 @@ code_change(_OldVsn, State, _Extra) ->
 % ---------------------------- \/ misultin requests --------------------------------------------------------
 
 handle_http(Req) ->
-    case Req:get(uri) of
-	{abs_path, "/"} ->
+    case Req:resource([lowercase, urldecode]) of
+	[] ->
 	    Req:ok([{"Content-Type", "text/html"}],
 		   index());
-	{abs_path, "/server"} ->
+	["server"] ->
 	    Req:ok([{"Content-Type", "application/json"}],
 		   mochijson2:encode(gen_server:call({global,center_server}, get_epic_servers)));
-	{abs_path, "/server/" ++ UUID} ->
+	["server", UUID] ->
 	    {ok, Pid} = gen_server:call({global,center_server}, {get_server_pid, list_to_binary(UUID)}),
 	    {ok, Fights} = gen_server:call(Pid, list_fights),
-	    io:format("~p~n", [Fights]),
 	    FightData = lists:map(fun ({FightUUID, {State, Ticks, Time}}) ->
 					  [{id, list_to_binary(uuid:to_string(FightUUID))},
 					   {state, State},
 					   {ticks, Ticks},
 					   {time, Time}]
 				  end,Fights),
-	    io:format("~p~n", [FightData]),
 	    Req:ok([{"Content-Type", "application/json"}],
 		   mochijson2:encode(FightData));
-	{abs_path,"/static/" ++ File} ->
-	    Req:file("./htdocs/" ++ File);
-	{abs_path,"/fight/" ++ FightId} ->
+	["static" | Path] ->
+	    Req:file(filename:join(["./htdocs" | Path]));
+	["fight", FightId] ->
 	    Req:ok([{"Content-Type", "text/html"}],
 		   fight(FightId));
 	_ -> 

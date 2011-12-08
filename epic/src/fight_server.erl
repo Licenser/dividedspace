@@ -92,8 +92,8 @@ init([Fight]) ->
 				    Hull = unit:hull(Unit),
 				    Integrety = module:integrety(Hull),
 				    UnitIDBin = list_to_binary(UnitId),
-				    [[{type, move}, {unit, UnitIDBin}, {position, [{x, unit:x(Unit)}, {y, unit:y(Unit)}]}] |
-				     [[{type, spawn}, {data, [{id, UnitIDBin}, {damage, 0}, {team, list_to_binary(unit:fleet(Unit))}, {type, [{name, list_to_binary(Name)}, {hull, Integrety}]}]}] | L]]
+				    [[{type, spawn}, {data, [{id, UnitIDBin}, {damage, 0}, {team, list_to_binary(unit:fleet(Unit))}, {type, [{name, list_to_binary(Name)}, {hull, Integrety}]}]}] |
+				     [[{type, move}, {unit, UnitIDBin}, {position, [{x, unit:x(Unit)}, {y, unit:y(Unit)}]}] | L]]
 			    end, [], fight:unit_ids(Fight)),
     Units = fight:units(Fight),
     {ok, VM} = erlv8_vm:start(),
@@ -157,7 +157,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
 	      all_tick_events  = Ticks} = State) ->
-    gen_server:cast(Subscriber, {send, lists:reverse(Ticks)}),
+    gen_server:cast(Subscriber, {send, Ticks}),
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
     {noreply, State};
@@ -180,7 +180,7 @@ handle_cast(end_tick, #state{all_tick_events = Ticks,
                 current_tick_events = [],
                 tick_in_progress = false,
 		idle_count = NewIdleCount,
-                all_tick_events = [OrderedEvents | Ticks]
+                all_tick_events = Ticks ++ OrderedEvents
                }};
 handle_cast(trigger_tick, #state{tick_in_progress = true} = State) ->
     {noreply, State};

@@ -100,7 +100,6 @@ handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State)
     erlang:monitor(process, Pid),
     UUID = list_to_binary(uuid:to_string(uuid:v4())),
     {reply, {ok, self()}, State#state{epic_servers = dict:store(UUID, Pid, Servers)}};
-
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
