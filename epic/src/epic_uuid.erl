@@ -28,7 +28,7 @@
 % NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 % SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %
--module(uuid).
+-module(epic_uuid).
 -export([init/0, v4/0, to_string/1, get_parts/1, to_binary/1]).
 -import(random).
 -include("epic_types.hrl").

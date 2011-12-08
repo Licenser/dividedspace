@@ -88,7 +88,7 @@ fields() ->
 %%--------------------------------------------------------------------					
 
 new(X, Y, Fleet, Modules) ->
-    create(uuid:to_string(uuid:v4()), X, Y, Fleet, Modules).
+    create(epic_uuid:to_string(epic_uuid:v4()), X, Y, Fleet, Modules).
 
 %%--------------------------------------------------------------------
 %% @doc

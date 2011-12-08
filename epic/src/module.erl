@@ -435,7 +435,7 @@ new(Type) ->
 	     end,
     case module_type:select(TypeID) of
 	{ok, ModuleType} -> 
-	    {ok, make(uuid:v4(), TypeID, module_type:integrety(ModuleType), module_type:specs(ModuleType))};
+	    {ok, make(epic_uuid:v4(), TypeID, module_type:integrety(ModuleType), module_type:specs(ModuleType))};
 	{error,not_found} -> {error, unknown_module_type}
     end.
 

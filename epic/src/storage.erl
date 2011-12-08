@@ -53,7 +53,7 @@ init() ->
 			     [{ram_copies, [node()]},
 			       {attributes,
 				module_type:fields()}]) of
-	%{atomic, ok} -> loader:load();
+	{atomic, ok} -> loader:load();
 	R -> R
     end,
     mnesia:create_table(module,

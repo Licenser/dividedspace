@@ -43,7 +43,6 @@
 
 % macros
 -define(SERVER, ?MODULE).
--define(PORT, 8080).
 
 % ============================ \/ API ======================================================================
 
@@ -67,10 +66,14 @@ stop() ->
 % Description: Initiates the server.
 % ----------------------------------------------------------------------------------------------------------
 init([]) ->
-	% trap_exit -> this gen_server needs to be supervised
+						% trap_exit -> this gen_server needs to be supervised
     process_flag(trap_exit, true),
 	% start misultin & set monitor
-    misultin:start_link([{port, ?PORT}, 
+    Port = case application:get_key(port) of
+	       {ok, Prt} -> Prt;
+	       _ -> 8080
+	   end,
+    misultin:start_link([{port, Port},
                          {loop, fun(Req) -> handle_http(Req) end}, 
                          {ws_loop, fun (Ws) ->
                                            "/fight/" ++ Fight = Ws:get(path),
@@ -79,7 +82,7 @@ init([]) ->
                                            handle_websocket(Ws, Server)
                                    end}, {ws_autoexit, false}]),
     erlang:monitor(process, misultin),
-    {ok, #state{port = ?PORT}}.
+    {ok, #state{port = Port}}.
 
 % ----------------------------------------------------------------------------------------------------------
 % Function: handle_call(Request, From, State) -> {reply, Reply, State} | {reply, Reply, State, Timeout} |
@@ -154,7 +157,7 @@ handle_http(Req) ->
 	    {ok, Pid} = gen_server:call({global,center_server}, {get_server_pid, list_to_binary(UUID)}),
 	    {ok, Fights} = gen_server:call(Pid, list_fights),
 	    FightData = lists:map(fun ({FightUUID, {State, Ticks, Time}}) ->
-					  [{id, list_to_binary(uuid:to_string(FightUUID))},
+					  [{id, list_to_binary(ds_web_uuid:to_string(FightUUID))},
 					   {state, State},
 					   {ticks, Ticks},
 					   {time, Time}]

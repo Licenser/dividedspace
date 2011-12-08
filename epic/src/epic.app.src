@@ -23,7 +23,7 @@ module_type,
 storage,
 storage_sup,
 unit,
-uuid,
+epic_uuid,
 weapon,
 worker_fsm,
 worker_sup

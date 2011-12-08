@@ -143,7 +143,7 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({'DOWN', Ref, process, Pid, Reason}, #state{epic_servers = Servers} = State) ->
     io:format("Client down: ~p.~n", [Pid]),
-    State = State#state{epic_servers = dict:filter(fun ({_, APid}) ->
+    State = State#state{epic_servers = dict:filter(fun (_, APid) ->
 							   APid =:= Pid
 						   end, Servers)},
     {noreply, State};

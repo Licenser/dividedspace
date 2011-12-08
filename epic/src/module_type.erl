@@ -131,7 +131,7 @@ new(Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs) when
       is_float(HitPropability), 0 =< HitPropability,  HitPropability =< 1,
       is_float(HitPriority), 0 =< HitPriority,  HitPriority =< 1 
       ->
-    {ok, make(uuid:v4(), Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs)}.
+    {ok, make(epic_uuid:v4(), Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs)}.
 
 
 specs(#module_type{specs = Specs}) ->

@@ -13,5 +13,8 @@ erlv8: deps force_look
 clean:
 	@$(REBAR) clean
 
+rel: all
+	@$(REBAR) generate
+
 force_look:
 	@true

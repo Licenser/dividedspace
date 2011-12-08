@@ -1,5 +1,5 @@
 ## Name of the node
--name epic@127.0.0.1
+-name ds_web@127.0.0.1
 
 ## Cookie for distributed erlang
 -setcookie dividedspace

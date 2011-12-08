@@ -21,16 +21,17 @@
             any()) -> {ok, pid()} | {ok, pid(), State::any()} |
                       {error, Reason::any()}.
 start(_StartType, _StartArgs) ->
-    case application:get_key(center) of
-	undefined -> undefined;
-	Center -> erlang:monitor_node(Center, true),
-		  net_adm:ping(Center)
+    case application:get_env(center) of
+	{ok, Center} -> 
+	    pong =  net_adm:ping(Center),
+	    erlang:monitor_node(Center, true);
+	_ -> ok
     end,
     case ds_web_sup:start_link() of
-        {ok, Pid} ->
-            {ok, Pid};
-        Error ->
-            Error
+	{ok, Pid} ->
+	    {ok, Pid};
+	Error ->
+	    Error
     end.
 
 %% @private
