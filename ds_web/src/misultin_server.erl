@@ -1,80 +1,60 @@
-% ==========================================================================================================
-% MISULTIN - Example: Running Misultin from a gen_server.
-%
-% >-|-|-(°>
-% 
-% Copyright (C) 2011, Roberto Ostinelli <roberto@ostinelli.net>
-% All rights reserved.
-%
-% BSD License
-% 
-% Redistribution and use in source and binary forms, with or without modification, are permitted provided
-% that the following conditions are met:
-%
-%  * Redistributions of source code must retain the above copyright notice, this list of conditions and the
-%	 following disclaimer.
-%  * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and
-%	 the following disclaimer in the documentation and/or other materials provided with the distribution.
-%  * Neither the name of the authors nor the names of its contributors may be used to endorse or promote
-%	 products derived from this software without specific prior written permission.
-%
-% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
-% WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-% PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
-% ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-% TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-% HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-% NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-% POSSIBILITY OF SUCH DAMAGE.
-% ==========================================================================================================
 -module(misultin_server).
 -behaviour(gen_server).
 
-% gen_server callbacks
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3, index/0]).
+						% gen_server callbacks
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
-% API
+						% API
 -export([start_link/0, stop/0]).
 
-% records
+						% records
 -record(state, {
-	port
-}).
+	  port
+	 }).
 
-% macros
+-record(session,{
+	  uid=-1,
+	  name=""
+	 }).
+						% macros
 -define(SERVER, ?MODULE).
 
-% ============================ \/ API ======================================================================
+%% ============================ \/ API ======================================================================
 
-% Function: {ok,Pid} | ignore | {error, Error}
-% Description: Starts the server.
+%% Function: {ok,Pid} | ignore | {error, Error}
+%% Description: Starts the server.
 start_link() ->
-	gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-% Function: -> ok
-% Description: Manually stops the server.
+%% Function: -> ok
+%% Description: Manually stops the server.
 stop() ->
-	gen_server:cast(?SERVER, stop).
+    gen_server:cast(?SERVER, stop).
 
-% ============================ /\ API ======================================================================
+%% ============================ /\ API ======================================================================
 
 
-% ============================ \/ GEN_SERVER CALLBACKS =====================================================
+%% ============================ \/ GEN_SERVER CALLBACKS =====================================================
 
-% ----------------------------------------------------------------------------------------------------------
-% Function: -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
-% Description: Initiates the server.
-% ----------------------------------------------------------------------------------------------------------
+%% ----------------------------------------------------------------------------------------------------------
+%% Function: -> {ok, State} | {ok, State, Timeout} | ignore | {stop, Reason}
+%% Description: Initiates the server.
+%% ----------------------------------------------------------------------------------------------------------
 init([]) ->
-						% trap_exit -> this gen_server needs to be supervised
+%% trap_exit -> this gen_server needs to be supervised
     process_flag(trap_exit, true),
-	% start misultin & set monitor
-    Port = case application:get_key(port) of
+    {ok, Host} = application:get_env(dbHost),
+    {ok, User} = application:get_env(dbUser),
+    {ok, Pass} = application:get_env(dbPass),
+    {ok, Db} = application:get_env(db),
+    {ok, C} = pgsql:connect(Host, User, Pass, [{database, Db}]),
+						% start misultin & set monitor
+    Port = case application:get_env(port) of
 	       {ok, Prt} -> Prt;
 	       _ -> 8080
 	   end,
     misultin:start_link([{port, Port},
-                         {loop, fun(Req) -> handle_http(Req) end}, 
+                         {loop, fun(Req) -> handle_http(C, Req) end}, 
                          {ws_loop, fun (Ws) ->
                                            "/fight/" ++ Fight = Ws:get(path),
                                            {ok, FPid} = gen_server:call({global, center_server}, {get_fight, Fight}),
@@ -84,94 +64,127 @@ init([]) ->
     erlang:monitor(process, misultin),
     {ok, #state{port = Port}}.
 
-% ----------------------------------------------------------------------------------------------------------
-% Function: handle_call(Request, From, State) -> {reply, Reply, State} | {reply, Reply, State, Timeout} |
-%									   {noreply, State} | {noreply, State, Timeout} |
-%									   {stop, Reason, Reply, State} | {stop, Reason, State}
-% Description: Handling call messages.
-% ----------------------------------------------------------------------------------------------------------
+%% ----------------------------------------------------------------------------------------------------------
+%% Function: handle_call(Request, From, State) -> {reply, Reply, State} | {reply, Reply, State, Timeout} |
+%%									   {noreply, State} | {noreply, State, Timeout} |
+%%									   {stop, Reason, Reply, State} | {stop, Reason, State}
+%% Description: Handling call messages.
+%% ----------------------------------------------------------------------------------------------------------
 
-% handle_call generic fallback
+%% handle_call generic fallback
 handle_call(_Request, _From, State) ->
-	{reply, undefined, State}.
+    {reply, undefined, State}.
 
-% ----------------------------------------------------------------------------------------------------------
-% Function: handle_cast(Msg, State) -> {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
-% Description: Handling cast messages.
-% ----------------------------------------------------------------------------------------------------------
+%% ----------------------------------------------------------------------------------------------------------
+%% Function: handle_cast(Msg, State) -> {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
+%% Description: Handling cast messages.
+%% ----------------------------------------------------------------------------------------------------------
 
-% manual shutdown
+%% manual shutdown
 handle_cast(stop, State) ->
-	{stop, normal, State};
+    {stop, normal, State};
 
-% handle_cast generic fallback (ignore)
+%% handle_cast generic fallback (ignore)
 handle_cast(_Msg, State) ->
-	{noreply, State}.
+    {noreply, State}.
 
-% ----------------------------------------------------------------------------------------------------------
-% Function: handle_info(Info, State) -> {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
-% Description: Handling all non call/cast messages.
-% ----------------------------------------------------------------------------------------------------------
+%% ----------------------------------------------------------------------------------------------------------
+%% Function: handle_info(Info, State) -> {noreply, State} | {noreply, State, Timeout} | {stop, Reason, State}
+%% Description: Handling all non call/cast messages.
+%% ----------------------------------------------------------------------------------------------------------
 
-% handle info when misultin server goes down -> take down misultin_gen_server too [the supervisor will take everything up again]
+%% handle info when misultin server goes down -> take down misultin_gen_server too [the supervisor will take everything up again]
 handle_info({'DOWN', _, _, {misultin, _}, _}, State) ->
-	{stop, normal, State};
+    {stop, normal, State};
 
-% handle_info generic fallback (ignore)
+%% handle_info generic fallback (ignore)
 handle_info(_Info, State) ->
-	{noreply, State}.
+    {noreply, State}.
 
-% ----------------------------------------------------------------------------------------------------------
-% Function: terminate(Reason, State) -> void()
-% Description: This function is called by a gen_server when it is about to terminate. When it returns,
-% the gen_server terminates with Reason. The return value is ignored.
-% ----------------------------------------------------------------------------------------------------------
+%% ----------------------------------------------------------------------------------------------------------
+%% Function: terminate(Reason, State) -> void()
+%% Description: This function is called by a gen_server when it is about to terminate. When it returns,
+%% the gen_server terminates with Reason. The return value is ignored.
+%% ----------------------------------------------------------------------------------------------------------
 terminate(_Reason, _State) ->
-	% stop misultin
-	misultin:stop(),
-	terminated.
+						% stop misultin
+    misultin:stop(),
+    terminated.
 
-% ----------------------------------------------------------------------------------------------------------
-% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
-% Description: Convert process state when code is changed.
-% ----------------------------------------------------------------------------------------------------------
+%% ----------------------------------------------------------------------------------------------------------
+%% Func: code_change(OldVsn, State, Extra) -> {ok, NewState}
+%% Description: Convert process state when code is changed.
+%% ----------------------------------------------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
-	{ok, State}.
+    {ok, State}.
 
-% ============================ /\ GEN_SERVER CALLBACKS =====================================================
+%% ============================ /\ GEN_SERVER CALLBACKS =====================================================
 
 
-% ============================ \/ INTERNAL FUNCTIONS =======================================================
+%% ============================ \/ INTERNAL FUNCTIONS =======================================================
 
-% ---------------------------- \/ misultin requests --------------------------------------------------------
+%% ---------------------------- \/ misultin requests --------------------------------------------------------
 
-handle_http(Req) ->
-    case Req:resource([lowercase, urldecode]) of
-	[] ->
-	    Req:ok([{"Content-Type", "text/html"}],
-		   index());
-	["server"] ->
-	    Req:ok([{"Content-Type", "application/json"}],
-		   mochijson2:encode(gen_server:call({global,center_server}, get_epic_servers)));
-	["server", UUID] ->
-	    {ok, Pid} = gen_server:call({global,center_server}, {get_server_pid, list_to_binary(UUID)}),
-	    {ok, Fights} = gen_server:call(Pid, list_fights),
-	    FightData = lists:map(fun ({FightUUID, {State, Ticks, Time}}) ->
-					  [{id, list_to_binary(ds_web_uuid:to_string(FightUUID))},
-					   {state, State},
-					   {ticks, Ticks},
-					   {time, Time}]
-				  end,Fights),
-	    Req:ok([{"Content-Type", "application/json"}],
-		   mochijson2:encode(FightData));
-	["static" | Path] ->
+handle_http(Connection, Req) ->
+    SessionName = "dividedspace",
+    Session = case Req:get_cookie_value(SessionName, Req:get_cookies()) of
+		  undefined -> #session{};
+		  V -> dec_term(V)
+	      end,
+    case {Req:get(method), Req:resource([lowercase, urldecode])} of
+	{'GET', ["api", "v1" | Rest]} ->
+	    case Session#session.uid of
+		undefined -> 
+		    Req:respond(403, [], "", []);
+		_ ->
+		    case Rest of
+			["server"] ->
+			    json(Req, get_epic_servers);
+			["server", UUID] ->
+			    Pid = get_epic_pid(list_to_binary(UUID)),
+			    Fights = get_fights(Pid),
+			    FightData = lists:map(fun ({FightUUID, {State, Ticks, Time}}) ->
+							  [{id, list_to_binary(ds_web_uuid:to_string(FightUUID))},
+							   {state, State}, {ticks, Ticks},
+							   {time, Time}]
+						  end,Fights),
+			    json(Req, FightData);
+			
+			["fight"] -> 
+			    1
+			    %FightData = lists:map(fun ({FightUUID, {State, Ticks, Time}}) ->
+			%				  list_to_binary(ds_web_uuid:to_string(FightUUID)))
+		    end
+	    end;
+	{'GET', ["fight", FightId]} ->
+	    Req:ok(fight(FightId));
+	{'GET', ["admin"]} ->
+	    admin();
+	{'GET', ["login"]} ->
+	    Req:file("./htdocs/login.html");
+	{'GET', ["logut"]} ->
+	    Req:file([Req:delete_cookie(SessionName)],
+		     filename:join(["./htdocs/login.html"]));
+		{'Post', ["login"]} ->
+					       {User, Pass} = user_pass(Req),     
+	    case user:verify(Connection, User, Pass) of
+		{ok, Id, Name} -> 
+		    Req:ok([Req:set_cookie(SessionName, 
+					   enc_term(#session{
+						       uid=Id,
+						       name=Name
+						      }), 
+					   [{max_age, 365*24*3600}]), {"Content-Type", "text/html"}],
+			   Req:file("./htdocs/index.html"));
+		_ -> Req:file("./htdocs/login.html")
+	    end;
+	{'GET', ["static" | Path]} ->
 	    Req:file(filename:join(["./htdocs" | Path]));
-	["fight", FightId] ->
-	    Req:ok([{"Content-Type", "text/html"}],
-		   fight(FightId));
-	_ -> 
-	    Req:ok([{"Content-Type", "text/html"}],
-		   index())
+	Rest -> 
+	    case Session#session.uid of
+		undefined -> Req:file("./htdocs/login.html");
+		Uid -> Req:file("./htdocs/index.html")
+	    end 
     end.
 
 handle_websocket(Ws, Server) ->
@@ -186,66 +199,108 @@ handle_websocket(Ws, Server) ->
 	    handle_websocket(Ws, Server)
     end.
 
-% ---------------------------- /\ misultin requests --------------------------------------------------------
+%% ---------------------------- /\ misultin requests --------------------------------------------------------
 
-% ============================ /\ INTERNAL FUNCTIONS =======================================================
+%% ============================ /\ INTERNAL FUNCTIONS =======================================================
 
-index() ->
+admin() ->
     ["
 <html>
-  <head>
-    <script src='/static/cljs/boot.js' type='text/javascript' charset='utf-8'></script>
-  </head>
-  <body onload=\"evil.core.init();\">
-  </body>
-</html>"].
+	 <head>
+	 <script src='/static/js/jquery-1.7.1.js' type='text/javascript' charset='utf-8'></script>
+	 <script src='/static/cljs/boot.js' type='text/javascript' charset='utf-8'></script>
+	 </head>
+	 <body>
+	 </body>
+	 </html>"].
 
 fight(FightID) ->
-    ["<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
+	    ["<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\"
 \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">
 <html>
-<head>
-<meta http-equiv='Content-type' content='text/html; charset=utf-8'>
-<title>Divided Space</title>
-<link href='/static/css/ds-gui.css' type='text/css' rel='stylesheet' />
-    <script src='/static/interface/lib/shapes.js' type='text/javascript' charset='utf-8'></script>
-    <script src='/static/interface/lib/draw_engine.js' type='text/javascript' charset='utf-8'></script>
-    <!-- JSON is not available on Mobile Safari, so we use this library. -->
-    <script src='/static/interface/lib/json2.js' type='text/javascript' charset='utf-8'></script>
-    <script src='/static/interface/ds-gui.js' type='text/javascript' charset='utf-8'></script>
-  </head>
-  <body>
-    <!-- <canvas id='background'>Your browser doesn't support HTML 5 Canvas.</canvas> -->
-    <canvas id='fighter'>This demo needs HTML 5 Canvas.</canvas>
-    <canvas id='fire'>---</canvas>
-    <canvas id='units'>Please install a better browser.</canvas>
-    <canvas id='grid'>---</canvas>
-    <!-- <canvas id='explosions'>-</canvas> -->
-    <canvas id='selection'>Firefox or Safari, for example.</canvas>
-    <canvas id='osd' style='display: block'>Or both.</canvas>
-    <div id='biginfo'></div>
-    <div id='coordinates'></div>
-    <div id='info'></div>
-    <div id='controls'>
-      <div class='button' id='play' style='display: none'>Play</div>
-      <!-- <div class='button' id='next'>Next</div> -->
-    </div>
-    <script type='text/javascript' charset='utf-8'>
-      if (!Prototype.Browser.IE) {
-        var waitForImages = window.setInterval(function() {
-          for (var i = document.images.length; i--;) {
-            if (!document.images[i].complete) return;
-          }
-          window.clearInterval(waitForImages);
-          DS.initialize('", FightID, "');
-/*
-          var match = location.search.match(/log=([-\w]+)/);
-          DS.initialize(match ? match[1] : 'log');
-*/
-        }, 500);
-      }
-    </script>
-    <img id='fighter-l-two' src='/static/images/fighter_light_blue.png' style='display: none;' />
-    <img id='fighter-l-one' src='/static/images/fighter_light_red.png' style='display: none;' />
-  </body>
-</html>"].
+		 <head>
+		 <meta http-equiv='Content-type' content='text/html; charset=utf-8'>
+		 <title>Divided Space</title>
+		 <link href='/static/css/ds-gui.css' type='text/css' rel='stylesheet' />
+		 <script src='/static/interface/lib/shapes.js' type='text/javascript' charset='utf-8'></script>
+		 <script src='/static/interface/lib/draw_engine.js' type='text/javascript' charset='utf-8'></script>
+		 <script src='/static/interface/lib/json2.js' type='text/javascript' charset='utf-8'></script>
+		 <script src='/static/interface/ds-gui.js' type='text/javascript' charset='utf-8'></script>
+		 </head>
+		 <body>
+		 <canvas id='fighter'>This demo needs HTML 5 Canvas.</canvas>
+		 <canvas id='fire'>---</canvas>
+		 <canvas id='units'>Please install a better browser.</canvas>
+		 <canvas id='grid'>---</canvas>
+		 <canvas id='selection'>Firefox or Safari, for example.</canvas>
+		 <canvas id='osd' style='display: block'>Or both.</canvas>
+		 <div id='biginfo'></div>
+		 <div id='coordinates'></div>
+		 <div id='info'></div>
+		 <div id='controls'>
+		 <div class='button' id='play' style='display: none'>Play</div>
+		 <!-- <div class='button' id='next'>Next</div> -->
+		 </div>
+		 <script type='text/javascript' charset='utf-8'>
+		 if (!Prototype.Browser.IE) {
+		      var waitForImages = window.setInterval(function() {
+								       for (var i = document.images.length; i--;) {
+									     if (!document.images[i].complete) return;
+										}
+								       window.clearInterval(waitForImages);
+									   DS.initialize('", FightID, "');
+								      }, 500);
+		     }
+		    </script>
+		    <img id='fighter-l-two' src='/static/images/fighter_light_blue.png' style='display: none;' />
+		    <img id='fighter-l-one' src='/static/images/fighter_light_red.png' style='display: none;' />
+		    </body>
+		    </html>"].
+
+aes_dec(Text) when is_binary(Text) -> 
+			 Key = <<"dividedspace!!!!">>,
+			 <<Size:32, IVec:16/binary, Messag/binary>> = Text,
+			 <<Msg:Size/binary, _/binary>> = crypto:aes_cbc_128_decrypt(Key, IVec, Messag),
+			 Msg. 
+
+
+aes_enc(Text) when is_binary(Text) -> 
+    MsgSize = size(Text),
+    Missing = (16 - (MsgSize rem 16)) * 8,
+    Key = <<"dividedspace!!!!">>, 
+    IVec = crypto:aes_cbc_ivec(crypto:rand_bytes(16)),
+    Enc = crypto:aes_cbc_128_encrypt(Key, IVec, <<Text/binary, 0:Missing>>),
+    <<MsgSize:32, IVec:16/binary, Enc/binary>>.
+
+enc_term(Term) ->
+    binary_to_list(base64:encode(aes_enc(term_to_binary(Term)))).
+
+dec_term(Term) ->
+    binary_to_term(aes_dec(base64:decode(list_to_binary(Term)))).
+
+json(Req, Data) ->
+    Req:ok([{"Content-Type", "application/json"}],
+	   mochijson2:encode(Data)).
+
+user_pass(Req) ->
+    Data=Req:parse_post(),
+    User = case lists:keyfind("user", 1, Data) of
+	       {ok, U} -> U;
+	       _ -> ""
+	   end,
+    case lists:keyfind("pass", 1, Data) of
+	{ok, P} -> {User, P};
+	_ -> {"",""}
+    end.
+    
+get_epic_servers() ->
+    {ok, R} = gen_server:call({global,center_server}, get_epic_servers),
+    R.
+
+get_epic_pid(UUID) ->
+    {ok, R} = gen_server:call({global,center_server}, {get_server_pid, UUID}),
+    R.
+
+get_fights(Pid) ->
+    {ok, R} = gen_server:call(Pid, list_fights),
+    R.
