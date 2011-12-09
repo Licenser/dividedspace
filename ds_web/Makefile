@@ -9,7 +9,10 @@ CLASS_PATH=$(CLJS_SRC_DIR):$(CLJS_BASE_DIR)/lib
 REBAR=./rebar
 
 
-all: deps cljs force_look
+all: deps erlang
+	@$(REBAR) compile
+
+erlang: force_look
 	@$(REBAR) compile
 
 cljs-compiler:
@@ -25,8 +28,11 @@ deps:
 clean:
 	@$(REBAR) clean
 
-rel: all
+rel: all cljs
 	@$(REBAR) generate
+
+xref: clean all
+	@$(REBAR) xref
 
 force_look:
 	@true

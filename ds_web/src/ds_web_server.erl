@@ -1,30 +1,25 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <heinz@licenser.net>
+%%% @author Heinz N. Gies <licenser@Schroedinger.local>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
+%%% Created :  9 Dec 2011 by Heinz N. Gies <licenser@Schroedinger.local>
 %%%-------------------------------------------------------------------
--module(center_server).
+-module(ds_web_server).
 
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, 
-         tick/0,
-         add_fight/1,
-         get_fight/1,
-	 get_epic_servers/0,
-         get_fights/0]).
+-export([start_link/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
-         terminate/2, code_change/3]).
+	 terminate/2, code_change/3]).
 
--define(SERVER, {global, ?MODULE}).
+-define(SERVER, ?MODULE). 
 
--record(state, {epic_servers = dict:new(), fights = dict:new()}).
+-record(state, {listener}).
 
 %%%===================================================================
 %%% API
@@ -38,22 +33,7 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link(?SERVER, ?MODULE, [], []).
-
-add_fight(Units) ->
-    gen_server:cast(?SERVER, {add_fight, Units}).
-
-get_fights() ->
-    gen_server:call(?SERVER, get_fights).
-
-get_epic_servers() ->
-    gen_server:call(?SERVER, get_epic_servers).
-
-get_fight(Id) ->
-    gen_server:call(?SERVER, {get_fight, Id}).
-
-tick() ->
-    gen_server:cast(?SERVER, tick).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -71,7 +51,23 @@ tick() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, #state{}}.
+    application:start(cowboy),
+    {ok, Port} = application:get_env(port),
+    {ok, Acceptors} = application:get_env(acceptors),
+    Dispatch = [
+		%% {Host, list({Path, Handler, Opts})}
+		{'_', [
+		       {[<<"api">>], ds_web_api_handler, []},
+		       {[<<"api">>, <<"v1">>], ds_web_api_handler, []},
+		       {'_', ds_web_api_handler, []}
+		      ]}
+	       ],
+    %% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
+    Listener = cowboy:start_listener(http, Acceptors,
+				     cowboy_tcp_transport, [{port, Port}],
+				     cowboy_http_protocol, [{dispatch, Dispatch}]
+				    ),
+    {ok, #state{listener=Listener}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -87,19 +83,6 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
-    {reply, dict:find(Id, Fights), State};
-handle_call(get_fights, _From, #state{fights = Fights} = State) ->
-    {reply, dict:fetch_keys(Fights), State};
-handle_call(get_epic_servers, _From, #state{epic_servers = Servers} = State) ->
-    {reply, dict:fetch_keys(Servers), State};
-handle_call({get_server_pid, UUID}, _From, #state{epic_servers = Servers} = State) ->
-    {reply, dict:find(UUID, Servers), State};
-handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State) when is_pid(Pid) ->
-    io:format("REGISTER: ~p~n", [Pid]),
-    erlang:monitor(process, Pid),
-    UUID = center_uuid:v4(),
-    {reply, {ok, self()}, State#state{epic_servers = dict:store(UUID, Pid, Servers)}};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -114,30 +97,6 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({register_fight, UUID, Pid},  #state{fights = Fights} = State) ->
-    {noreply, State#state{fights = dict:store(UUID, Pid, Fights)}};
-handle_cast({add_fight, Units}, #state{epic_servers = Servers} = State) ->
-    io:format("~p~n", [dict:to_list(Servers)]),
-    {Pid, _} = lists:foldl(fun ({_, ServerPid}, {OldPid, OldTime}) ->
-				   io:format("~p~n", [gen_server:call(ServerPid, list_fights)]),
-				   {ok, Fights} = gen_server:call(ServerPid, list_fights),
-				   Time = lists:foldl(fun ({_, {_, _, FightTime}}, Total) ->
-							      Total + FightTime
-						      end, 0.0, Fights),
-				   if
-				       Time < OldTime -> {ServerPid, Time};
-				       true -> {OldPid, OldTime}
-				   end				       
-			   end, {error, 100000.0}, dict:to_list(Servers)),
-    UUID = center_uuid:v4(),
-    io:format("Sending: ~p.~n", [{add_fight, UUID, Units}]),
-    gen_server:cast(Pid, {add_fight, UUID, Units}),
-    {noreply, State};
-handle_cast(tick, #state{epic_servers = Servers} = State) ->
-    lists:map(fun ({_, Pid}) ->
-                      gen_server:cast(Pid, tick)
-              end, dict:to_list(Servers)),                      
-    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -151,12 +110,6 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({'DOWN', Ref, process, Pid, Reason}, #state{epic_servers = Servers} = State) ->
-    io:format("Client down: ~p.~n", [Pid]),
-    NewState = State#state{epic_servers = dict:filter(fun (_, APid) ->
-							      APid =/= Pid
-						      end, Servers)},
-    {noreply, NewState};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -171,7 +124,8 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(_Reason, #state{listener=Listener} = _State) ->
+    cowboy:stop_listener(Listener),
     ok.
 
 %%--------------------------------------------------------------------

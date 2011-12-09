@@ -29,7 +29,7 @@
 % SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %
 -module(ds_web_uuid).
--export([init/0, v4/0, to_string/1, get_parts/1, to_binary/1]).
+-export([init/0, v4/0]).
 -import(random).
 -include("epic_types.hrl").
 
@@ -44,7 +44,7 @@ init() ->
 v4() ->
   v4(random:uniform(round(math:pow(2, 48))) - 1, random:uniform(round(math:pow(2, 12))) - 1, random:uniform(round(math:pow(2, 32))) - 1, random:uniform(round(math:pow(2, 30))) - 1).
 v4(R1, R2, R3, R4) ->
-    <<R1:48, 4:4, R2:12, 2:2, R3:32, R4: 30>>.
+    list_to_binary(to_string(<<R1:48, 4:4, R2:12, 2:2, R3:32, R4: 30>>)).
 
 -spec to_string(uuid()) ->
 		       list().
@@ -57,22 +57,3 @@ to_string(U) ->
 % Returns the 32, 16, 16, 8, 8, 48 parts of a binary UUID.
 get_parts(<<TL:32, TM:16, THV:16, CSR:8, CSL:8, N:48>>) ->
     [TL, TM, THV, CSR, CSL, N].
-
--spec to_binary(list()) ->
-		       uuid().
-
-% Converts a UUID string in the format of 550e8400-e29b-41d4-a716-446655440000
-% (with or without the dashes) to binary.
-to_binary(U)->
-    convert(lists:filter(fun(Elem) -> Elem /= $- end, U), []).
-
--spec convert(string(), list()) ->
-		       uuid().
-
-% Converts a list of pairs of hex characters (00-ff) to bytes.
-convert([], Acc)->
-    <<_:128>> = B = list_to_binary(lists:reverse(Acc)),
-    B;
-convert([X, Y | Tail], Acc)->
-    {ok, [Byte], _} = io_lib:fread("~16u", [X, Y]),
-    convert(Tail, [Byte | Acc]).

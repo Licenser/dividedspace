@@ -38,7 +38,7 @@ add_fight(Id, Units) ->
     gen_server:cast(?MODULE, {add_fight, Id, Units}).
 
 new_fight(Fight) ->
-    UUID = uuid:v4(),
+    UUID = epic_uuid:v4(),
     {ok, FPid} = fight_sup:start_child(Fight),
     add_fight(UUID, FPid),
     {ok, UUID}.

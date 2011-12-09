@@ -88,7 +88,7 @@ fields() ->
 %%--------------------------------------------------------------------					
 
 new(X, Y, Fleet, Modules) ->
-    create(epic_uuid:to_string(epic_uuid:v4()), X, Y, Fleet, Modules).
+    create(epic_uuid:v4(), X, Y, Fleet, Modules).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -99,7 +99,7 @@ new(X, Y, Fleet, Modules) ->
 %% @end
 %%--------------------------------------------------------------------
 
-select(ID) when is_list(ID) ->
+select(ID) when is_binary(ID) ->
     storage:select({unit, ID}).
 
 is_a(#unit{}) ->
@@ -107,7 +107,7 @@ is_a(#unit{}) ->
 is_a(_) ->
     false.
 
-create(Id, X, Y, Fleet, Modules) when is_list(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
+create(Id, X, Y, Fleet, Modules) when is_binary(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
     #unit{
 	   id = Id,
 	   x = X,
@@ -165,14 +165,14 @@ from_template(X, Y, Fleet, Modules) when is_integer(X), is_integer(Y), is_list(M
     storage:insert(Unit),
     {ok, Unit}.
 
-ensure_id(Unit) when is_list(Unit) ->
+ensure_id(Unit) when is_binary(Unit) ->
     Unit;
 ensure_id(#unit{id = ID})->
     ID.
 
 ensure_record(#unit{} = Unit)->
     Unit;
-ensure_record(Unit) when is_list(Unit) ->
+ensure_record(Unit) when is_binary(Unit) ->
     {ok, U} = select(Unit),
     explode(U).
 

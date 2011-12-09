@@ -46,7 +46,7 @@
 
 
 init() ->
-    uuid:init(),
+    epic_uuid:init(),
     mnesia:create_schema([node()]),
     mnesia:start(),
     case mnesia:create_table(module_type,

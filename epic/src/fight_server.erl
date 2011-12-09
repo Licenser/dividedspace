@@ -91,9 +91,8 @@ init([Fight]) ->
 				    Name = unit:name(Unit),
 				    Hull = unit:hull(Unit),
 				    Integrety = module:integrety(Hull),
-				    UnitIDBin = list_to_binary(UnitId),
-				    [[{type, spawn}, {data, [{id, UnitIDBin}, {damage, 0}, {team, list_to_binary(unit:fleet(Unit))}, {type, [{name, list_to_binary(Name)}, {hull, Integrety}]}]}] |
-				     [[{type, move}, {unit, UnitIDBin}, {position, [{x, unit:x(Unit)}, {y, unit:y(Unit)}]}] | L]]
+				    [[{type, spawn}, {data, [{id, UnitId}, {damage, 0}, {team, list_to_binary(unit:fleet(Unit))}, {type, [{name, list_to_binary(Name)}, {hull, Integrety}]}]}] |
+				     [[{type, move}, {unit, UnitId}, {position, [{x, unit:x(Unit)}, {y, unit:y(Unit)}]}] | L]]
 			    end, [], fight:unit_ids(Fight)),
     Units = fight:units(Fight),
     {ok, VM} = erlv8_vm:start(),
@@ -136,7 +135,7 @@ handle_call(report, _From, #state{tick_in_progress = InProgress,
 				  tick_time = TickTime} = State) ->
     Status = if
 		 IdleCount > ?MAX_IDLE -> ended;
-		 tick_in_progress == true -> in_turn;
+		 InProgress == true -> in_turn;
 		 true -> idle
 	     end,
     {reply, {ok, {Status, Tick, TickTime}}, State};

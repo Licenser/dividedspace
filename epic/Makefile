@@ -16,5 +16,9 @@ clean:
 rel: all
 	@$(REBAR) generate
 
+xref: clean all
+	-rm deps/*/ebin/*
+	@$(REBAR) xref
+
 force_look:
 	@true

@@ -43,8 +43,8 @@ init([]) ->
     Shutdown = 2000,
     Type = worker,
 
-    WebServer = {misultin_server, {misultin_server, start_link, []},
-		 Restart, Shutdown, Type, [misultin_server]},
+    WebServer = {ds_web_server, {ds_web_server, start_link, []},
+		 Restart, Shutdown, Type, [ds_web_server]},
     WsSup = {ws_sup, {ws_sup, start_link, []},
 	     Restart, Shutdown, supervisor, [ws_sup]},
     

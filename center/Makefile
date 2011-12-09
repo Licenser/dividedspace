@@ -12,5 +12,8 @@ clean:
 rel: all
 	@$(REBAR) generate
 
+xref: clean all
+	@$(REBAR) xref
+
 force_look:
 	@true
