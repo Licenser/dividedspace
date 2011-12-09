@@ -44,7 +44,7 @@
       (.append (td (fight "ticks"))))))
 
 (defn update-server [id]
-  (do-json (str "/server/" id)
+  (do-json (str "/api/v1/server/" id)
            (fn [res]
              (let [div ($ (str "div#" id))
                    tab ($ "<table><tr><th>Fight</th><th>Status</th><th>Time</th><th>Ticks</th></tr></table>")]
@@ -59,17 +59,18 @@
 
 (defn update-servers []
   (.text ($ "body") "")
-  (do-json "/server" (fn [res]
-                             (dorun
-                              (map (fn [id]
-                                     (let [div ($ "<div/>")]
-                                       (doto div
-                                         (.attr "id" id)
-                                         (.append id))
-                                       (.append  ($ "body")
-                                                 div)
-                                       (update-server id)))
-                                   res)))))
+  (do-json "/api/v1/server"
+           (fn [res]
+             (dorun
+              (map (fn [id]
+                     (let [div ($ "<div/>")]
+                       (doto div
+                         (.attr "id" id)
+                         (.append id))
+                       (.append  ($ "body")
+                                 div)
+                       (update-server id)))
+                   res)))))
 
 (.ready ($ (js* "document"))
         (.append
