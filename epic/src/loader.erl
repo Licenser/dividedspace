@@ -33,14 +33,14 @@ convert({armor, Name, Size, Mass, Integrety, HitPropability, HitPriority, Damage
 convert({engine, Name, Size, Mass, Integrety, HitPropability, HitPriority, EnergyUsage, Range}) ->
     {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, HitPropability, HitPriority, module:new_engine_spec(EnergyUsage, Range)),
     ModuleType;
-convert({shield, Name, Size, Mass, Integrety, Energy}) ->
-    {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, 1.0, 1.0, module:new_shield_spec(Energy)),
+convert({shield, Name, Size, Mass, Integrety, HitPropability, HitPriority, Energy}) ->
+    {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, HitPropability, HitPriority, module:new_shield_spec(Energy)),
     ModuleType;
 convert({generator, Name, Size, Mass, Integrety, HitPropability, HitPriority, DischargeRate, Output, Capacity, Efficiency}) ->
     {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, HitPropability, HitPriority, module:new_generator_spec(Capacity, Output, Capacity, DischargeRate, Efficiency)),
     ModuleType;
-convert({hull, Name, Size, Mass, Integrety, Maneuverability}) ->
-    {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, 1.0, 0.0, module:new_hull_spec(Maneuverability)),
+convert({hull, Name, Size, Mass, Integrety, HitPropability, HitPriority, Maneuverability}) ->
+    {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, HitPropability, HitPriority,  module:new_hull_spec(Maneuverability)),
     ModuleType;
 convert({weapon, Name, Size, Mass, Integrety, HitPropability, HitPriority, Damage, FireRate, Range, Variation, Accuracy, Rotatability, EnergyUsage}) ->
     {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, HitPropability, HitPriority, module:new_weapon_spec(Damage, FireRate, Range, Variation, Accuracy, Rotatability, EnergyUsage)),

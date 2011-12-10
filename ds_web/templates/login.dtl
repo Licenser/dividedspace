@@ -1,0 +1,14 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html> <head>
+    <title></title>
+  </head>
+  
+  <body>
+    <h1>Login</h1>
+    <form action="/login" method="POST">
+      <label for="user">User</label><input type="text" id="user" name="user"/><br/>
+      <label for="pass">Password</label><input type="password" id="pass" name="pass"/>
+      <input type="submit" value="login" class="button" />
+    </form>
+  </body> 
+</html>

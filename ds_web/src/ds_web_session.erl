@@ -13,7 +13,7 @@
 -module(ds_web_session).
 
 %% API
--export([get_session/3, set_session/4]).
+-export([get_session/3, set_session/4, rem_session/2]).
 
 %%%===================================================================
 %%% API
@@ -23,16 +23,18 @@
 %% @doc Retrieves the session data from the cookies, returns either a
 %% the term stored or undefined when no session was found.
 %% SessionKey needs to be of the size 16 or a multiplyer from it.
-%% @spec get_session(binary(), binary(), #http_req{}, ) 
+%% @spec get_session(binary(), binary(), #http_req{}) 
 %%       -> undefined | term()
 %% @end
 %%--------------------------------------------------------------------
 
 get_session(SessionCookieName, SessionKey, Req) ->
     case cowboy_http_req:cookie(SessionCookieName,Req) of
-	undefined -> 
+	{undefined, _Req} -> 
 	    undefined;
-	SessionData -> 
+	{<<>>, _Req} ->
+	    undefined;
+	{SessionData, _Req} -> 
 	    dec_term(SessionKey, SessionData)
     end.
 
@@ -40,12 +42,23 @@ get_session(SessionCookieName, SessionKey, Req) ->
 %% @doc Sets the session data as a cookie in the Request.
 %% SessionKey needs to be of the size 16 or a multiplyer from it.
 %% @spec set_session(binary(), binary(), #http_req{}, term()) 
-%%       -> binary()
+%%       -> {ok, #http_req{}}
 %% @end
 %%--------------------------------------------------------------------
 
 set_session(SessionCookieName, SessionKey, Req, Session) ->
     cowboy_http_req:set_resp_cookie(SessionCookieName, enc_term(SessionKey, Session), [{max_age, 365*24*3600}], Req).
+
+%%--------------------------------------------------------------------
+%% @doc Deletes the session data as a cookie in the Request.
+%% @spec rem_session(binary(), binary(), #http_req{}, term()) 
+%%       -> {ok, #http_req{}}
+%% @end
+%%--------------------------------------------------------------------
+
+rem_session(SessionCookieName, Req) ->
+    io:format("2.5~n"),
+    cowboy_http_req:set_resp_cookie(SessionCookieName, <<>>, [{max_age, 0}], Req).    
 
 %%%===================================================================
 %%% Internal functions
@@ -64,7 +77,8 @@ aes_enc(Key, Text) when is_binary(Text) ->
     <<MsgSize:32, IVec:16/binary, Enc/binary>>.
 
 enc_term(Key, Term) when is_binary(Key)->
-    base64:encode(aes_enc(Key, term_to_binary(Term))).
+    list_to_binary(edoc_lib:escape_uri(binary_to_list(base64:encode(aes_enc(Key, term_to_binary(Term)))))).
 
 dec_term(Key, Term) when is_binary(Term), is_binary(Key) ->
-    binary_to_term(aes_dec(Key, base64:decode(Term))).
+    binary_to_term(aes_dec(Key, base64:decode(cowboy_http:urldecode(Term)))).
+

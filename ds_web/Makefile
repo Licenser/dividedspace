@@ -13,6 +13,7 @@ all: deps erlang
 	@$(REBAR) compile
 
 erlang: force_look
+	cd deps/proper_stdlib/; ./rebar compile
 	@$(REBAR) compile
 
 cljs-compiler:

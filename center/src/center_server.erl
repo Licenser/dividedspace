@@ -100,6 +100,11 @@ handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State)
     erlang:monitor(process, Pid),
     UUID = center_uuid:v4(),
     {reply, {ok, self()}, State#state{epic_servers = dict:store(UUID, Pid, Servers)}};
+handle_call({get_modules, Type}, _From, State) ->
+    case file:consult(filename:join(["data", Type ++ ".erl"])) of
+	{ok, Modules} -> {reply, Modules, State};
+	_ -> {reply, undefined, State}
+    end;
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.

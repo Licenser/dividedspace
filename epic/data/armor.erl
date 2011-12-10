@@ -1,1 +1,3 @@
-{armor, "Light F Armor", 1, 20, 20, 0.95, 0.95, 1}.
+%Size  Mass  Integrety  HitPropability  HitPriority  DamageAbsorption
+{armor, <<"Light F Armor">>, 
+ 1,    20,   20,        0.95,           0.95,        1}.

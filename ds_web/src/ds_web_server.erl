@@ -11,7 +11,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0, init_db/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -51,15 +51,17 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    application:start(cowboy),
+    init_templates(),
+    DB = init_db(),
     {ok, Port} = application:get_env(port),
     {ok, Acceptors} = application:get_env(acceptors),
+    {ok, StaticPath} = application:get_env(static_dir),
     Dispatch = [
 		%% {Host, list({Path, Handler, Opts})}
 		{'_', [
-		       {[<<"api">>], ds_web_api_handler, []},
-		       {[<<"api">>, <<"v1">>], ds_web_api_handler, []},
-		       {'_', ds_web_api_handler, []}
+		       {[<<"api">>, '...'], ds_web_api_handler, [DB]},
+		       cowboy_static:rule([{dir, StaticPath}, {prefix, [<<"static">>]}]),
+		       {'_', ds_web_default_handler, [DB]}
 		      ]}
 	       ],
     %% Name, NbAcceptors, Transport, TransOpts, Protocol, ProtoOpts
@@ -142,3 +144,16 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+init_db() ->
+    {ok, Host} = application:get_env(dbHost),
+    {ok, User} = application:get_env(dbUser),
+    {ok, Pass} = application:get_env(dbPass),
+    {ok, Db} = application:get_env(db),
+    {ok, C} = pgsql:connect(Host, User, Pass, [{database, Db}]),
+    C.
+
+init_templates() ->
+    erlydtl:compile("templates/login.dtl", tpl_login), 
+    erlydtl:compile("templates/index.dtl", tpl_index), 
+    erlydtl:compile("templates/admin.dtl", tpl_admin),
+    erlydtl:compile("templates/fight.dtl", tpl_fight).

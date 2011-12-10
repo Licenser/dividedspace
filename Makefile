@@ -1,5 +1,5 @@
-DS_WEB_BIN=ds_web/ebin ds_web/deps/epgsql/ebin ds_web/deps/cowboy/ebin
-EPIC_BIN=epic/ebin epic/deps/erlv8/ebin
+DS_WEB_BIN=ds_web/ebin ds_web/deps/*/ebin
+EPIC_BIN=epic/ebin epic/deps/*/ebin
 CENTER_BIN=center/ebin
 
 all: center epic ds_web
