@@ -6,20 +6,21 @@
 %%% @end
 %%% Created :  9 Dec 2011 by Heinz N. Gies <licenser@Schroedinger.local>
 %%%-------------------------------------------------------------------
--module(ds_web_moduletype_handler).
+-module(ds_web_api_moduletype).
 
 %% API
--export([get/3]).
+-export([get/5,
+	 post/5]).
 
 -define(GETTER(Official, Internal, Converter),
-get(_, [Official], Req) ->
+get(_, [Official], _, _, Req) ->
     ModuleData = lists:map(Converter, ds_web_api_handler:get_modules(Internal)),
     ds_web_api_handler:json_reply(ModuleData, Req);
 
-get(_, [Official, Name], Req) ->
+get(_, [Official, Name], _, _, Req) ->
     elem_get(Internal, Name, Converter, Req);
 
-get(_, [Official, Name, Key], Req) ->
+get(_, [Official, Name, Key], _, _, Req) ->
     value_get(Internal, Name, Key, Converter, Req)
 ).
 
@@ -33,7 +34,7 @@ get(_, [Official, Name, Key], Req) ->
 %% @end
 %%--------------------------------------------------------------------
 
-get(_, [], Req) ->
+get(_, [], _, _, Req) ->
     ds_web_api_handler:json_reply([<<"armor">>,	
 		<<"engine">>,	
 		<<"generator">>,
@@ -47,10 +48,14 @@ get(_, [], Req) ->
 ?GETTER(<<"hull">>, "hulls", fun convert_hull/1);
 ?GETTER(<<"shield">>, "shields", fun convert_shield/1);
 ?GETTER(<<"weapon">>, "weapons", fun convert_weapon/1);
-get('GET', _, Req) ->
+get('GET', _, _, _, Req) ->
     cowboy_http_req:reply(404, [], <<"Not found">>, Req);
-get(_, _, Req) ->
+get(_, _, _, _, Req) ->
     cowboy_http_req:reply(403, [], <<"Permission Denied">>, Req).
+
+post(_, _, _, _, Req) ->
+    cowboy_http_req:reply(403, [], <<"Permission Denied">>, Req).
+
 
 %%%===================================================================
 %%% Internal functions
