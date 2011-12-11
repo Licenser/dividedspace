@@ -68,8 +68,12 @@ request('POST', [<<"login">>], _, Req, #state{db = DB}) ->
 	_ ->
 	    {ok, Page} = tpl_login:render(),
 	    cowboy_http_req:reply(403, [], Page, Req)
-    end.
+    end;
 
+request(_, _, _, Req, _) ->
+    cowboy_http_req:reply(404, [], "not found", Req).
+	
+    
 user_pass(Req) ->
     {Data, _} = cowboy_http_req:body_qs(Req),
     io:format("D: ~p~n", [Data]),
