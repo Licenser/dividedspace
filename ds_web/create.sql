@@ -12,8 +12,11 @@ CREATE TABLE scripts (
        user_id integer REFERENCES users(id) ON DELETE CASCADE,
        (id));
 
-CREATE TABLE ship_types (
+CREATE TABLE shiptypes (
        id SERIAL PRIMARY KEY,
        user_id integer REFERENCES users(id) ON DELETE CASCADE,
        name varchar(64),
-       script_id integer NOT NULL);
+       script_id integer REFERENCES scripts(id))
+
+
+INSERT INTO shiptypes (user_id) VALUES (1) RETURNING id
