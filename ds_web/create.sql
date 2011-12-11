@@ -7,8 +7,9 @@ CREATE TABLE users (
 
 CREATE TABLE scripts (
        id SERIAL PRIMARY KEY,
-       user_id integer REFERENCES users(id) ON DELETE CASCADE,
+       name varchar(64), 
        code text,
+       user_id integer REFERENCES users(id) ON DELETE CASCADE,
        (id));
 
 CREATE TABLE ship_types (

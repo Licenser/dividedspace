@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 10 Dec 2011 by Heinz N. Gies <licenser@Schroedinger.local>
 %%%-------------------------------------------------------------------
--module(ds_web_api_scripts).
+-module(ds_web_api_script).
 
 %-include("ds_web.hrl").
 -record(session,{
@@ -14,7 +14,6 @@
 	  name = <<"">>,
 	  admin = false
 	 }).
-
 
 %% API
 -export([get/5,
@@ -33,19 +32,16 @@
 get(_Vsn, [], #session{admin=1}, Db, Req) ->
     case pgsql:equery(Db, "SELECT id FROM scripts", []) of
 	{ok, _, SIds} -> 
-	    ds_web_api_handler:json_reply(flatten_sql_res(SIds), Req);
+	    ds_web_api_handler:json_reply(ds_web_api_handler:flatten_sql_res(SIds), Req);
 	_Error -> cowboy_http_req:reply(505, [], "error", Req)
     end;
 
-get(_Vsn, [], #session{uid=Uid}, _Db, Req) ->
+get(_Vsn, [], #session{uid=Uid}, Db, Req) ->
     case pgsql:equery(Db, "SELECT id FROM scripts WHERE user_id=$1", [Uid]) of
 	{ok, _, SIds} -> 
-	    ds_web_api_handler:json_reply(flatten_sql_res(SIds), Req);
+	    ds_web_api_handler:json_reply(ds_web_api_handler:flatten_sql_res(SIds), Req);
 	_Error -> cowboy_http_req:reply(505, [], "error", Req)
     end;
-
-    ds_web_api_handler:json_reply([Uid], Req);
-
 
 get(_Vsn, [SIdStr | Rest], #session{uid=CUId, admin= Admin}, Db, Req) ->
     ReqSId = list_to_integer(binary_to_list(SIdStr)),
@@ -85,36 +81,23 @@ post(_Vsn, [SIdStr | Rest], #session{uid=CUId, admin= Admin}, Db, Req) ->
 %%%===================================================================
 
 
-get_for_user(UId, [], Db, Req) ->
-    case pgsql:equery(Db, "SELECT id, name, rights FROM users WHERE id = $1", [UId]) of
-	{ok, _, [{RespUId, Name, Rights}]} -> 
-	    ds_web_api_handler:json_reply([{id, RespUId},
+post_for_user(Id,[],Db,Req) ->    
+%    mochijson2:decode(Data)
+    cowboy_http_req:reply(505, [], "error", Req);
+
+post_for_user(_,_,_, Req) ->
+    cowboy_http_req:reply(505, [], "error", Req).
+
+get_for_user(Id, [], Db, Req) ->
+    case pgsql:equery(Db, "SELECT id, name, user_id, code FROM scripts WHERE id = $1", [Id]) of
+	{ok, _, [{RespId, Name, UserId, Code}]} -> 
+	    ds_web_api_handler:json_reply([{id, RespId},
 					   {name, Name},
-					   {rights, Rights}], Req);
+					   {user_id, UserId},
+					   {code, Code}
+					  ], Req);
 	{ok, _, []} -> 
-	    cowboy_http_req:reply(404, [], "user not found", Req);
+	    cowboy_http_req:reply(404, [], "not found", Req);
 	Error -> 
 	    cowboy_http_req:reply(505, [], "error" ++ io_lib:format("~p", [Error]), Req)
-    end;
-
-get_for_user(UId, [<<"scripts">>], Db, Req) ->
-        case pgsql:equery(Db, "SELECT id FROM scripts WHERE user_id = $1", [UId]) of
-	    {ok, _, Results} -> 
-		ds_web_api_handler:json_reply(flatten_sql_res(Results), Req);
-	    Error -> 
-		cowboy_http_req:reply(505, [], "error" ++ io_lib:format("~p", [Error]), Req)
-    end;
-
-get_for_user(UId, [<<"shiptypes">>], Db, Req) ->
-        case pgsql:equery(Db, "SELECT id FROM ship_types WHERE user_id = $1", [UId]) of
-	    {ok, _, Results} -> 
-		ds_web_api_handler:json_reply(flatten_sql_res(Results), Req);
-	    Error -> 
-		cowboy_http_req:reply(505, [], "error" ++ io_lib:format("~p", [Error]), Req)
     end.
-
-
-flatten_sql_res(List) ->
-    lists:map(fun ({E}) ->
-		      E
-	      end, List).

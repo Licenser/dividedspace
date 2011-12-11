@@ -13,11 +13,23 @@
 -module(ds_web_session).
 
 %% API
--export([get_session/3, set_session/4, rem_session/2]).
+-export([get/1, set/2, get_session/3, set_session/4, rem_session/2]).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+get(Req) ->
+    {ok, SessionCookieName} = application:get_env(ds_web, session_name),
+    {ok, SessionKey} = application:get_env(ds_web, session_key),
+    get_session(SessionCookieName, SessionKey, Req).
+
+
+set(Req, Session) ->
+    {ok, SessionCookieName} = application:get_env(ds_web, session_name),
+    {ok, SessionKey} = application:get_env(ds_web, session_key),
+    set_session(SessionCookieName, SessionKey, Req, Session).
+
 
 %%--------------------------------------------------------------------
 %% @doc Retrieves the session data from the cookies, returns either a

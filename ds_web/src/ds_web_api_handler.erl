@@ -2,7 +2,8 @@
 -behaviour(cowboy_http_handler).
 -export([init/3, handle/2, terminate/2,
 	 json_reply/2,
-	 get_modules/1]).
+	 get_modules/1,
+	 flatten_sql_res/1]).
 
 %-include("ds_web.hrl").
 -record(session,{
@@ -34,7 +35,8 @@ handle(Req, #state{db=Db} = State) ->
   Session: ~p
   DB: ~p
   Req: ~p~n", [Method, Version, Path, Session, Db, Req]),
-    {ok, Reply} = request(Method, Version, Path, Session, Db, Req),
+    {ok, Reply} = request(Method, Version, Path, #session{uid=1, admin=1}, Db, Req),
+%    {ok, Reply} = request(Method, Version, Path, Session, Db, Req),
     {ok, Reply, State#state{db=Db}}.
 
 terminate(_Req, _State) ->
@@ -118,3 +120,8 @@ get_epic_pid(UUID) ->
 get_fights(Pid) ->
     {ok, R} = gen_server:call(Pid, list_fights),
     R.
+
+flatten_sql_res(List) ->
+    lists:map(fun ({E}) ->
+		      E
+	      end, List).

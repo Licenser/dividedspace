@@ -59,6 +59,8 @@ init([]) ->
     Dispatch = [
 		%% {Host, list({Path, Handler, Opts})}
 		{'_', [
+		       {[<<"api">>, <<"v1">>, <<"shiptype">>], ds_web_api_shiptype, [DB]},
+		       {[<<"api">>, <<"v1">>, <<"shiptype">>, '...'], ds_web_api_shiptype, [DB]},
 		       {[<<"api">>, '...'], ds_web_api_handler, [DB]},
 		       cowboy_static:rule([{dir, StaticPath}, {prefix, [<<"static">>]}]),
 		       {'_', ds_web_default_handler, [DB]}
