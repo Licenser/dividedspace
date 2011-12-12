@@ -10,6 +10,7 @@
 -record(client_state, {
 	  db,
 	  session,
+	  property,
 	  path,
 	  method,
 	  id
@@ -29,8 +30,10 @@
 
 %% Implementation
 
-delete(#client_state{id = Id,
-	      db=Db} = State) ->
+delete(#client_state{
+	  property = undefined,
+	  id = Id,
+	  db=Db} = State) ->
     case pgsql:equery(Db, "DELETE FROM shiptypes WHERE id = $1", [Id]) of
 	{ok, 1} ->
 	    {true, State};
@@ -40,9 +43,10 @@ delete(#client_state{id = Id,
 	    {false, State}
     end.
 
-forbidden(#client_state{id = Id,
-		 session = #session{uid = UId},
-		 db=Db} = State) ->
+forbidden(#client_state{
+	     id = Id,
+	     session = #session{uid = UId},
+	     db=Db} = State) ->
     case pgsql:equery(Db, "SELECT user_id FROM shiptypes WHERE id = $1", [Id]) of
 	{ok, _, [{UId}]} -> 
 	    {true, State};
@@ -52,7 +56,8 @@ forbidden(#client_state{id = Id,
 
 exists(#client_state{
 	  id = Id,
-	  db = Db
+	  db = Db,
+	  path = Path
 	 } = State) ->
     case pgsql:equery(Db, "SELECT count(*) FROM shiptypes WHERE id = $1", [Id]) of
 	{ok, _, [{1}]} ->
@@ -136,7 +141,10 @@ put_data(Obj, #client_state{id = Id,
 get_obj(Db, Id) ->
     {ok, _, [{RespId, UserId, Name, ScriptId}]} =
 	pgsql:equery(Db, "SELECT id, user_id, name, script_id FROM shiptypes WHERE id = $1", [Id]),
+    {ok, _, MIds} = 
+	pgsql:equery(Db, "SELECT id FROM modules WHERE ship_id = $1", [Id]),
     [{<<"id">>, RespId},
      {<<"user_id">>, UserId},
      {<<"name">>, Name},
-     {<<"script_id">>, ScriptId}].
+     {<<"script_id">>, ScriptId},
+     {<<"modules">>, ds_web_api_handler:flatten_sql_res(MIds)}].

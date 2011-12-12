@@ -18,5 +18,11 @@ CREATE TABLE shiptypes (
        name varchar(64),
        script_id integer REFERENCES scripts(id))
 
+CREATE TABLE modules (
+       id SERIAL PRIMARY KEY,
+       user_id integer REFERENCES users(id) ON DELETE CASCADE,
+       ship_id integer REFERENCES shiptypes(id),
+       name varchar(64))
+
 
 INSERT INTO shiptypes (user_id) VALUES (1) RETURNING id

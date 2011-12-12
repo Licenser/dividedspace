@@ -8,15 +8,15 @@
 	  admin
 	 }).
 
-
--record(client_state, 
-	{
+-record(client_state, {
 	  db,
 	  session,
+	  property,
 	  path,
 	  method,
 	  id
 	  }).
+
 			  
 
 -record(state, {
@@ -48,17 +48,21 @@ init({tcp, http}, _Req, _Opts) ->
 %% Init Section
 rest_init(Req, [Module, Db]) ->
     Session = ds_web_session:get(Req),
-    {[<<"api">>, <<"v1">>, _ | Path], _} = cowboy_http_req:path(Req),
-    Id = case Path of
-	     [] -> undefined;
-	     [IdStr] -> 
-		 list_to_integer(binary_to_list(IdStr))
-	 end,
-    {Method, _} = cowboy_http_req:method(Req),
-    {ok, Req, #state{
+    {[<<"api">>, <<"v1">>, _ | Path], Req2} = cowboy_http_req:path(Req),
+    {Id, Property} = case Path of
+			 [] -> 
+			     {undefined, undefined};
+			 [IdStr] -> 
+			     {list_to_integer(binary_to_list(IdStr)), undefined};
+			 [IdStr, Prop] -> 
+			     {list_to_integer(binary_to_list(IdStr)), Prop}
+		     end,
+    {Method, Req3} = cowboy_http_req:method(Req2),
+    {ok, Req3, #state{
 	   module = Module,
 	   client_state = #client_state{
 	     session = Session,
+	     property = Property,
 	     method = Method,
 	     path = Path,
 	     id = Id,
@@ -102,8 +106,6 @@ delete_resource(Req, #state{client_state = #client_state{path = []}} = State) ->
 delete_resource(Req, State) ->
     hand_down(Req, delete, State).
 
-
-
 delete_completed(Req, State) ->
     {true, Req, State}.
     
@@ -139,7 +141,13 @@ to_json(Req,  #state{
 	  client_state = ClientState
 	 } = State) ->
     {ok, Entety} = Module:get_data(ClientState),
-    {list_to_binary(mochijson2:encode(Entety)), Req, State}.
+    Res = case mochijson2:encode(Entety) of
+	      R when is_binary(R) ->
+		  R;
+	      R ->
+		  list_to_binary(R)
+	  end,
+    {Res, Req, State}.
 
 from_json(Req, #state{
 	    module = Module,
@@ -148,7 +156,12 @@ from_json(Req, #state{
     {ok, Body, Req2} = cowboy_http_req:body(Req),
     {struct, Data} = mochijson2:decode(Body),
     {ok, Entety} = Module:put_data(Data, ClientState),
-    RespBody = list_to_binary(mochijson2:encode(Entety)),
+    RespBody = case mochijson2:encode(Entety) of
+		   R when is_binary(R) ->
+		       R;
+		   R ->
+		       list_to_binary(R)
+	       end,
     {ok, Req3} = cowboy_http_req:set_resp_body(RespBody, Req2),
     {ok, Req3, State}.
 
