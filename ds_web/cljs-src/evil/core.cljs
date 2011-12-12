@@ -1,35 +1,11 @@
 (ns evil.core
   (:require
    [goog.dom :as dom]
-   ;[pinot.html :as html]
-   ;[pinot.dom :as dom]	
-   ;[pinot.events :as events]
-   ;[pinot.remotes :as remotes]
-   ))
-
-(defn clj->js
-  "Recursively transforms ClojureScript maps into Javascript objects,
-   other ClojureScript colls into JavaScript arrays, and ClojureScript
-   keywords into JavaScript strings."
-  [x]
-  (cond
-    (string? x) x
-    (keyword? x) (name x)
-    (map? x) (.strobj (reduce (fn [m [k v]]
-               (assoc m (clj->js k) (clj->js v))) {} x))
-    (coll? x) (apply array (map clj->js x))
-    :else x))
+   [evil.script :as script]
+   [evil.shiptype :as shiptype]
+   [evil.epic :as epic]))
 
 (def $ (js* "$"))
-
-
-(defn do-json [url success]
-  (.ajax $
-         url
-         (clj->js
-          {:success (fn [r] (success (js->clj r)))
-           :dataType "json"
-           :jsonp "json"})))
 
 (defn td [& s]
   (str "<td>" (apply str s) "</td>"))
@@ -44,36 +20,66 @@
       (.append (td (fight "ticks"))))))
 
 (defn update-epic-server [id]
-  (do-json (str "/api/v1/server/epic" id)
-           (fn [res]
-             (let [div ($ (str "div#" id))
-                   tab ($ "<table><tr><th>Fight</th><th>Status</th><th>Time</th><th>Ticks</th></tr></table>")]
-               (doto div
-                 (.text "")
-                 (.append (str "<h2>" id "</h2>"))
-                 (.append tab))
-               (dorun
-                (map (fn [fight]
-                       (.append tab (fight-row fight)))
-                     res))))))
+  (epic/do-get
+   id
+   (fn [res]
+     (let [div ($ (str "div#" id))
+           tab ($ "<table><tr><th>Fight</th><th>Status</th><th>Time</th><th>Ticks</th></tr></table>")]
+       (doto div
+         (.text "")
+         (.append (str "<h2>" id "</h2>"))
+         (.append tab))
+       (dorun
+        (map (fn [fight]
+               (.append tab (fight-row fight)))
+             res))))))
 
 (defn update-epic-servers []
-  (.text ($ "body") "")
-  (do-json "/api/v1/server/epic"
-           (fn [res]
-             (dorun
-              (map (fn [id]
-                     (let [div ($ "<div/>")]
-                       (doto div
-                         (.attr "id" id)
-                         (.append id))
-                       (.append  ($ "body")
-                                 div)
-                       (update-epic-server id)))
-                   res)))))
+  (.text ($ "div#epic") "")
+  (epic/do-list
+   (fn [res]
+     (dorun
+      (map (fn [id]
+             (let [div ($ "<div/>")]
+               (doto div
+                 (.attr "id" id)
+                 (.append id))
+               (.append  ($ "div#epic")
+                         div)
+               (update-epic-server id)))
+           res)))))
 
-(.ready ($ (js* "document"))
-        (.append
-         ($ "body")
-         ($ "<div id='server'/>"))
-        (update-epic-servers))
+(defn update-script []
+  (.text ($ "div#script") "")
+  (script/do-list
+   (fn [res]
+     (dorun
+      (map (fn [script]
+             (let [div ($ "<div/>")]
+               (doto div
+                 (.attr "id" (str "script-" (script "id")))
+                 (.append (script "name")))
+               (.append  ($ "div#script")
+                         div)))
+           res)))))
+
+
+(defn update-shiptype []
+  (.text ($ "div#shiptype") "")
+  (shiptype/do-list
+   (fn [res]
+     (dorun
+      (map (fn [shiptype]
+             (let [div ($ "<div/>")]
+               (doto div
+                 (.attr "id" (str "shiptype-" (shiptype "id")))
+                 (.append (shiptype "name")))
+               (.append  ($ "div#shiptype")
+                         div)))
+           res)))))
+
+(.ready
+ ($ (js* "document"))
+ (update-epic-servers)
+ (update-script)
+ (update-shiptype))
