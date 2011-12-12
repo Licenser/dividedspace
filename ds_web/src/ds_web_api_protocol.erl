@@ -1,7 +1,7 @@
 -module(ds_web_api_protocol).
 -export([init/3]).
 
-%-include("ds_web.hrl").
+						%-include("ds_web.hrl").
 -record(session,{
 	  uid,
 	  name = <<"">>,
@@ -15,14 +15,14 @@
 	  path,
 	  method,
 	  id
-	  }).
+	 }).
 
-			  
+
 
 -record(state, {
 	  client_state,
 	  module
-	  }).
+	 }).
 
 -export([rest_init/2,
 	 forbidden/2,
@@ -35,6 +35,7 @@
 	 delete_resource/2,
 	 delete_completed/2,
 	 resource_exists/2,
+	 allow_missing_post/2,
 	 options/2
 	]).
 
@@ -108,7 +109,7 @@ delete_resource(Req, State) ->
 
 delete_completed(Req, State) ->
     {true, Req, State}.
-    
+
 options(Req, State) ->
     {ok, Req, State}.
 
@@ -132,7 +133,7 @@ resource_exists(Req, State) ->
 
 
 create_path(Req, State) ->
-    hand_down(Req, creates, State).
+    hand_down(Req, create, State).
 
 %% Callbacks
 
@@ -154,7 +155,12 @@ from_json(Req, #state{
 	    client_state = ClientState
 	   } = State) ->
     {ok, Body, Req2} = cowboy_http_req:body(Req),
-    {struct, Data} = mochijson2:decode(Body),
+    {struct, Data} = case Body of
+			 <<"">> ->
+			     {struct, []};
+			 B ->
+			     mochijson2:decode(B)
+		     end,
     {ok, Entety} = Module:put_data(Data, ClientState),
     RespBody = case mochijson2:encode(Entety) of
 		   R when is_binary(R) ->

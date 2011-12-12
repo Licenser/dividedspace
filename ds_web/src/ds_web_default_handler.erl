@@ -43,7 +43,6 @@ request('GET', [<<"logout">>], _, Req, _State) ->
     {ok, Req2} = ds_web_session:rem_session(SessionCookieName, Req),
     io:format("3 ~p~n", [Req2]),
     cowboy_http_req:reply(200, [], force_login(), Req2);
-
 request('GET', [<<"login">>], undefined, Req, _State) ->
     {ok, Page} = tpl_login:render(),
     cowboy_http_req:reply(200, [], Page, Req);
@@ -69,6 +68,13 @@ request('POST', [<<"login">>], _, Req, #state{db = DB}) ->
 	    {ok, Page} = tpl_login:render(),
 	    cowboy_http_req:reply(403, [], Page, Req)
     end;
+
+request('GET', [], undefined, Req, State) ->
+    cowboy_http_req:reply(200, [], force_login(), Req);
+request('GET', [], #session{}, Req, State) ->
+    {ok, Index} = tpl_index:render(),
+    cowboy_http_req:reply(200, [], Index, Req);
+
 
 request(_, _, _, Req, _) ->
     cowboy_http_req:reply(404, [], "not found", Req).

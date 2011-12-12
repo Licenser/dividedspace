@@ -43,8 +43,8 @@
       (.append (td (fight "time")))
       (.append (td (fight "ticks"))))))
 
-(defn update-server [id]
-  (do-json (str "/api/v1/server/" id)
+(defn update-epic-server [id]
+  (do-json (str "/api/v1/server/epic" id)
            (fn [res]
              (let [div ($ (str "div#" id))
                    tab ($ "<table><tr><th>Fight</th><th>Status</th><th>Time</th><th>Ticks</th></tr></table>")]
@@ -57,9 +57,9 @@
                        (.append tab (fight-row fight)))
                      res))))))
 
-(defn update-servers []
+(defn update-epic-servers []
   (.text ($ "body") "")
-  (do-json "/api/v1/server"
+  (do-json "/api/v1/server/epic"
            (fn [res]
              (dorun
               (map (fn [id]
@@ -69,11 +69,11 @@
                          (.append id))
                        (.append  ($ "body")
                                  div)
-                       (update-server id)))
+                       (update-epic-server id)))
                    res)))))
 
 (.ready ($ (js* "document"))
         (.append
          ($ "body")
          ($ "<div id='server'/>"))
-        (update-servers))
+        (update-epic-servers))
