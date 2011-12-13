@@ -1,27 +1,23 @@
 -module(ds_web_api_protocol).
+
 -export([init/3]).
 
-						%-include("ds_web.hrl").
+%-include("ds_web.hrl").
 -record(session,{
 	  uid,
 	  name = <<"">>,
 	  admin
 	 }).
 
--record(client_state, {
-	  db,
-	  session,
-	  property,
-	  path,
-	  method,
-	  id
-	 }).
-
-
-
 -record(state, {
-	  client_state,
-	  module
+	  uid,	
+	  pid,
+	  id,
+	  method,
+	  resource,
+	  session,
+	  module,
+	  db
 	 }).
 
 -export([rest_init/2,
@@ -47,28 +43,36 @@ init({tcp, http}, _Req, _Opts) ->
     {upgrade, protocol, cowboy_http_rest}.
 
 %% Init Section
-rest_init(Req, [Module, Db]) ->
+rest_init(Req, [Modules]) ->
     Session = ds_web_session:get(Req),
-    {[<<"api">>, <<"v1">>, _ | Path], Req2} = cowboy_http_req:path(Req),
-    {Id, Property} = case Path of
-			 [] -> 
-			     {undefined, undefined};
-			 [IdStr] -> 
-			     {list_to_integer(binary_to_list(IdStr)), undefined};
-			 [IdStr, Prop] -> 
-			     {list_to_integer(binary_to_list(IdStr)), Prop}
-		     end,
+    {[<<"api">>, <<"v1">>, <<"user">>  | Path], Req2} = cowboy_http_req:path(Req),
+    {UserId, ResourceStr2, ResId, SubPath} = 
+	case Path of
+	    [] -> 
+		{undefined, undefined, undefined, []};
+	    [UserIdStr] -> 
+		{list_to_integer(binary_to_list(UserIdStr)), undefined, list_to_integer(binary_to_list(UserIdStr)), []};
+	    [UserIdStr, ResourceStr] -> 
+		{list_to_integer(binary_to_list(UserIdStr)), ResourceStr, undefined, []};
+	    [UserIdStr, ResourceStr, ResIdStr | Rest] -> 
+		{list_to_integer(binary_to_list(UserIdStr)), ResourceStr, list_to_integer(binary_to_list(ResIdStr)), Rest}
+	end,
+    
     {Method, Req3} = cowboy_http_req:method(Req2),
-    {ok, Req3, #state{
-	   module = Module,
-	   client_state = #client_state{
-	     session = Session,
-	     property = Property,
-	     method = Method,
-	     path = Path,
-	     id = Id,
-	     db = Db}
-	  }}.
+    {ResourceStr2, Module} = lists:keyfind(ResourceStr2, 1, Modules),
+    {ParentId, SubModule, SubModukeId} = Module:get_sub_handler(UserId, ResId, SubPath),
+    Db = ds_web_server:init_db(),
+    State = #state{
+      db = Db,
+      uid = UserId,
+      module = SubModule,
+      id = SubModukeId,
+      pid = ParentId,
+      method = Method,
+      session = Session
+     },
+    io:format("~p~n", [State]),
+    {ok, Req3, State}.
 
 post_is_create(Req, State) ->
     {true, Req, State}.
@@ -98,14 +102,18 @@ content_types_accepted(Req, State) ->
 		   ],
     {ContentTypes, Req, State}.
 
-
 %% Implementation
 
-delete_resource(Req, #state{client_state = #client_state{path = []}} = State) ->
-    {false, Req, State};
+%delete_resource(Req, #state{client_state = #client_state{path = []}} = State) ->
+%    {false, Req, State};
 
-delete_resource(Req, State) ->
-    hand_down(Req, delete, State).
+delete_resource(Req, #state{
+		  module = Module,
+		  db = Db,
+		  id = Id
+		 } = State) ->
+    Resp = Module:delete(Db, Id),
+    {Resp, Req, State}.
 
 delete_completed(Req, State) ->
     {true, Req, State}.
@@ -113,35 +121,91 @@ delete_completed(Req, State) ->
 options(Req, State) ->
     {ok, Req, State}.
 
-forbidden(Req, #state{client_state = #client_state{session = undefined}} = State) ->
+forbidden(Req, #state{session = undefined} = State) ->
     {false, Req, State}; % TODO: Should be false unless for testing
 
-forbidden(Req, #state{client_state = #client_state{session = #session{admin = 1}}} = State) ->
+forbidden(Req, #state{session = #session{admin = 1}} = State) ->
     {false, Req, State};
 
-forbidden(Req, #state{client_state = #client_state{path = []}} = State) ->
-    {false, Req, State};
-
-forbidden(Req, State) ->
-    hand_down(Req, forbidden, State).
-
-resource_exists(Req, #state{client_state = #client_state{id = undefined}} = State) ->
+forbidden(Req, #state{
+	    uid = UId1,
+	    session = #session{uid = UId2}
+	   } = State)  when UId1 =/= UId2 ->
     {true, Req, State};
 
-resource_exists(Req, State) ->
-    hand_down(Req, exists, State).
+forbidden(Req, #state{
+	    db = Db,
+	    module = Module,
+	    id = Id,
+	    uid = UId
+	   } = State) ->
+    Resp = Module:forbidden(Db, Id, UId),
+    {Resp, Req, State}.
 
 
-create_path(Req, State) ->
-    hand_down(Req, create, State).
+resource_exists(Req, #state{
+		  id = undefined
+		 } = State) ->
+    {true, Req, State};
+
+resource_exists(Req, #state{
+		  module = Module,
+		  db = Db,
+		  id = Id
+		 } = State) ->
+    Resp = Module:exists(Db, Id),
+    {Resp, Req, State}.
+
+
+create_path(Req, #state{
+	      module = Module,
+	      db = Db,
+	      pid = PId,
+	      uid = UId
+	     } = State) ->
+    {Resp, Id} = Module:create(Db, UId, PId),
+    State2 = State#state{id = Id},
+    io:format("State2: ~p~n", [State2]),
+    {Resp, Req, State2}.
 
 %% Callbacks
 
 to_json(Req,  #state{
 	  module = Module,
-	  client_state = ClientState
+	  db = Db,
+	  pid = undefiend,
+	  id = undefiend
 	 } = State) ->
-    {ok, Entety} = Module:get_data(ClientState),
+    {ok, Entety} = Module:list_resources(Db),
+    Res = case mochijson2:encode(Entety) of
+	      R when is_binary(R) ->
+		  R;
+	      R ->
+		  list_to_binary(R)
+	  end,
+    {Res, Req, State};
+
+to_json(Req,  #state{
+	  module = Module,
+	  db = Db,
+	  pid = PId,
+	  id = undefined
+	 } = State) ->
+    {ok, Entety} = Module:list_resources_for_parent(Db, PId),
+    Res = case mochijson2:encode(Entety) of
+	      R when is_binary(R) ->
+		  R;
+	      R ->
+		  list_to_binary(R)
+	  end,
+    {Res, Req, State};
+
+to_json(Req,  #state{
+	  module = Module,
+	  db = Db,
+	  id = Id
+	 } = State) ->
+    {ok, Entety} = Module:get_data(Db, Id),
     Res = case mochijson2:encode(Entety) of
 	      R when is_binary(R) ->
 		  R;
@@ -152,8 +216,10 @@ to_json(Req,  #state{
 
 from_json(Req, #state{
 	    module = Module,
-	    client_state = ClientState
+	    db = Db,
+	    id =  Id
 	   } = State) ->
+    io:format("~p~n", [State]),
     {ok, Body, Req2} = cowboy_http_req:body(Req),
     {struct, Data} = case Body of
 			 <<"">> ->
@@ -161,7 +227,7 @@ from_json(Req, #state{
 			 B ->
 			     mochijson2:decode(B)
 		     end,
-    {ok, Entety} = Module:put_data(Data, ClientState),
+    {ok, Entety} = Module:put_data(Db, Id, Data),
     RespBody = case mochijson2:encode(Entety) of
 		   R when is_binary(R) ->
 		       R;
@@ -170,12 +236,3 @@ from_json(Req, #state{
 	       end,
     {ok, Req3} = cowboy_http_req:set_resp_body(RespBody, Req2),
     {ok, Req3, State}.
-
-%%Internal
-
-hand_down(Req, Function, #state{
-		 module = Module,
-		 client_state = ClientState
-		} = State) ->
-    {Resp, ClientState2} = Module:Function(ClientState),
-    {Resp, Req, State#state{client_state=ClientState2}}.

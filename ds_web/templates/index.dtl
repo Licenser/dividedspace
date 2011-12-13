@@ -3,13 +3,26 @@
   <head>
     <meta charset='utf-8'>
     <link href='/static/css/ds.css' type='text/css' rel='stylesheet' />
-
-
+    <script type="text/javascript">
+    uid = {{ uid }};
+    </script>
     <script src='/static/js/jquery-1.7.1.js' type='text/javascript' charset='utf-8'></script>
     <script src='/static/cljs/boot.js' type='text/javascript' charset='utf-8'></script>
     <!-- JSON is not available on Mobile Safari, so we use this library. -->
     <script src='/static/interface/lib/json2.js' type='text/javascript' charset='utf-8'></script>
   </head>
   <body>
+      <div id="left">
+        <div id="epic" ></div>
+        <div id="script-container" class="category">
+          <span class="sectionhead">scripts</span>
+          <div id="script"></div>
+         </div>
+        <div id="shiptype-container" class="category">
+          <span class="sectionhead">ship types</span>
+          <div id="shiptype"></div>
+        </div>
+      </div>
+      <div id="center"></div>
   </body>
 </html>

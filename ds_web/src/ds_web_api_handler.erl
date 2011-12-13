@@ -28,13 +28,6 @@ handle(Req, #state{db=Db} = State) ->
     {ok, SessionKey} = application:get_env(ds_web, session_key),
     Session = ds_web_session:get_session(SessionCookieName, 
 					 SessionKey, Req),
-    io:format("API:
-  Method: ~p
-  Version: ~p
-  Path: ~p
-  Session: ~p
-  DB: ~p
-  Req: ~p~n", [Method, Version, Path, Session, Db, Req]),
     {ok, Reply} = request(Method, Version, Path, #session{uid=1, admin=1}, Db, Req),
 %    {ok, Reply} = request(Method, Version, Path, Session, Db, Req),
     {ok, Reply, State#state{db=Db}}.

@@ -59,13 +59,11 @@ init([]) ->
     Dispatch = [
 		%% {Host, list({Path, Handler, Opts})}
 		{'_', [
-		       {[<<"api">>, <<"v1">>, <<"shiptype">>], ds_web_api_protocol, [ds_web_api_shiptype, DB]},
-		       {[<<"api">>, <<"v1">>, <<"shiptype">>, '...'], ds_web_api_protocol, [ds_web_api_shiptype, DB]},
-		       {[<<"api">>, <<"v1">>, <<"script">>], ds_web_api_protocol, [ds_web_api_script, DB]},
-		       {[<<"api">>, <<"v1">>, <<"script">>, '...'], ds_web_api_protocol, [ds_web_api_script, DB]},
-		       {[<<"api">>, <<"v1">>, <<"module">>], ds_web_api_protocol, [ds_web_api_module, DB]},
-		       {[<<"api">>, <<"v1">>, <<"module">>, '...'], ds_web_api_protocol, [ds_web_api_module, DB]},
-		       {[<<"api">>, '...'], ds_web_api_handler, [DB]},
+		       {[<<"api">>, <<"v1">>, <<"user">>], ds_web_api_handler, [DB]},
+		       {[<<"api">>, <<"v1">>, <<"user">>, '_'], ds_web_api_handler, [DB]},
+		       {[<<"api">>, <<"v1">>, <<"user">>, '...'], ds_web_api_protocol, [[{<<"shiptype">>, ds_web_api_shiptype},
+											 {<<"script">>, ds_web_api_script}]]},
+
 		       cowboy_static:rule([{dir, StaticPath}, {prefix, [<<"static">>]}]),
 		       {'_', ds_web_default_handler, [DB]}
 		      ]}
@@ -151,10 +149,10 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 init_db() ->
-    {ok, Host} = application:get_env(dbHost),
-    {ok, User} = application:get_env(dbUser),
-    {ok, Pass} = application:get_env(dbPass),
-    {ok, Db} = application:get_env(db),
+    {ok, Host} = application:get_env(ds_web, dbHost),
+    {ok, User} = application:get_env(ds_web, dbUser),
+    {ok, Pass} = application:get_env(ds_web, dbPass),
+    {ok, Db} = application:get_env(ds_web, db),
     {ok, C} = pgsql:connect(Host, User, Pass, [{database, Db}]),
     C.
 

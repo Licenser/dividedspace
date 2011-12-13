@@ -1,16 +1,24 @@
 (ns evil.shiptype
   (:require
-   [evil.ajaj :as ajaj]))
+   [evil.ajaj :as ajaj]
+   [evil.dom :as dom]))
 
 (defn do-list [fun]
   (ajaj/do-ajaj
-   "/api/v1/shiptype"
+   "/shiptype"
            (fn [res]
              (fun res))))
 
 (defn do-get [id fun]
   (ajaj/do-ajaj
-   (str "/api/v1/shiptype/" id)
+   (str "/shiptype/" id)
    (fn [res]
      (fun res))))
 
+(defn show [id]
+  (do-get
+   id
+   (fn [r]
+     (doto (dom/select "#content")
+       (dom/clear))
+     )))

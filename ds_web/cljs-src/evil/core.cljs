@@ -1,85 +1,102 @@
 (ns evil.core
   (:require
-   [goog.dom :as dom]
    [evil.script :as script]
+   [evil.dom :as dom]
    [evil.shiptype :as shiptype]
    [evil.epic :as epic]))
 
 (def $ (js* "$"))
 
-(defn td [& s]
-  (str "<td>" (apply str s) "</td>"))
-
 (defn fight-row [fight]
-  (let [div ($ "<tr/>")]
-    (doto div
-      (.attr "id" (fight "id"))
-      (.append (td (fight "id") "s"))
-      (.append (td (fight "state")))
-      (.append (td (fight "time")))
-      (.append (td (fight "ticks"))))))
+  (dom/clear
+   [:tr {:id (fight "id")}
+    [:td (str (fight "id") "s")]
+    [:td (fight "state")]
+    [:td (fight "time")]
+    [:td (fight "ticks")]
+    ]))
 
 (defn update-epic-server [id]
   (epic/do-get
    id
    (fn [res]
-     (let [div ($ (str "div#" id))
-           tab ($ "<table><tr><th>Fight</th><th>Status</th><th>Time</th><th>Ticks</th></tr></table>")]
-       (doto div
-         (.text "")
-         (.append (str "<h2>" id "</h2>"))
-         (.append tab))
+     (let [tab (dom/c
+                [:table
+                 [:tr
+                  [:th "Fight"]
+                  [:th "Status"]
+                  [:th "Time"]
+                  [:th "Ticks"]]])]
+       (doto (dom/select (str "div#" id))
+         (dom/clear)
+         (dom/append (com/c [:h2 id]))
+         (dom/append tab))
        (dorun
         (map (fn [fight]
-               (.append tab (fight-row fight)))
+               (dom/append tab (fight-row fight)))
              res))))))
 
 (defn update-epic-servers []
-  (.text ($ "div#epic") "")
-  (epic/do-list
-   (fn [res]
-     (dorun
-      (map (fn [id]
-             (let [div ($ "<div/>")]
-               (doto div
-                 (.attr "id" id)
-                 (.append id))
-               (.append  ($ "div#epic")
-                         div)
-               (update-epic-server id)))
-           res)))))
+  (let [div (dom/select "div#epic")]
+    (dom/clear div)
+    (epic/do-list
+     (fn [res]
+       (dorun
+        (map (fn [id]
+               (dom/append
+                div
+                (dom/c
+                 [:div {:id id}
+                  id]))
+               (update-epic-server id))
+             res))))))
 
-(defn update-script []
-  (.text ($ "div#script") "")
-  (script/do-list
-   (fn [res]
-     (dorun
-      (map (fn [script]
-             (let [div ($ "<div/>")]
-               (doto div
-                 (.attr "id" (str "script-" (script "id")))
-                 (.append (script "name")))
-               (.append  ($ "div#script")
-                         div)))
-           res)))))
+(defn updater [name getter & [f]]
+  (fn []
+    (let [div (dom/select (str "div#" name))]
+      (dom/clear div)
+      (getter
+       (fn [res]
+         (dorun
+          (map (fn [entity]
+                 (let [c (dom/c [:span
+                                 {:id (str name "-" (entity "id"))
+                                  :name (str "shiptype-" (entity "id") "-name")}
+                                 (or (entity "name") "-") [:br]])
+                       c (if f (f entity c) c)]
+                   (dom/append div c)))
+               res)))))))
 
+(def update-script (updater "script" script/do-list))
 
-(defn update-shiptype []
-  (.text ($ "div#shiptype") "")
-  (shiptype/do-list
-   (fn [res]
-     (dorun
-      (map (fn [shiptype]
-             (let [div ($ "<div/>")]
-               (doto div
-                 (.attr "id" (str "shiptype-" (shiptype "id")))
-                 (.append (shiptype "name")))
-               (.append  ($ "div#shiptype")
-                         div)))
-           res)))))
+(def update-shiptype
+  (updater
+   "shiptype"
+   shiptype/do-list
+   (fn [e obj]
+     (dom/click
+      obj
+      (fn []
+        (shiptype/do-get
+         (e "id")
+         (fn [r]
+           (let [center (dom/select "#center")]
+             (dom/clear center)
+             (dom/append
+              center
+              (dom/c
+               [:div
+                [:span "Name:"]
+                [:input {:type "text"
+                         :id (str "shiptype-" (r "id") "-name")
+                         :value (r "name")}] [:br]]
+               ))
+             ))))))))
+
 
 (.ready
  ($ (js* "document"))
- (update-epic-servers)
- (update-script)
- (update-shiptype))
+ (fn []
+   ;(update-epic-servers)
+   (update-script)
+   (update-shiptype)))

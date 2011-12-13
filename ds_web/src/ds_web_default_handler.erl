@@ -71,8 +71,8 @@ request('POST', [<<"login">>], _, Req, #state{db = DB}) ->
 
 request('GET', [], undefined, Req, State) ->
     cowboy_http_req:reply(200, [], force_login(), Req);
-request('GET', [], #session{}, Req, State) ->
-    {ok, Index} = tpl_index:render(),
+request('GET', [], #session{uid = UId}, Req, State) ->
+    {ok, Index} = tpl_index:render([{uid, UId}]),
     cowboy_http_req:reply(200, [], Index, Req);
 
 

@@ -1,28 +1,20 @@
 -module(ds_web_api_module).
 
-						%-include("ds_web.hrl").
--record(session,{
-	  uid,
-	  name = <<"">>,
-	  admin
-	 }).
+-behaviour(ds_web_api_behaviour).
 
--record(client_state, {
-	  db,
-	  session,
-	  property,
-	  path,
-	  method,
-	  id
-	 }).
+%-include("ds_web.hrl").
 
-
--export([delete/1,
-	 forbidden/1,
-	 create/1,
-	 exists/1,
-	 get_data/1,
-	 put_data/2]).
+-export([
+	 get_sub_handler/3,
+	 delete/2,
+	 forbidden/3,
+	 create/3,
+	 exists/2,
+	 list_resources/1,
+	 list_resources_for_parent/2,
+	 get_data/2,
+	 get_owner/2,
+	 put_data/3]).
 
 %% REST
 
@@ -30,104 +22,74 @@
 
 %% Implementation
 
-delete(#client_state{id = Id,
-		     db=Db} = State) ->
+get_sub_handler(Parent, This, []) ->
+    {Parent, ds_web_api_shiptype, This}.
+
+
+delete(Db, Id) ->
     case pgsql:equery(Db, "DELETE FROM modules WHERE id = $1", [Id]) of
 	{ok, 1} ->
-	    {true, State};
-	{ok, 0} ->
-	    {false, State};
-	E -> 
-	    {false, State}
+	    true;
+	_ -> 
+	    false
     end.
 
-forbidden(#client_state{id = Id,
-			session = #session{uid = UId},
-			db=Db} = State) ->
+forbidden(Db, Id, UId) ->
     case pgsql:equery(Db, "SELECT user_id FROM modules WHERE id = $1", [Id]) of
 	{ok, _, [{UId}]} -> 
-	    {true, State};
+	    true;
 	{ok, _, []} ->
-	    {true, State}
+	    true
     end.
 
-exists(#client_state{
-	  id = Id,
-	  db = Db
-	 } = State) ->
+exists(Db, Id) ->
     case pgsql:equery(Db, "SELECT count(*) FROM modules WHERE id = $1", [Id]) of
 	{ok, _, [{1}]} ->
-	    {true, State};
+	    true;
 	_ -> 
-	    {false, State}
+	    false
     end.
 
-create(#client_state{
-	  id = undefined,
-	  session = undefined,
-	  db = Db} = State) ->
+create(Db, UId, PId) ->
     {ok, _, _, [{TypeId}]} =
-	pgsql:equery(Db, "INSERT INTO modules (user_id) VALUES ($1) RETURNING id", [1]),
+	pgsql:equery(Db, "INSERT INTO modules (user_id, ship_id) VALUES ($1, $2) RETURNING id", [UId, PId]),
     Location = list_to_binary(io_lib:format("~p", [TypeId])),
-    {<<"/api/v1/module/", Location/binary>>, State#client_state{id = TypeId}};
-
-create(#client_state{
-	  id = undefined,
-	  session = #session{uid = UId},
-	  db = Db} = State) ->
-    {ok, _, _, [{TypeId}]} =
-	pgsql:equery(Db, "INSERT INTO modules (user_id) VALUES ($1) RETURNING id", [UId]),
-    Location = list_to_binary(io_lib:format("~p", [TypeId])),
-    {<<"/api/v1/module/", Location/binary>>, State#client_state{id = TypeId}}.
+    UIdStr = list_to_binary(io_lib:format("~p", [UId])),
+    PIdStr = list_to_binary(io_lib:format("~p", [PId])),
+    {<<"/api/v1/user/", UIdStr/binary, "/shipstype/", PIdStr/binary, "/module/", Location/binary>>, TypeId}.
 
 %%Internal
 
-get_data(#client_state{id = undefined,
-		       session = #session{admin = 0,
-					  uid = UId},
-		       db = Db}) ->
+list_resources(Db) ->
     {ok, _, SIds} =
-	pgsql:equery(Db, "SELECT id FROM modules WHERE user_id = $1", [UId]),
-    {ok, ds_web_api_handler:flatten_sql_res(SIds)};
+	pgsql:equery(Db, "SELECT id, name FROM scripts"),
+    List = lists:map(fun ({Id, Name}) ->
+			     [{<<"id">>, Id},
+			      {<<"name">>, Name}]
+		     end, SIds),
+    {ok, List}.
 
-get_data(#client_state{
-	    id = undefined,
-	    db = Db}) ->
+list_resources_for_parent(Db, PId) ->
     {ok, _, SIds} =
-	pgsql:equery(Db, "SELECT id FROM modules", []),
-    {ok, ds_web_api_handler:flatten_sql_res(SIds)};
+	pgsql:equery(Db, "SELECT id, name FROM modules WHERE ship_id = $1", [PId]),
+    List = lists:map(fun ({Id, Name}) ->
+			     [{<<"id">>, Id},
+			      {<<"name">>, Name}]
+		     end, SIds),
+    {ok ,List}.
 
+get_owner(Db, Id) ->
+    {ok, _, [{Owner}]} =
+	pgsql:equery(Db, "SELECT user_id FROM modules where id = $1", [Id]),
+    {ok, Owner}.
 
-get_data(#client_state{id = Id, 
-		       db = Db}) ->
+get_data(Db, Id) ->
     {ok, get_obj(Db, Id)}.
 
-put_data(Obj, #client_state{id = Id,
-			    session = undefined,
-			    db = Db} = State) ->
-    put_data(Obj, State#client_state{session = #session{uid = 1}});
-
-put_data(Obj, #client_state{id = Id,
-			    session = #session{uid = UId},
-			    db = Db}) ->
-    UserId = case lists:keyfind(<<"user_id">>, 1, Obj) of
-		 {<<"user_id">>, AUId}  -> 
-		     AUId;
-		 false -> 
-		     UId
-	     end,
-    ShipId = case lists:keyfind(<<"ship_id">>, 1, Obj) of
-		 {<<"ship_id">>, SId} ->
-		     SId;
-		 false ->
-		     null
-	     end,
-    Name  = case lists:keyfind(<<"name">>, 1, Obj) of
-		{<<"name">>, N} ->
-		    N;
-		false ->
-		    <<"Type ", (list_to_binary(io_lib:format("~p", [Id])))/binary>>
-	    end,
+put_data(Db, Id, Obj) ->
+    {<<"user_id">>, UserId} = lists:keyfind(<<"user_id">>, 1, Obj),
+    {<<"ship_id">>, ShipId} = lists:keyfind(<<"ship_id">>, 1, Obj),
+    {<<"name">>, Name}  = lists:keyfind(<<"name">>, 1, Obj),
     {ok, _, _, [{RespId, UserId, ShipId, Name}]} = 
 	pgsql:equery(Db, "UPDATE modules SET user_id = $2, ship_id = $3, name = $4" ++ 
 			 "WHERE id = $1 RETURNING id, user_id, ship_id, name", [Id, UserId, ShipId, Name]),

@@ -8,127 +8,103 @@
 	 }).
 
 -record(client_state, {
-	  db,
-	  session,
-	  property,
-	  path,
+	  pid,
+	  id,
 	  method,
-	  id
-	  }).
+	  resource,
+	  session,
+	  db}).
 
--export([delete/1,
-	 forbidden/1,
-	 create/1,
-	 exists/1,
-	 get_data/1,
-	 put_data/2]).
-
-%% REST
-
-%% Init Section
-
+-export([
+	 get_sub_handler/3,
+	 delete/2,
+	 forbidden/3,
+	 create/3,
+	 exists/2,
+	 list_resources/1,
+	 list_resources_for_parent/2,
+	 get_data/2,
+	 get_owner/2,
+	 put_data/3]).
 
 %% Implementation
 
-delete(#client_state{
-	  property = undefined,
-	  id = Id,
-	  db=Db} = State) ->
+
+get_sub_handler(_Parent, This, [<<"shiptype">>, Id]) ->
+    {This, ds_web_api_module, list_to_integer(binary_to_list(Id))};
+
+get_sub_handler(Parent, This, []) ->
+    {Parent, ds_web_api_shiptype, This}.
+
+
+delete(Db, Id) ->
     case pgsql:equery(Db, "DELETE FROM shiptypes WHERE id = $1", [Id]) of
 	{ok, 1} ->
-	    {true, State};
+	    true;
 	{ok, 0} ->
-	    {false, State};
+	    false;
 	E -> 
-	    {false, State}
+	    false
     end.
 
-forbidden(#client_state{
-	     id = Id,
-	     session = #session{uid = UId},
-	     db=Db} = State) ->
+forbidden(Db, Id, UId) ->
     case pgsql:equery(Db, "SELECT user_id FROM shiptypes WHERE id = $1", [Id]) of
 	{ok, _, [{UId}]} -> 
-	    {true, State};
+	    true;
 	{ok, _, []} ->
-	    {true, State}
+	    true
     end.
 
-exists(#client_state{
-	  id = Id,
-	  db = Db,
-	  path = Path
-	 } = State) ->
+exists(Db, Id) ->
     case pgsql:equery(Db, "SELECT count(*) FROM shiptypes WHERE id = $1", [Id]) of
 	{ok, _, [{1}]} ->
-	    {true, State};
+	    true;
 	_ -> 
-	    {false, State}
+	    false
     end.
 
-create(#client_state{
-	  id = undefined,
-	  session = undefined,
-	  db = Db} = State) ->
-    {ok, _, _, [{TypeId}]} =
-	pgsql:equery(Db, "INSERT INTO shiptypes (user_id) VALUES ($1) RETURNING id", [1]),
-    Location = list_to_binary(io_lib:format("~p", [TypeId])),
-    {<<"/api/v1/shiptype/", Location/binary>>, State#client_state{id = TypeId}};
-
-create(#client_state{
-	  id = undefined,
-	  session = #session{uid = UId},
-	  db = Db} = State) ->
+create(Db, UId, UId) ->
     {ok, _, _, [{TypeId}]} =
 	pgsql:equery(Db, "INSERT INTO shiptypes (user_id) VALUES ($1) RETURNING id", [UId]),
     Location = list_to_binary(io_lib:format("~p", [TypeId])),
-    {<<"/api/v1/shiptype/", Location/binary>>, State#client_state{id = TypeId}}.
+    UIdStr = list_to_binary(io_lib:format("~p", [UId])),
+    {<<"/api/v1/user/", UIdStr/binary, "/shiptype/", Location/binary>>, TypeId}.
+
 
 %%Internal
 
-get_data(#client_state{id = undefined,
-		session = #session{admin = 0,
-				   uid = UId},
-		db = Db}) ->
+
+list_resources(Db) ->
     {ok, _, SIds} =
-	pgsql:equery(Db, "SELECT id FROM shiptypes WHERE user_id = $1", [UId]),
-    {ok, ds_web_api_handler:flatten_sql_res(SIds)};
+	pgsql:equery(Db, "SELECT id, name FROM shiptypes"),
+    List = lists:map(fun ({Id, Name}) ->
+			     [{<<"id">>, Id},
+			      {<<"name">>, Name}]
+		     end, SIds),
+    {ok, List}.
 
-get_data(#client_state{id = undefined,
-		db = Db}) ->
+list_resources_for_parent(Db, UId) ->
     {ok, _, SIds} =
-	pgsql:equery(Db, "SELECT id FROM shiptypes", []),
-    {ok, ds_web_api_handler:flatten_sql_res(SIds)};
+	pgsql:equery(Db, "SELECT id, name FROM shiptypes WHERE user_id = $1", [UId]),
+    List = lists:map(fun ({Id, Name}) ->
+			     [{<<"id">>, Id},
+			      {<<"name">>, Name}]
+		     end, SIds),
+    {ok ,List}.
 
+get_owner(Db, Id) ->
+    {ok, _, [{Owner}]} =
+	pgsql:equery(Db, "SELECT user_id FROM shiptypes where id = $1", [Id]),
+    {ok, Owner}.
 
-get_data(#client_state{id = Id, 
-		db = Db}) ->
+get_data(Db, Id) ->
     {ok, get_obj(Db, Id)}.
 
-put_data(Obj, #client_state{id = Id,
-		     session = undefined,
-		     db = Db} = State) ->
-    put_data(Obj, State#client_state{session = #session{uid = 1}});
-
-put_data(Obj, #client_state{id = Id,
-			      session = #session{uid = UId},
-			      db = Db}) ->
-    UserId = case lists:keyfind(<<"user_id">>, 1, Obj) of
-		 {<<"user_id">>, AUId}  -> AUId;
-		 false -> UId
-	     end,
-    Name  = case lists:keyfind(<<"name">>, 1, Obj) of
-		{<<"name">>, N} ->
-		    N;
-		false ->
-		    <<"Type ", (list_to_binary(io_lib:format("~p", [Id])))/binary>>
-	    end,
-    ScriptId = case lists:keyfind(<<"script_id">>, 1, Obj) of
-		   {<<"script_id">>, SId} ->
-		       SId;
-		   false ->
-		       null
-	       end,
+put_data(Db, Id, Obj) ->
+    {<<"user_id">>, UserId} = lists:keyfind(<<"user_id">>, 1, Obj),
+    {<<"name">>, Name} = lists:keyfind(<<"name">>, 1, Obj),
+    <<"Type ", (list_to_binary(io_lib:format("~p", [Id])))/binary>>,
+    {<<"script_id">>, ScriptId} = lists:keyfind(<<"script_id">>, 1, Obj),
     {ok, _, _, [{RespId, UserId, Name, ScriptId}]} = 
 	pgsql:equery(Db, "UPDATE shiptypes SET user_id = $2, name = $3, script_id = $4" ++ 
 			 "WHERE id = $1 RETURNING id, user_id, name, script_id", [Id, UserId, Name, ScriptId]),

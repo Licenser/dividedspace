@@ -4,7 +4,7 @@
 
 (defn do-list [fun]
   (ajaj/do-ajaj
-   "/api/v1/script"
+   "/script"
            (fn [res]
              (fun res))))
 
