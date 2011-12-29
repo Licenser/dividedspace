@@ -1,3 +1,6 @@
 [submodule "ds_web/cljs"]
 	path = ds_web/cljs
 	url = https://github.com/clojure/clojurescript.git
+[submodule "ds_web/cljs-watch"]
+	path = ds_web/cljs-watch
+	url = https://github.com/ibdknox/cljs-watch

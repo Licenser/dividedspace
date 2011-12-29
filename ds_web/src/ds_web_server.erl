@@ -63,7 +63,7 @@ init([]) ->
 		       {[<<"api">>, <<"v1">>, <<"user">>, '_'], ds_web_api_handler, [DB]},
 		       {[<<"api">>, <<"v1">>, <<"user">>, '...'], ds_web_api_protocol, [[{<<"shiptype">>, ds_web_api_shiptype},
 											 {<<"script">>, ds_web_api_script}]]},
-
+		       {[<<"api">>, <<"v1">>, '...'], ds_web_api_handler, [DB]},
 		       cowboy_static:rule([{dir, StaticPath}, {prefix, [<<"static">>]}]),
 		       {'_', ds_web_default_handler, [DB]}
 		      ]}

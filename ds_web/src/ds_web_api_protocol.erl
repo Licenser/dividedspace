@@ -59,6 +59,7 @@ rest_init(Req, [Modules]) ->
 	end,
     
     {Method, Req3} = cowboy_http_req:method(Req2),
+    io:format("~p~n", [[ResourceStr2, Modules]]),
     {ResourceStr2, Module} = lists:keyfind(ResourceStr2, 1, Modules),
     {ParentId, SubModule, SubModukeId} = Module:get_sub_handler(UserId, ResId, SubPath),
     Db = ds_web_server:init_db(),

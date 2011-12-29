@@ -98,7 +98,7 @@ select_by_name(Name) ->
     end.
     
 make(ID, Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs) when
-      is_binary(ID), is_list(Name), 
+      is_binary(ID), is_binary(Name), 
       is_integer(Integrety), Integrety >= 0,
       is_integer(Mass), Mass >= 0,
       is_float(HitPropability), 0 =< HitPropability,  HitPropability =< 1,
@@ -125,7 +125,7 @@ make(ID, Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs) when
 %%--------------------------------------------------------------------
 
 new(Name, Size, Integrety, Mass, HitPropability, HitPriority, Specs) when
-      is_list(Name), 
+      is_binary(Name), 
       is_integer(Integrety), Integrety >= 0,
       is_integer(Mass), Mass >= 0,
       is_float(HitPropability), 0 =< HitPropability,  HitPropability =< 1,
@@ -174,7 +174,7 @@ mass(ModuleType, Mass) when
 
 name(#module_type{name = Name}) ->
     Name.
-name(ModuleType, Name) when is_list(Name) ->
+name(ModuleType, Name) when is_binary(Name) ->
     ModuleType#module_type{name = Name}.
 
 

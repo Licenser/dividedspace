@@ -25,7 +25,7 @@
           {:success (fn [r] (success (js->clj r)))
            :dataType "json"
            :cache false
-           :data ((js* "JSON.encode") (clj->js data))
+           :data ((js* "JSON.stringify") (clj->js data))
            :type "PUT"
            :processData false
            :contentType "application/json"
@@ -34,6 +34,40 @@
 (defn do-ajaj [url success]
   (.ajax $
          (str "/api/v1/user/" uid url)
+         (clj->js
+          {:success (fn [r] (success (js->clj r)))
+           :dataType "json"
+           :cache false
+           :contentType "application/json"
+           :jsonp "json"})))
+
+(defn post-clj [url data success]
+  (.ajax $
+         url
+         (clj->js
+          {:success (fn [r] (success (js->clj r)))
+           :dataType "json"
+           :cache false
+           :type "POST"
+           :data ((js* "JSON.stringify") (clj->js data))
+           :processData false          
+           :contentType "application/json"
+           :jsonp "json"})))
+
+(defn del-clj [url success]
+  (.ajax $
+         url
+         (clj->js
+          {:success (fn [r] (success (js->clj r)))
+           :dataType "json"
+           :cache false
+           :type "DELETE"
+           :contentType "application/json"
+           :jsonp "json"})))
+
+(defn get-clj [url success]
+  (.ajax $
+         url
          (clj->js
           {:success (fn [r] (success (js->clj r)))
            :dataType "json"

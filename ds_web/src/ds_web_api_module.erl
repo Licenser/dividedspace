@@ -23,7 +23,7 @@
 %% Implementation
 
 get_sub_handler(Parent, This, []) ->
-    {Parent, ds_web_api_shiptype, This}.
+    {Parent, ds_web_api_module, This}.
 
 
 delete(Db, Id) ->
@@ -56,7 +56,7 @@ create(Db, UId, PId) ->
     Location = list_to_binary(io_lib:format("~p", [TypeId])),
     UIdStr = list_to_binary(io_lib:format("~p", [UId])),
     PIdStr = list_to_binary(io_lib:format("~p", [PId])),
-    {<<"/api/v1/user/", UIdStr/binary, "/shipstype/", PIdStr/binary, "/module/", Location/binary>>, TypeId}.
+    {<<"/api/v1/user/", UIdStr/binary, "/shiptype/", PIdStr/binary, "/module/", Location/binary>>, TypeId}.
 
 %%Internal
 

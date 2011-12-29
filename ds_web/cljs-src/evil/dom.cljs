@@ -14,8 +14,18 @@
 (defn click [obj f]
   (.click obj f))
 
+(defn blur [obj f]
+  (.blur obj f))
+
 (defn clear [obj]
   (text obj ""))
+
+(defn val [obj]
+  (. obj (val)))
+
+(defn del [obj]
+  (. obj (remove)))
+
 
 (defn attr [obj k v]
   (.attr obj k v))
@@ -27,7 +37,11 @@
       (if (map? f)
         (let [tag (reduce
                    (fn [tag [k v]]
-                     (attr tag (name k) v))
+                     (condp = k
+                       :click (click tag v)
+                       :blur (click tag v)
+                       (attr tag (name k) v))
+                     )
                    tag
                    f)]
           (reduce

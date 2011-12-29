@@ -30,7 +30,10 @@
 %% Implementation
 
 
-get_sub_handler(_Parent, This, [<<"shiptype">>, Id]) ->
+get_sub_handler(_Parent, This, [<<"module">>]) ->
+    {This, ds_web_api_module, undefined};
+
+get_sub_handler(_Parent, This, [<<"module">>, Id]) ->
     {This, ds_web_api_module, list_to_integer(binary_to_list(Id))};
 
 get_sub_handler(Parent, This, []) ->
@@ -118,9 +121,13 @@ get_obj(Db, Id) ->
     {ok, _, [{RespId, UserId, Name, ScriptId}]} =
 	pgsql:equery(Db, "SELECT id, user_id, name, script_id FROM shiptypes WHERE id = $1", [Id]),
     {ok, _, MIds} = 
-	pgsql:equery(Db, "SELECT id FROM modules WHERE ship_id = $1", [Id]),
+	pgsql:equery(Db, "SELECT id, name  FROM modules WHERE ship_id = $1", [Id]),
+    List = lists:map(fun ({Id, Name}) ->
+			     [{<<"id">>, Id},
+			      {<<"name">>, Name}]
+		     end, MIds),
     [{<<"id">>, RespId},
      {<<"user_id">>, UserId},
      {<<"name">>, Name},
      {<<"script_id">>, ScriptId},
-     {<<"modules">>, ds_web_api_handler:flatten_sql_res(MIds)}].
+     {<<"modules">>, List}].
