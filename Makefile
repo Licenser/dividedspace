@@ -20,6 +20,8 @@ clean:
 	make -C center clean
 	make -C epic clean
 	make -C ds_web clean
+	-[ -f *.beam ] && rm *.beam || true
+	-[ -f erl_crash.dump ] && rm erl_crash.dump || true
 
 force_look:
 	@true

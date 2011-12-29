@@ -1,5 +1,5 @@
 {application, center,
-[{description, ""},
+[{description, "Divided Space central server."},
 {vsn, "0.1.0"},
 {modules, [
 %MODULES%

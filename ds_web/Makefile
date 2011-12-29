@@ -7,6 +7,7 @@ CLOJURESCRIPT_HOME=./cljs
 #CLJS_OPTS=":optimizations :advanced :output-dir \"../$(CLJS_OUT_DIR)\" :output-to \"../$(CLJS_OUT_DIR)/boot.js\""
 CLJS_OPTS=":optimizations :whitespace :output-dir \"../$(CLJS_OUT_DIR)\" :output-to \"../$(CLJS_OUT_DIR)/boot.js\""
 CLASS_PATH=$(CLJS_SRC_DIR):$(CLJS_BASE_DIR)/lib
+PROJECT=ds_web
 
 REBAR=./rebar
 
@@ -15,7 +16,7 @@ all: deps appfile erlang
 	@$(REBAR) compile
 
 appfile: src/*
-	cd src; RES=""; for i in *.erl; do RES="$$RES $$i"; done; RES=`echo $$RES | sed 's/.erl /, /g' | sed 's/.erl$$//'`; sed "s/%MODULES%/$$RES/" < ds_web.app.in > ds_web.app.src
+	cd src; RES=""; for i in *.erl; do RES="$$RES $$i"; done; RES=`echo $$RES | sed 's/.erl /, /g' | sed 's/.erl$$//'`; sed "s/%MODULES%/$$RES/" < $(PROJECT).app.in > $(PROJECT).app.src
 
 erlang: force_look
 	cd deps/proper_stdlib/; ./rebar compile
@@ -41,6 +42,7 @@ clean:
 	@$(REBAR) clean
 
 rel: all cljs
+	@-[ -d rel/$(PROJECT) ] && rm -rf rel/$(PROJECT) || true
 	@$(REBAR) generate
 
 xref: clean all

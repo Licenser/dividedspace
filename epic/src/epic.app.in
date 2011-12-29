@@ -1,6 +1,6 @@
 {application, epic,
  [
-  {description, ""},
+  {description, "Divided Space EPIC combat Server"},
   {vsn, git},
   {registered, []},
   {modules, [
