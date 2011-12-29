@@ -1,0 +1,12 @@
+{application, epic,
+ [
+  {description, ""},
+  {vsn, git},
+  {registered, []},
+  {modules, [
+%MODULES%
+]},
+  {applications, [kernel, stdlib, mnesia, erlv8]},
+  {mod, { epic_app, []}},
+  {env, []}
+ ]}.

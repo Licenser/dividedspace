@@ -4,19 +4,7 @@
   [{description, "Your Desc HERE"},
    {vsn, "0.1.0"},
    {modules, [
-ds_web_api_handler,
-ds_web_app,
-ds_web_default_handler,
-ds_web_moduletype_handler,
-ds_web_server,
-ds_web_session,
-ds_web_sup,
-ds_web_user,
-ds_web_uuid,
-mochijson2,
-mochinum,
-ws,
-ws_sup
+%MODULES%
 	      ]},
    {registered,[ds_web_sup]},
    {applications, [kernel, stdlib]},
