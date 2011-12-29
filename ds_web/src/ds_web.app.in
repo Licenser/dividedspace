@@ -1,13 +1,19 @@
 %% This is the application resource file (.app file) for the ds_web,
 %% application.
 {application, ds_web,
-  [{description, "Your Desc HERE"},
-   {vsn, "0.1.0"},
-   {modules, [
+ [{description, "Divided Space web frontend"},
+  {vsn, "0.1.0"},
+  {modules, [
 %MODULES%
-	      ]},
-   {registered,[ds_web_sup]},
-   {applications, [kernel, stdlib]},
-   {mod, {ds_web_app,[]}},
-   {start_phases, []}]}.
+	    ]},
+  {registered,[ds_web_sup]},
+  {applications, [kernel,
+		  stdlib, 
+		  epgsql,
+		  cowboy, 
+		  cowboy_static,
+		  erlydtl
+		 ]},
+  {mod, {ds_web_app,[]}},
+  {start_phases, []}]}.
 
