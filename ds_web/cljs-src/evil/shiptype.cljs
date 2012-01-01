@@ -125,7 +125,20 @@
 
 
 (defn save-fn [entity]
-  (fn []))
+  (fn [] 
+    (let [script-id (dom/val (dom/select (str "#shiptype-" (entity "id") "-script-select")))
+          script-id (if (empty? script-id) nil (js/parseInt script-id))]
+      (ajaj/put-clj
+       (str "/api/v1/user/"
+            evil.ajaj.uid
+            "/shiptype/" (entity "id"))
+     
+       {"id" (entity "id")
+        "name" (dom/val (dom/select (str "#shiptype-" (entity "id") "-name")))
+        "script_id" script-id
+        "user_id" evil.ajaj.uid}
+       (fn [s]
+         (dom/text (dom/select (str  "span[name=shiptype-" (s "id") "-name]")) (s "name")))))))
 
 (defn show-shiptype-fn [entity]
   (fn []        
@@ -160,7 +173,10 @@
                (map #(dom/append select
                                  (dom/c
                                   [:option
-                                   {:value (% "id")}
+                                   (merge {:value (% "id")}
+                                          (if (= (% "id") (s "script_id"))
+                                            {:selected "selected"}
+                                            {}))
                                    (% "name")]))
                     scripts))))))))))
 
