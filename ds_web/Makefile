@@ -5,7 +5,7 @@ CLJS_WATCH_DIR=./cljs-watch
 CLJSC=./bin/cljsc
 CLOJURESCRIPT_HOME=./cljs
 #CLJS_OPTS=":optimizations :advanced :output-dir \"../$(CLJS_OUT_DIR)\" :output-to \"../$(CLJS_OUT_DIR)/boot.js\""
-CLJS_OPTS=":optimizations :whitespace :output-dir \"../$(CLJS_OUT_DIR)\" :output-to \"../$(CLJS_OUT_DIR)/boot.js\""
+CLJS_OPTS=":optimizations :simple :output-dir \"../$(CLJS_OUT_DIR)\" :output-to \"../$(CLJS_OUT_DIR)/boot.js\""
 CLASS_PATH=$(CLJS_SRC_DIR):$(CLJS_BASE_DIR)/lib
 PROJECT=ds_web
 

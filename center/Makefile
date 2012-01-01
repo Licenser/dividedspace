@@ -14,7 +14,7 @@ clean:
 	@$(REBAR) clean
 
 rel: all
-        @-[ -d rel/$(PROJECT) ] && rm -rf rel/$(PROJECT) || true
+	@-[ -d rel/$(PROJECT) ] && rm -rf rel/$(PROJECT) || true
 	@$(REBAR) generate
 
 xref: clean all

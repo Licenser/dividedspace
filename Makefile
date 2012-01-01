@@ -23,6 +23,11 @@ clean:
 	-[ -f *.beam ] && rm *.beam || true
 	-[ -f erl_crash.dump ] && rm erl_crash.dump || true
 
+rel:
+	make -C center rel
+	make -C epic rel
+	make -C ds_web rel
+
 force_look:
 	@true
 

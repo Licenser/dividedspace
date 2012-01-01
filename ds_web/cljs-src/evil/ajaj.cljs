@@ -54,6 +54,19 @@
            :contentType "application/json"
            :jsonp "json"})))
 
+(defn put-clj [url data success]
+  (.ajax $
+         url
+         (clj->js
+          {:success (fn [r] (success (js->clj r)))
+           :dataType "json"
+           :cache false
+           :type "PUT"
+           :data ((js* "JSON.stringify") (clj->js data))
+           :processData false          
+           :contentType "application/json"
+           :jsonp "json"})))
+
 (defn del-clj [url success]
   (.ajax $
          url
