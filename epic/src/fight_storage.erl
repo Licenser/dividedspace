@@ -205,14 +205,16 @@ unit_getter(Storage, UnitId, Field) ->
 	    ?INFO({"JS Get on Unit", UnitId, Field}),
             U = fight_storage:get_unit(Storage, UnitId),
             Res = unit:get(U, Field),
-	    ?DBG({"returning", Res})
+	    ?DBG({"returning", Res}),
+	    Res
     end.
 
 weapon_getter(Weapon, Attr) ->
     fun (#erlv8_fun_invocation{}, _) ->
 	    ?INFO({"JS Get on Weapon", Weapon, Attr}),
             Res = module:get(Weapon, Attr),
-	    ?DBG({"returning", Res})
+	    ?DBG({"returning", Res}),
+	    Res
     end.
 
 add_accessors(Object, _, []) ->
@@ -291,8 +293,11 @@ intercept_fun(FightPid, Storage, Map, UnitId) ->
     fun (#erlv8_fun_invocation{}, [Target, Range]) ->
 	    ?INFO({"JS intercept", UnitId, Target, Range}),
             TargetIdFun = Target:get_value("id"),
+	    ?DBG({TargetIdFun}),
             TargetId = TargetIdFun:call(),
+	    ?DBG({TargetId}),
             TargetUnit = fight_storage:get_unit(Storage, TargetId),
+	    ?DBG({TargetUnit}),
             Coords = unit:coords(TargetUnit),
             intercept(FightPid, Storage, Map, UnitId, Coords, Range)
     end.

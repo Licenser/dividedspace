@@ -13,8 +13,10 @@ epic: force_look
 ds_web: force_look
 	make -C ds_web
 
-shell: all force_look
+qshell:
 	erl -sname ds -pa $(CENTER_BIN) $(EPIC_BIN) $(DS_WEB_BIN) -config standalone.config
+
+shell: all force_look qshell
 
 clean:
 	make -C center clean

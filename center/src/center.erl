@@ -18,12 +18,12 @@ start() ->
 start_fight(N) ->
     S = trunc((N / 2) * -1),
     E = trunc(N / 2),
-    Spec = ["Fighter L", "Laser", "Small Battery*", "Fighter Engine"],
+    Spec = [<<"Fighter L">>, <<"Laser">>, <<"Small Battery*">>, <<"Fighter Engine">>],
     Units = lists:foldl(fun (Pos, L) ->
 				Major = abs(Pos) div 20,
 				Minor = Pos rem 20,                                
-				[{-3 - Major, Minor, "one", Spec}, 
-                                 {3 + Major, Minor, "two", Spec} | L]
+				[{-3 - Major, Minor, <<"one">>, Spec}, 
+                                 {3 + Major, Minor, <<"two">>, Spec} | L]
 			end, [], lists:seq(S, E)),
     center_server:add_fight(Units).
 

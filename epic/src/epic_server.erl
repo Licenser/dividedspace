@@ -94,11 +94,11 @@ handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
     end;
 handle_call(list_fights, _From, #state{fights = Fights} = State) ->
     ?INFO({"handle call: ", list_fights}),
-    Fights = {ok, lists:map(fun ({UUID, Pid}) -> 
+    Result = {ok, lists:map(fun ({UUID, Pid}) -> 
 				   {ok, Report} = fight_server:report(Pid),
 				   {UUID, Report}
 			   end, dict:to_list(Fights))},
-    {reply, Fights, State};
+    {reply, Result, State};
 handle_call(Request, _From, State) ->
     ?WARNING({"Unknown handle call", Request}),
     Reply = ok,

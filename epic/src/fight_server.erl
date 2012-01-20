@@ -95,7 +95,7 @@ init([Fight]) ->
 				    Name = unit:name(Unit),
 				    Hull = unit:hull(Unit),
 				    Integrety = module:integrety(Hull),
-				    [[{type, spawn}, {data, [{id, UnitId}, {damage, 0}, {team, list_to_binary(unit:fleet(Unit))}, {type, [{name, list_to_binary(Name)}, {hull, Integrety}]}]}] |
+				    [[{type, spawn}, {data, [{id, UnitId}, {damage, 0}, {team, unit:fleet(Unit)}, {type, [{name, Name}, {hull, Integrety}]}]}] |
 				     [[{type, move}, {unit, UnitId}, {position, [{x, unit:x(Unit)}, {y, unit:y(Unit)}]}] | L]]
 			    end, [], fight:unit_ids(Fight)),
     Units = fight:units(Fight),
@@ -210,7 +210,6 @@ handle_cast(trigger_tick, #state{fight = _Fight,
 				} = State) ->
     ?INFO({"tricker tick and start"}),
     ?DBG({Tick, VM, Storage}),
-    epic_event:start_turn(self()),
     fight_worker:place_tick(VM, Storage, self()),
     {noreply, State#state{tick_start = now(),
 			  tick = Tick + 1,

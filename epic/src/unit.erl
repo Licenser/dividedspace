@@ -9,6 +9,7 @@
 %%% Created : 22 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(unit).
+-include_lib("alog_pt.hrl").
 
 %% API
 -export([ % Meta
