@@ -1,10 +1,12 @@
 releases
+fprof.trace
 distrib
 Mnesia*
 _build
 ebin
 *.beam
 *.dump
+#.*
 doc/
 .depend_erlang.mf
 erlang_config.rb

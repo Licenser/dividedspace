@@ -20,5 +20,8 @@ rel: all
 xref: clean all
 	@$(REBAR) xref
 
+shell: all force_look
+	erl -sname center -pa ebin debs/*/ebin -config ../standalone.config
+
 force_look:
 	@true
