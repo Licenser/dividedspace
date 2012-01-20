@@ -1,19 +1,6 @@
 -module(ds_web_api_shiptype).
 
 %-include("ds_web.hrl").
--record(session,{
-	  uid,
-	  name = <<"">>,
-	  admin
-	 }).
-
--record(client_state, {
-	  pid,
-	  id,
-	  method,
-	  resource,
-	  session,
-	  db}).
 
 -export([
 	 get_sub_handler/3,
@@ -46,7 +33,7 @@ delete(Db, Id) ->
 	    true;
 	{ok, 0} ->
 	    false;
-	E -> 
+	_Error -> 
 	    false
     end.
 
@@ -106,7 +93,7 @@ get_data(Db, Id) ->
 put_data(Db, Id, Obj) ->
     {<<"user_id">>, UserId} = lists:keyfind(<<"user_id">>, 1, Obj),
     {<<"name">>, Name} = lists:keyfind(<<"name">>, 1, Obj),
-    <<"Type ", (list_to_binary(io_lib:format("~p", [Id])))/binary>>,
+    %<<"Type ", (list_to_binary(io_lib:format("~p", [Id])))/binary>>,
     {<<"script_id">>, ScriptId} = lists:keyfind(<<"script_id">>, 1, Obj),
     {ok, _, _, [{RespId, UserId, Name, ScriptId}]} = 
 	pgsql:equery(Db, "UPDATE shiptypes SET user_id = $2, name = $3, script_id = $4" ++ 
@@ -122,9 +109,9 @@ get_obj(Db, Id) ->
 	pgsql:equery(Db, "SELECT id, user_id, name, script_id FROM shiptypes WHERE id = $1", [Id]),
     {ok, _, MIds} = 
 	pgsql:equery(Db, "SELECT id, name  FROM modules WHERE ship_id = $1", [Id]),
-    List = lists:map(fun ({Id, Name}) ->
-			     [{<<"id">>, Id},
-			      {<<"name">>, Name}]
+    List = lists:map(fun ({MId, MName}) ->
+			     [{<<"id">>, MId},
+			      {<<"name">>, MName}]
 		     end, MIds),
     [{<<"id">>, RespId},
      {<<"user_id">>, UserId},

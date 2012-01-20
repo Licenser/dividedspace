@@ -54,7 +54,7 @@ get(_Vsn, [UIdStr | Rest], #session{uid=CUId, admin= Admin}, Db, Req) ->
     end.
 
 
-post(_Vsn, _, _, Db, Req) ->
+post(_Vsn, _, _, _Db, Req) ->
     cowboy_http_req:reply(505, [], "error", Req).
 
 %%%===================================================================
