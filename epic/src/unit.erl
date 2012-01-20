@@ -272,13 +272,13 @@ fly(#unit{} = Unit, X, Y) when is_integer(X), is_integer(Y) ->
 cycle(#unit{modules = Modules} = Unit) ->
     Unit#unit{modules = lists:map(fun module:cycle/1, Modules)}.
 
-update_unit(Fight, UnitId, F) ->
-    fight:add_unit(Fight, F(fight:get_unit(Fight, UnitId))).
+%update_unit(Fight, UnitId, F) ->
+%    fight:add_unit(Fight, F(fight:get_unit(Fight, UnitId))).
 
-update_unit_energy(Fight, UnitId, E) ->
-    update_unit(Fight, UnitId, fun (Unit) ->
-				       use_energy(Unit, E)
-			       end).
+%update_unit_energy(Fight, UnitId, E) ->
+%    update_unit(Fight, UnitId, fun (Unit) ->
+%				       use_energy(Unit, E)
+%			       end).
     
 
 %handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage, Map) ->
@@ -396,22 +396,22 @@ consume_engine_usage(#unit{modules = Modules} = Unit, Range) ->
     Unit#unit{modules = Ms}.
 
 
-intercept(Fight, Map, AttackerId, TargetId, Weapon) ->
-    Attacker = fight:get_unit(Fight, AttackerId),
-    Target = fight:get_unit(Fight, TargetId),
-    WeaponRange = module:weapon_range(Weapon),
-    Dist = distance(Attacker, Target),
-    if
-	WeaponRange =/= Dist ->EngineRange = available_range(Attacker),
-			       PosA = coords(Attacker),
-			       PosT = coords(Target),
-			       {X, Y, R} = map_server:best_distance(Map, PosA, PosT, EngineRange, WeaponRange),
-			       map_server:move_unit(Map, AttackerId, X, Y),
-			       {update_unit(Fight, AttackerId, fun(A) ->
-								       coords(use_engine(A, R), {X, Y})
-							       end), [{move, AttackerId, X, Y}]}; 
-	true -> {Fight, []}
-    end.
+%intercept(Fight, Map, AttackerId, TargetId, Weapon) ->
+%    Attacker = fight:get_unit(Fight, AttackerId),
+%    Target = fight:get_unit(Fight, TargetId),
+%    WeaponRange = module:weapon_range(Weapon),
+%    Dist = distance(Attacker, Target),
+%    if
+%	WeaponRange =/= Dist ->EngineRange = available_range(Attacker),
+%			       PosA = coords(Attacker),
+%			       PosT = coords(Target),
+%			       {X, Y, R} = map_server:best_distance(Map, PosA, PosT, EngineRange, WeaponRange),
+%			       map_server:move_unit(Map, AttackerId, X, Y),
+%			       {update_unit(Fight, AttackerId, fun(A) ->
+%								       coords(use_engine(A, R), {X, Y})
+%							       end), [{move, AttackerId, X, Y}]}; 
+%	true -> {Fight, []}
+%    end.
 
 get(#unit{x = X}, x) ->
     X;

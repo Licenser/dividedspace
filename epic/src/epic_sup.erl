@@ -59,18 +59,13 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    %Restart = permanent,
-    %Shutdown = 2000,
-    %Type = worker,
-
     EPICServer = ?CHILD(epic_server, worker),
     FightWorker = ?CHILD(fight_worker, worker),
-    EpicEvent =  ?CHILD(epic_event, worker),
     FightSup = ?CHILD(fight_sup, supervisor),
     MapSup = ?CHILD(map_sup, supervisor),
     StorageSup = ?CHILD(storage_sup, supervisor),
     WorkerSup = ?CHILD(worker_sup, supervisor),
-    {ok, {SupFlags, [FightSup, MapSup, WorkerSup, StorageSup, EPICServer, FightWorker, EpicEvent]}}.
+    {ok, {SupFlags, [FightSup, MapSup, WorkerSup, StorageSup, EPICServer, FightWorker]}}.
 
 
 %%%===================================================================

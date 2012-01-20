@@ -7,9 +7,8 @@
 %%% Created :  4 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(worker_fsm).
-
 -include("erlv8.hrl").
-
+-include_lib("alog_pt.hrl").
 -behaviour(gen_fsm).
 
 %% API
@@ -96,6 +95,8 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 waiting({tick, VM, Storage, FightPid}, #state{} = State) ->
+    ?INFO({"waiting -> tick"}),
+    ?DBG({VM, Storage, FightPid}),
     handle_turn(Storage, FightPid, VM),
     fight_server:end_tick(FightPid),
     fight_worker:report_idle(self()),
@@ -189,16 +190,20 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%%===================================================================
 
 
-handle_turn(Storage, FightPid, VM) ->
+handle_turn(Storage, _FightPid, VM) ->
+    ?INFO({"init turn"}),
     lists:map(fun (UnitId) ->
                       {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
-%		      io:format("~p~n", [Unit]),
                       case unit:destroyed(Unit) of
                           false ->
+			      ?INFO({"tick for unit", UnitId}),
+			      ?DBG({Unit}),
                               fight_storage:set_unit(Storage, unit:cycle(Unit)),
                               erlv8_vm:run(VM, Context, ?UNIT_SCRIPT),
                               ok;
                           true -> 
+			      ?DBG({"destroyed - skipping tick for unit", UnitId}),
                               ok
                       end
-              end, fight_storage:get_ids(Storage)).
+              end, fight_storage:get_ids(Storage)),
+    ?INFO({"end turn"}).

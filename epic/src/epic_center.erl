@@ -7,9 +7,10 @@
 %%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(epic_center).
+-include_lib("alog_pt.hrl").
 
 %% API
--export([register/1]).
+-export([register/1, call/1, cast/1]).
 
 -define(SERVER, {global, center_server}).
 
@@ -30,10 +31,10 @@ register(Pid) ->
 %%%===================================================================
 
 call(What) ->
-    io:format("CENTER <= register: ~p~n", [What]),
+    ?NOTICE({"call center", What}),
     gen_server:call(?SERVER, What). 
     
 
 cast(What) ->
-    io:format("CENTER <- register: ~p~n", [What]),
+    ?NOTICE({"cast center", What}),
     gen_server:cast(?SERVER, What). 

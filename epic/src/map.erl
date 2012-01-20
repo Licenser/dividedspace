@@ -7,6 +7,9 @@
 %%% Created :  3 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(map).
+
+-include_lib("alog_pt.hrl").
+
 -include("epic_types.hrl").
 
 
@@ -61,13 +64,17 @@ to_cartesian({X, Y}) ->
 -spec friction_direction_between(coords(), coords()) ->
 					float().
 friction_direction_between(A, B) ->
+    ?INFO({"direction_between"}),
     {CX1, CY1} = to_cartesian(A),
     {CX2, CY2} = to_cartesian(B),
     D = ((0 - (math:atan2(CY2 - CY1, CX2 - CX1) / math:pi()) + 0.5) * 3),
-    if 
+    
+    Dir = if 
 	D < 0 -> D + 6;
 	true -> D
-    end.
+    end,
+    ?DBG({A, B, Dir}),
+    Dir.
 
 
 -spec direction_between(coords(), coords()) ->
@@ -104,31 +111,34 @@ distance({X1, Y1}, {X2, Y2}) when is_integer(X1),
 				  is_integer(Y1),
 				  is_integer(X2), 
 				  is_integer(Y2) ->
+    ?INFO({"calculating distance"}),
     DX = X1 - X2,
     DY = Y1 - Y2,
     AX = int_abs(DX),
     AY = int_abs(DY),
     XPos = DX > 0,
     YPos = DY > 0,
-    if 
+    Dist = if 
 	XPos == YPos -> int_max(AX, AY);
 	true -> AX + AY
-    end.
+    end,
+    ?DBG({X1, Y1, X2, Y2, Dist}),
+    Dist.
 				   
 
 
-floor(X) ->
-    T = erlang:trunc(X),
-    case (X - T) of
-        Neg when Neg < 0 -> T - 1;
-        Pos when Pos > 0 -> T;
-        _ -> T
-    end.
+%floor(X) ->
+%    T = erlang:trunc(X),
+%    case (X - T) of
+%        Neg when Neg < 0 -> T - 1;
+%        Pos when Pos > 0 -> T;
+%        _ -> T
+%    end.
 
-ceiling(X) ->
-    T = erlang:trunc(X),
-    case (X - T) of
-        Neg when Neg < 0 -> T;
-        Pos when Pos > 0 -> T + 1;
-        _ -> T
-    end.
+%ceiling(X) ->
+%    T = erlang:trunc(X),
+%    case (X - T) of
+%        Neg when Neg < 0 -> T;
+%        Pos when Pos > 0 -> T + 1;
+%        _ -> T
+%    end.

@@ -8,6 +8,8 @@
 %%%-------------------------------------------------------------------
 -module(fight_worker).
 
+-include_lib("alog_pt.hrl").
+
 -behaviour(gen_server).
 
 %% API
@@ -64,6 +66,7 @@ report_idle(Worker) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
+    ?INFO({"Init"}),
     {ok, #state{workers=
 		    [ worker_sup:start_child() || _ <- lists:seq(1,?WORKER_COUNT)]
 	       }}.
@@ -82,7 +85,8 @@ init([]) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call(_Request, _From, State) ->
+handle_call(Request, _From, State) ->
+    ?WARNING({"Unknown handle call", Request}),
     Reply = ok,
     {reply, Reply, State}.
 
@@ -97,16 +101,21 @@ handle_call(_Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({place_tick, VM, Storage, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
+    ?INFO({"place tick no idle workers", FightPid}),
     {noreply, State#state{tasks=Tasks ++ [{place_tick, VM, Storage, FightPid}]}};
 handle_cast({place_tick, VM, Storage, FightPid}, #state{idle_workers = [Worker | R]} = State) ->
+    ?INFO({"place tick on worker", FightPid, Worker}),
     worker_fsm:tick(Worker, VM, Storage, FightPid),
     {noreply, State#state{idle_workers=R}};
 handle_cast({report_idle, Worker}, #state{idle_workers = W, tasks=[]} = State) ->
+    ?INFO({"report idle no ticks", Worker}),
     {noreply, State#state{idle_workers=[Worker | W]}};
 handle_cast({report_idle, Worker}, #state{tasks=[{place_tick, VM, Storage, FightPid} | R]} = State) ->
+    ?INFO({"report idle, ticks", Worker, FightPid}),    
     worker_fsm:tick(Worker, VM, Storage, FightPid),
     {noreply, State#state{tasks=R}};
-handle_cast(_Msg, State) ->
+handle_cast(Msg, State) ->
+    ?WARNING({"Unknown handle cast", Msg}),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -119,7 +128,8 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    ?WARNING({"Unknown handle info", Info}),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -133,7 +143,8 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(Reason, _State) ->
+    ?WARNING({"Terminating", Reason}),
     ok.
 
 %%--------------------------------------------------------------------
@@ -146,10 +157,3 @@ terminate(_Reason, _State) ->
 %%--------------------------------------------------------------------
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-check_workers(Workers) ->
-    [ case is_process_alive(W) of
-	  true -> W;
-	  false -> worker_sup:start_child()
-      end
-      || W <- Workers].
