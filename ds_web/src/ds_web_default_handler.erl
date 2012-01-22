@@ -1,4 +1,5 @@
 -module(ds_web_default_handler).
+-include_lib("alog_pt.hrl").
 -behaviour(cowboy_http_handler).
 -export([init/3, handle/2, terminate/2]).
 
@@ -17,6 +18,7 @@ init({tcp, http}, Req, [DB]) ->
 handle(Req, State) ->
     {Path, _} = cowboy_http_req:path(Req),
     {Method, _} = cowboy_http_req:method(Req),
+    ?INFO({"defaulting", Path, Method}),
     {ok, SessionCookieName} = application:get_env(ds_web, session_name),
     {ok, SessionKey} = application:get_env(ds_web, session_key),
     Session = ds_web_session:get_session(SessionCookieName, 

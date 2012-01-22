@@ -30,20 +30,25 @@ application:start(erlv8).
 application:start(center).
 application:start(alog).
 
-application:start(epic).
+alog_control:set_flow_priority(1, {'=<', info}).
+
 
 application:start(crypto).
 application:start(public_key).
 application:start(ssl).
 application:start(epgsql).
-application:start(cowboy).
 application:start(sendfile).
-application:start(cowboy_static).
+application:start(cowboy).
 
+application:start(compiler).
+application:start(syntax_tools).
 application:start(erlydtl).
 application:start(ds_web).
 
+application:start(epic).
+
 
 center:start_fight(1).
+
 
 

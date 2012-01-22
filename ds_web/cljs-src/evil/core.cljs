@@ -35,7 +35,7 @@
          (dom/append tab))
        (dorun
         (map (fn [fight]
-               (dom/append tab (fight-row fight)))
+               (dom/append tab (fight-row fight)))a
              res))))))
 
 (defn update-epic-servers []

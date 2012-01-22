@@ -7,7 +7,7 @@
 %%% Created :  9 Dec 2011 by Heinz N. Gies <licenser@Schroedinger.local>
 %%%-------------------------------------------------------------------
 -module(ds_web_server).
-
+-include_lib("alog_pt.hrl").
 -behaviour(gen_server).
 
 %% API
@@ -57,14 +57,18 @@ init([]) ->
     {ok, Acceptors} = application:get_env(acceptors),
     {ok, StaticPath} = application:get_env(static_dir),
     Dispatch = [
-		%% {Host, list({Path, Handler, Opts})}
 		{'_', [
+		       {[<<"fight">>, '...'], ds_web_websocket_handler, []},
 		       {[<<"api">>, <<"v1">>, <<"user">>], ds_web_api_handler, [DB]},
 		       {[<<"api">>, <<"v1">>, <<"user">>, '_'], ds_web_api_handler, [DB]},
-		       {[<<"api">>, <<"v1">>, <<"user">>, '...'], ds_web_api_protocol, [[{<<"shiptype">>, ds_web_api_shiptype},
-											 {<<"script">>, ds_web_api_script}]]},
+		       {[<<"api">>, <<"v1">>, <<"user">>, '...'], ds_web_api_protocol, 
+			[[{<<"shiptype">>, ds_web_api_shiptype},
+			  {<<"script">>, ds_web_api_script}]]},
 		       {[<<"api">>, <<"v1">>, '...'], ds_web_api_handler, [DB]},
-		       cowboy_static:rule([{dir, StaticPath}, {prefix, [<<"static">>]}]),
+		       {[<<"static">>, '...'], cowboy_http_static,
+			[{directory, <<"./htdocs">>},
+			 {mimetypes, [{<<".css">>, [<<"text/css">>]},
+				      {<<".js">>, [<<"application/javascript">>]}]}]},
 		       {'_', ds_web_default_handler, [DB]}
 		      ]}
 	       ],

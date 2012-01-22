@@ -24,7 +24,7 @@
       <div class='button' id='play' style='display: none'>Play</div>
     </div>
     <script type='text/javascript' charset='utf-8'>
-      <![CDATA[
+/*      <![CDATA[ */
 	       if (!Prototype.Browser.IE) {
 	       var waitForImages = window.setInterval(function() {
 	       for (var i = document.images.length; i--;) {
@@ -34,7 +34,7 @@
 	       DS.initialize('{{ fightid }}');
 	       }, 500);
 	       }
-      ]]>
+/*      ]]> */
     </script>
     <img id='fighter-l-two' src='/static/images/fighter_light_blue.png' style='display: none;' />
     <img id='fighter-l-one' src='/static/images/fighter_light_red.png' style='display: none;' />
