@@ -68,6 +68,7 @@ init([]) ->
 		       {[<<"static">>, '...'], cowboy_http_static,
 			[{directory, <<"./htdocs">>},
 			 {mimetypes, [{<<".css">>, [<<"text/css">>]},
+				      {<<".png">>, [<<"image/png">>]},
 				      {<<".js">>, [<<"application/javascript">>]}]}]},
 		       {'_', ds_web_default_handler, [DB]}
 		      ]}
