@@ -11,7 +11,7 @@
 
 -record(state, {
 	  uid,	
-	  pid,
+	  pids,
 	  id,
 	  method,
 	  resource,
@@ -57,22 +57,19 @@ rest_init(Req, [Modules]) ->
 	    [UserIdStr, ResourceStr, ResIdStr | Rest] -> 
 		{list_to_integer(binary_to_list(UserIdStr)), ResourceStr, list_to_integer(binary_to_list(ResIdStr)), Rest}
 	end,
-    
     {Method, Req3} = cowboy_http_req:method(Req2),
-    io:format("~p~n", [[ResourceStr2, Modules]]),
     {ResourceStr2, Module} = lists:keyfind(ResourceStr2, 1, Modules),
-    {ParentId, SubModule, SubModukeId} = Module:get_sub_handler(UserId, ResId, SubPath),
+    {ParentIds, SubModule, SubModukeId} = Module:get_sub_handler([{user, UserId}], ResId, SubPath),
     Db = ds_web_server:init_db(),
     State = #state{
       db = Db,
       uid = UserId,
       module = SubModule,
       id = SubModukeId,
-      pid = ParentId,
+      pids = ParentIds,
       method = Method,
       session = Session
      },
-    io:format("~p~n", [State]),
     {ok, Req3, State}.
 
 post_is_create(Req, State) ->
@@ -161,12 +158,11 @@ resource_exists(Req, #state{
 create_path(Req, #state{
 	      module = Module,
 	      db = Db,
-	      pid = PId,
+	      pids = PIds,
 	      uid = UId
 	     } = State) ->
-    {Resp, Id} = Module:create(Db, UId, PId),
+    {Resp, Id} = Module:create(Db, UId, PIds),
     State2 = State#state{id = Id},
-    io:format("State2: ~p~n", [State2]),
     {Resp, Req, State2}.
 
 %% Callbacks
@@ -174,7 +170,7 @@ create_path(Req, #state{
 to_json(Req,  #state{
 	  module = Module,
 	  db = Db,
-	  pid = undefiend,
+	  pids = undefiend,
 	  id = undefiend
 	 } = State) ->
     {ok, Entety} = Module:list_resources(Db),
@@ -189,10 +185,10 @@ to_json(Req,  #state{
 to_json(Req,  #state{
 	  module = Module,
 	  db = Db,
-	  pid = PId,
+	  pids = PIds,
 	  id = undefined
 	 } = State) ->
-    {ok, Entety} = Module:list_resources_for_parent(Db, PId),
+    {ok, Entety} = Module:list_resources_for_parent(Db, PIds),
     Res = case mochijson2:encode(Entety) of
 	      R when is_binary(R) ->
 		  R;
@@ -220,7 +216,6 @@ from_json(Req, #state{
 	    db = Db,
 	    id =  Id
 	   } = State) ->
-    io:format("~p~n", [State]),
     {ok, Body, Req2} = cowboy_http_req:body(Req),
     {struct, Data} = case Body of
 			 <<"">> ->
@@ -236,4 +231,4 @@ from_json(Req, #state{
 		       list_to_binary(R)
 	       end,
     {ok, Req3} = cowboy_http_req:set_resp_body(RespBody, Req2),
-    {ok, Req3, State}.
+    {true, Req3, State}.

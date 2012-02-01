@@ -7,6 +7,7 @@ ebin
 *.beam
 *.dump
 #.*
+*~
 doc/
 .depend_erlang.mf
 erlang_config.rb

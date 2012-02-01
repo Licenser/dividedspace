@@ -4,6 +4,7 @@
    [evil.dom :as dom]
    [evil.ajaj :as ajaj]
    [evil.shiptype :as shiptype]
+   [evil.fleet :as fleet]
    [evil.epic :as epic]))
 
 (def $ (js* "$"))
@@ -56,7 +57,7 @@
 (.ready
  ($ (js* "document"))
  (fn []
-                                        ;(update-epic-servers)
    (script/update-scripts)
    (shiptype/fetch-modules)
-   (shiptype/update-shiptypes)))
+   (shiptype/update-shiptypes)
+   (fleet/update-fleets)))

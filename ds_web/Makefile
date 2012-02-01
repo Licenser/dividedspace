@@ -6,6 +6,7 @@ CLJSC=./bin/cljsc
 CLOJURESCRIPT_HOME=./cljs
 #CLJS_OPTS=":optimizations :advanced :output-dir \"../$(CLJS_OUT_DIR)\" :output-to \"../$(CLJS_OUT_DIR)/boot.js\""
 CLJS_OPTS=":optimizations :simple :output-dir \"../$(CLJS_OUT_DIR)\" :output-to \"../$(CLJS_OUT_DIR)/boot.js\""
+CLJS_WATCH_OPTS=":optimizations :simple :output-dir \"$(CLJS_OUT_DIR)\" :output-to \"$(CLJS_OUT_DIR)/boot.js\""
 CLASS_PATH=$(CLJS_SRC_DIR):$(CLJS_BASE_DIR)/lib
 PROJECT=ds_web
 
@@ -33,7 +34,7 @@ cljs: force_look
 
 cljs-watch: force_look
 	-rm -r $(CLJS_OUT_DIR)/*
-	cd cljs-watch; CLOJURESCRIPT_HOME=../cljs; ./cljs-watch ../$(CLJS_SRC_DIR) "{$(CLJS_OPTS)}"
+	CLOJURESCRIPT_HOME=./cljs ./cljs-watch/cljs-watch ./$(CLJS_SRC_DIR) "{$(CLJS_WATCH_OPTS)}"
 
 deps:
 	@$(REBAR) get-deps

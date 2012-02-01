@@ -22,6 +22,10 @@
           <span class="sectionhead">ship types</span>
           <div id="shiptype"></div>
         </div>
+        <div id="fleet-container" class="category">
+          <span class="sectionhead">fleets</span>
+          <div id="fleet"></div>
+        </div>
       </div>
       <div id="center"></div>
   </body>

@@ -1,8 +1,6 @@
 -module(ds_web_api_script).
 -behaviour(ds_web_api_behaviour).
 
-%-include("ds_web.hrl").
-
 -export([
 	 get_sub_handler/3,
 	 delete/2,
@@ -48,7 +46,7 @@ exists(Db, Id) ->
 	    false
     end.
 
-create(Db, UId, UId) ->
+create(Db, UId, [{user, UId}]) ->
     {ok, _, _, [{TypeId}]} =
 	pgsql:equery(Db, "INSERT INTO scripts (user_id) VALUES ($1) RETURNING id", [UId]),
     Location = list_to_binary(io_lib:format("~p", [TypeId])),
@@ -67,7 +65,7 @@ list_resources(Db) ->
 		     end, SIds),
     {ok, List}.
 
-list_resources_for_parent(Db, UId) ->
+list_resources_for_parent(Db, [{user, UId}]) ->
     {ok, _, SIds} =
 	pgsql:equery(Db, "SELECT id, name FROM scripts WHERE user_id = $1", [UId]),
     List = lists:map(fun ({Id, Name}) ->

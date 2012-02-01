@@ -22,8 +22,8 @@
 
 %% Implementation
 
-get_sub_handler(Parent, This, []) ->
-    {Parent, ds_web_api_module, This}.
+get_sub_handler(Parents, This, []) ->
+    {Parents, ds_web_api_module, This}.
 
 
 delete(Db, Id) ->
@@ -50,12 +50,12 @@ exists(Db, Id) ->
 	    false
     end.
 
-create(Db, UId, PId) ->
+create(Db, UId, [{shiptype, SId}, {user, UId}]) ->
     {ok, _, _, [{TypeId}]} =
-	pgsql:equery(Db, "INSERT INTO modules (user_id, ship_id) VALUES ($1, $2) RETURNING id", [UId, PId]),
+	pgsql:equery(Db, "INSERT INTO modules (user_id, ship_id) VALUES ($1, $2) RETURNING id", [UId, SId]),
     Location = list_to_binary(io_lib:format("~p", [TypeId])),
     UIdStr = list_to_binary(io_lib:format("~p", [UId])),
-    PIdStr = list_to_binary(io_lib:format("~p", [PId])),
+    PIdStr = list_to_binary(io_lib:format("~p", [SId])),
     {<<"/api/v1/user/", UIdStr/binary, "/shiptype/", PIdStr/binary, "/module/", Location/binary>>, TypeId}.
 
 %%Internal
@@ -69,9 +69,9 @@ list_resources(Db) ->
 		     end, SIds),
     {ok, List}.
 
-list_resources_for_parent(Db, PId) ->
+list_resources_for_parent(Db, [{shiptype, SId} | _]) ->
     {ok, _, SIds} =
-	pgsql:equery(Db, "SELECT id, name FROM modules WHERE ship_id = $1", [PId]),
+	pgsql:equery(Db, "SELECT id, name FROM modules WHERE ship_id = $1", [SId]),
     List = lists:map(fun ({Id, Name}) ->
 			     [{<<"id">>, Id},
 			      {<<"name">>, Name}]

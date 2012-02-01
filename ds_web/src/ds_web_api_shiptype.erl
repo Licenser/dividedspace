@@ -1,7 +1,5 @@
 -module(ds_web_api_shiptype).
 
-%-include("ds_web.hrl").
-
 -export([
 	 get_sub_handler/3,
 	 delete/2,
@@ -17,15 +15,14 @@
 %% Implementation
 
 
-get_sub_handler(_Parent, This, [<<"module">>]) ->
-    {This, ds_web_api_module, undefined};
+get_sub_handler(Parents, This, [<<"module">>]) ->
+    {[{shiptype, This} | Parents], ds_web_api_module, undefined};
 
-get_sub_handler(_Parent, This, [<<"module">>, Id]) ->
-    {This, ds_web_api_module, list_to_integer(binary_to_list(Id))};
+get_sub_handler(Parents, This, [<<"module">>, Id]) ->
+    {[{shiptype, This} | Parents], ds_web_api_module, list_to_integer(binary_to_list(Id))};
 
-get_sub_handler(Parent, This, []) ->
-    {Parent, ds_web_api_shiptype, This}.
-
+get_sub_handler([Parents], This, []) ->
+    {[Parents], ds_web_api_shiptype, This}.
 
 delete(Db, Id) ->
     case pgsql:equery(Db, "DELETE FROM shiptypes WHERE id = $1", [Id]) of
@@ -53,7 +50,7 @@ exists(Db, Id) ->
 	    false
     end.
 
-create(Db, UId, UId) ->
+create(Db, UId, [{user, UId}]) ->
     {ok, _, _, [{TypeId}]} =
 	pgsql:equery(Db, "INSERT INTO shiptypes (user_id) VALUES ($1) RETURNING id", [UId]),
     Location = list_to_binary(io_lib:format("~p", [TypeId])),
@@ -73,7 +70,7 @@ list_resources(Db) ->
 		     end, SIds),
     {ok, List}.
 
-list_resources_for_parent(Db, UId) ->
+list_resources_for_parent(Db, [{user, UId}]) ->
     {ok, _, SIds} =
 	pgsql:equery(Db, "SELECT id, name FROM shiptypes WHERE user_id = $1", [UId]),
     List = lists:map(fun ({Id, Name}) ->

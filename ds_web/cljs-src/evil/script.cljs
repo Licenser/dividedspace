@@ -6,8 +6,8 @@
 (defn do-list [fun]
   (ajaj/do-ajaj
    "/script"
-           (fn [res]
-             (fun res))))
+   (fn [res]
+     (fun res))))
 
 (defn do-get [id fun]
   (ajaj/do-ajaj
@@ -27,7 +27,6 @@
       "user_id" evil.ajaj.uid}
      (fn [s]
        (dom/text (dom/select (str  "span[name=script-" (s "id") "-name]")) (s "name"))))))
-
 
 (defn show-script-fn [entity]
   (fn []
