@@ -13,7 +13,7 @@
 -record(state, {db}).
 
 init({tcp, http}, Req, [DB]) ->
-    {ok, Req, #state{db = DB}}.
+    {ok, Req, #state{db = ds_web_server:init_db()}}.
 
 handle(Req, State) ->
     {Path, _} = cowboy_http_req:path(Req),
