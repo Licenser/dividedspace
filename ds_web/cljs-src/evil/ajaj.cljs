@@ -4,6 +4,8 @@
 
 (def uid (js* "uid"))
 
+(def stringify (js* "JSON.stringify"))
+
 (defn clj->js
   "Recursively transforms ClojureScript maps into Javascript objects,
    other ClojureScript colls into JavaScript arrays, and ClojureScript
@@ -29,7 +31,7 @@
           {:success (fn [r] (success (js->clj r)))
            :dataType "json"
            :cache false
-           :data ((js* "JSON.stringify") (clj->js data))
+           :data (stringify (clj->js data))
            :type "PUT"
            :processData false
            :contentType "application/json"
@@ -46,6 +48,8 @@
            :contentType "application/json"
            :jsonp "json"})))
 
+
+
 (defn post-clj [url data success]
   (.ajax $
          url
@@ -54,7 +58,7 @@
            :dataType "json"
            :cache false
            :type "POST"
-           :data ((js* "JSON.stringify") (clj->js data))
+           :data (stringify (clj->js data))
            :processData false          
            :contentType "application/json"
            :jsonp "json"})))
@@ -67,7 +71,7 @@
            :dataType "json"
            :cache false
            :type "PUT"
-           :data ((js* "JSON.stringify") (clj->js data))
+           :data (stringify (clj->js data))
            :processData false          
            :contentType "application/json"
            :jsonp "json"})))
