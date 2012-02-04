@@ -1,28 +1,11 @@
-To start a fight:
+To start a divided space:
 
-Make sure the following line is added to the erlang_config.rb of the relevant project:
+go to the main directory and run make shell, 
+paste the following code into the shell and you get a webinterface on 
+http://localhost:8080
 
-ERL_FLAGS="-setcookie 'BRUATIZUOMNAIXZGHHNJ' -name 'dscore@dividedspace'"
-or 
-ERL_FLAGS="-setcookie 'BRUATIZUOMNAIXZGHHNJ' -name 'epic@dividedspace'"
+==Code==
 
-
-Compile erlv8:
-cd epic/lib/erlv8; make
-
-Start the core app:
-cd core; rake shell
-dscore@dividedspace> center:start().
-
-Start an Epic Server:
-cd epic; rake shell
-epic@dividedspace> epic:start().
-
-
-Back on the dscore shell:
-dscore@dividedspace> center:start_fight(1).
-
-%application:start(sync).
 
 application:start(sasl).
 application:start(mnesia).
@@ -45,7 +28,5 @@ application:start(erlydtl).
 application:start(ds_web).
 
 application:start(epic).
-
-center:start_fight(1).
 
 
