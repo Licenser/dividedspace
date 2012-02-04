@@ -101,22 +101,36 @@ get_data(Db, Id) ->
     {ok, get_obj(Db, Id)}.
 
 put_data(Db, Id, Obj) ->
-    {<<"fleet_id">>, FleetId} =  lists:keyfind(<<"fleet_id">>, 1, Obj),
-    {<<"shiptype_id">>, ShipId} = lists:keyfind(<<"shiptype_id">>, 1, Obj),
-    {<<"count">>, Count}  = lists:keyfind(<<"count">>, 1, Obj),
-    {ok, _, _, [{RespId, FleetId, ShipId, Count}]} = 
-	pgsql:equery(Db, "UPDATE fleet_shiptype SET fleet_id = $2, " ++
-			 "shiptype_id = $3, count = $4 " ++ 
-			 "WHERE id = $1 RETURNING id, fleet_id, shiptype_id, count", 
-		     [Id, FleetId, ShipId, Count]),
-    {ok, _, [{Name}]} =
-	pgsql:equery(Db, "SELECT name FROM  shiptypes WHERE id = $1", [ShipId]),	
+    {<<"fleet_a">>, FleetA} =  lists:keyfind(<<"fleet_a">>, 1, Obj),
+    {<<"fleet_b">>, FleetB} =  lists:keyfind(<<"fleet_b">>, 1, Obj),
+    {ok, _, ResA} = 
+	pgsql:equery(Db, "SELECT count, shiptype_id, name FROM fleet_shiptype " ++
+			 "JOIN modules ON (modules.ship_id = fleet_shiptype.shiptype_id) " ++
+			 "WHERE fleet_shiptype.fleet_id = $1",
+		     [FleetA]),
+    ShipsA = lists:foldl(fun ({Count, SId, Module}, [{Count, SId, Modules} | R]) ->
+				 [{Count, SId, [Module | Modules] }| R];
+			     ({Count, SId, Module}, R) ->
+				 [{Count, SId, [Module]} | R]
+			 end, [], ResA),
+    {ok, _, ResB} = 
+	pgsql:equery(Db, "SELECT count, shiptype_id, name FROM fleet_shiptype " ++
+			 "JOIN modules ON (modules.ship_id = fleet_shiptype.shiptype_id) " ++
+			 "WHERE fleet_shiptype.fleet_id = $1",
+		     [FleetB]),
+    ShipsB = lists:foldl(fun ({Count, SId, Module}, [{Count, SId, Modules} | R]) ->
+				 [{Count, SId, [Module | Modules] }| R];
+			     ({Count, SId, Module}, R) ->
+				 [{Count, SId, [Module]} | R]
+			 end, [], ResB),
+    io:format("ShipsA: ~p~nShipsB: ~p~n", [ShipsA, ShipsB]),
+    {ok, _, _} =
+	pgsql:equery(Db, "INSERT INTO fights (id, fleet_a, fleet_b) " ++
+			 "VALUES ($1, $2, $3)", [Id, FleetA, FleetB]),
     {ok, 
-     [{<<"id">>, RespId},
-      {<<"fleet_id">>, FleetId},
-      {<<"shiptype_id">>, ShipId},
-      {<<"count">>, Count},
-      {<<"name">> , Name}]}.
+     [{<<"id">>, Id},
+      {<<"fleet_a">>, FleetA},
+      {<<"fleet_b">>, FleetB}]}.
 
 get_obj(Db, Id) ->
     {ok, _, [{RespId, ShipId, Name, FleetId, Count}]} =

@@ -5,6 +5,7 @@
    [evil.ajaj :as ajaj]
    [evil.shiptype :as shiptype]
    [evil.fleet :as fleet]
+   [evil.fight :as fight]
    [evil.epic :as epic]))
 
 (def $ (js* "$"))
@@ -60,4 +61,6 @@
    (script/update-scripts)
    (shiptype/fetch-modules)
    (shiptype/update-shiptypes)
-   (fleet/update-fleets)))
+   (fleet/update-fleets)
+   (fight/update-fights)
+   ))

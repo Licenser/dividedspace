@@ -32,7 +32,6 @@ application:start(alog).
 
 alog_control:set_flow_priority(1, {'=<', info}).
 
-
 application:start(crypto).
 application:start(public_key).
 application:start(ssl).
@@ -46,7 +45,6 @@ application:start(erlydtl).
 application:start(ds_web).
 
 application:start(epic).
-
 
 center:start_fight(1).
 

@@ -14,7 +14,7 @@
 
 -define(GETTER(Official, Internal, Converter),
 get(_, [Official], _, _, Req) ->
-    ModuleData = lists:map(Converter, ds_web_api_handler:get_modules(Internal)),
+    ModuleData = lists:map(Converter, ds_web_center:get_modules(Internal)),
     ds_web_api_handler:json_reply(ModuleData, Req);
 
 get(_, [Official, Name], _, _, Req) ->
@@ -86,7 +86,7 @@ convert_weapon ({weapon, Name, Size, Mass, Integrety, HitPropability, HitPriorit
      {<<"damage">>, Damage}, {<<"firerate">>, FireRate}, {<<"range">>, Range}, {<<"variation">>, Variation}, {<<"accuracy">>, Accuracy}, {<<"rotatability">>, Rotatability}, {<<"energyusage">>, EnergyUsage}].
 
 get_module(ModuleType, Name, Converter) ->
-    ModuleData = ds_web_api_handler:get_modules(ModuleType),
+    ModuleData = ds_web_center:get_modules(ModuleType),
     case lists:keyfind(Name, 2, ModuleData) of
 	false -> 
 	    false;

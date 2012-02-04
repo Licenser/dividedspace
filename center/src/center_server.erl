@@ -6,14 +6,15 @@
 %%% @end
 %%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(center_server).
+-module(center_server
+).
 
 -behaviour(gen_server).
 
 %% API
 -export([start_link/0, 
          tick/0,
-         add_fight/1,
+	 add_fight/2,
          get_fight/1,
 	 get_epic_servers/0,
          get_fights/0]).
@@ -23,6 +24,8 @@
          terminate/2, code_change/3]).
 
 -define(SERVER, {global, ?MODULE}).
+
+-define(WIDTH, 20).
 
 -record(state, {epic_servers = dict:new(), fights = dict:new()}).
 
@@ -40,8 +43,9 @@
 start_link() ->
     gen_server:start_link(?SERVER, ?MODULE, [], []).
 
-add_fight(Units) ->
-    gen_server:cast(?SERVER, {add_fight, Units}).
+add_fight(UUID, Units) ->
+    gen_server:cast(?SERVER, {add_fight, UUID, Units}).
+
 
 get_fights() ->
     gen_server:call(?SERVER, get_fights).
@@ -121,8 +125,10 @@ handle_call(_Request, _From, State) ->
 %%--------------------------------------------------------------------
 handle_cast({register_fight, UUID, Pid},  #state{fights = Fights} = State) ->
     {noreply, State#state{fights = dict:store(UUID, Pid, Fights)}};
-handle_cast({add_fight, Units}, #state{epic_servers = Servers} = State) ->
-    io:format("~p~n", [dict:to_list(Servers)]),
+handle_cast({add_fight, UUID, [TeamA, TeamB]}, #state{epic_servers = Servers} = State) ->
+    io:format("Server: ~p~n", [dict:to_list(Servers)]),
+    Units = expand_fleet(one, TeamA, []),
+    Units2 = expand_fleet(one, TeamB, Units),
     {Pid, _} = lists:foldl(fun ({_, ServerPid}, {OldPid, OldTime}) ->
 				   io:format("~p~n", [gen_server:call(ServerPid, list_fights)]),
 				   {ok, Fights} = gen_server:call(ServerPid, list_fights),
@@ -134,9 +140,8 @@ handle_cast({add_fight, Units}, #state{epic_servers = Servers} = State) ->
 				       true -> {OldPid, OldTime}
 				   end				       
 			   end, {error, 100000.0}, dict:to_list(Servers)),
-    UUID = center_uuid:v4(),
     io:format("Sending: ~p.~n", [{add_fight, UUID, Units}]),
-    gen_server:cast(Pid, {add_fight, UUID, Units}),
+    gen_server:cast(Pid, {add_fight, UUID, Units2}),
     {noreply, State};
 handle_cast(tick, #state{epic_servers = Servers} = State) ->
     lists:map(fun ({_, Pid}) ->
@@ -193,3 +198,26 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+expand_fleet(Team, {N, Units}, List) ->
+    S = trunc((N / 2) * -1),
+    E = trunc(N / 2),
+    {Mul, TeamStr} = case Team of
+			 one -> {-1, <<"one">>};
+			 two -> {1, <<"two">>}
+		     end,
+    {_, Units2} = lists:foldl(fun ({C, Unit}, {Poss, L}) ->
+				 add_unit(C, {Poss, L}, Unit, Mul, TeamStr)
+			 end, {lists:seq(S, E), List}, Units),
+    Units2.
+
+add_unit(0, {Poss, L}, _Unit, _Mul, _Team) ->
+    {Poss, L};
+
+add_unit(C, {[Pos | Poss], L}, Unit, Mul, Team) ->
+    Major = abs(Pos) div ?WIDTH,
+    Minor = Pos rem ?WIDTH,    
+    add_unit(C - 1, {Poss, [{(3 + Major)*Mul, Minor, Team, Unit} | L]}, Unit, Mul, Team).
+
+    
+    

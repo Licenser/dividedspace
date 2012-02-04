@@ -59,15 +59,17 @@ init([]) ->
     Dispatch = [
 		{'_', [
 		       {[<<"fight">>, '...'], ds_web_websocket_handler, []},
-		       {[<<"api">>, <<"v1">>, <<"user">>], ds_web_api_handler, [DB]},
-		       {[<<"api">>, <<"v1">>, <<"user">>, '_'], ds_web_api_handler, [DB]},
-		       {[<<"api">>, <<"v1">>, <<"user">>, '...'], ds_web_api_protocol, 
+		       {[<<"api">>, <<"v1">>, '...'], ds_web_api_protocol, 
 			[[{<<"shiptype">>, ds_web_api_shiptype},
 			  {<<"script">>, ds_web_api_script},
-			  {<<"fleet">>, ds_web_api_fleet}]]},
+			  {<<"fleet">>, ds_web_api_fleet},
+			  {<<"fight">>, ds_web_api_fight}]
+			]},
+		       {[<<"api">>, <<"v1">>, <<"user">>], ds_web_api_handler, [DB]},
+		       {[<<"api">>, <<"v1">>, <<"user">>, '_'], ds_web_api_handler, [DB]},		       
 		       {[<<"api">>, <<"v1">>, '...'], ds_web_api_handler, [DB]},
 		       {[<<"static">>, '...'], cowboy_http_static,
-			[{directory, <<"./htdocs">>},
+			[{directory, StaticPath},
 			 {mimetypes, [{<<".css">>, [<<"text/css">>]},
 				      {<<".png">>, [<<"image/png">>]},
 				      {<<".js">>, [<<"application/javascript">>]}]}]},

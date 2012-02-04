@@ -173,7 +173,7 @@ handle_info(timeout, State) ->
     {noreply, State#state{ref = Ref}};
 handle_info({'DOWN', Ref, process, Pid, Reason}, #state{ref = Ref} = State) ->
     ?WARNING({"Center Node went down", Pid, Ref, Reason}),
-    {noreply, State};
+    {noreply, State, 1000};
 handle_info(Info, State) ->
     ?WARNING({"Unknown handle info", Info}),
     {noreply, State}.

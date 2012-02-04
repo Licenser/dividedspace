@@ -45,21 +45,38 @@ init({tcp, http}, _Req, _Opts) ->
 %% Init Section
 rest_init(Req, [Modules]) ->
     Session = ds_web_session:get(Req),
-    {[<<"api">>, <<"v1">>, <<"user">>  | Path], Req2} = cowboy_http_req:path(Req),
     {UserId, ResourceStr2, ResId, SubPath} = 
-	case Path of
-	    [] -> 
-		{undefined, undefined, undefined, []};
-	    [UserIdStr] -> 
-		{list_to_integer(binary_to_list(UserIdStr)), undefined, list_to_integer(binary_to_list(UserIdStr)), []};
-	    [UserIdStr, ResourceStr] -> 
-		{list_to_integer(binary_to_list(UserIdStr)), ResourceStr, undefined, []};
-	    [UserIdStr, ResourceStr, ResIdStr | Rest] -> 
-		{list_to_integer(binary_to_list(UserIdStr)), ResourceStr, list_to_integer(binary_to_list(ResIdStr)), Rest}
+	case cowboy_http_req:path(Req) of
+	    {[<<"api">>, <<"v1">>, <<"user">>  | Path], Req2} ->
+		case Path of
+		    [] -> 
+			{undefined, undefined, undefined, []};
+		    [UserIdStr] -> 
+			{parse_id(UserIdStr), undefined, parse_id(UserIdStr), []};
+		    [UserIdStr, ResourceStr] -> 
+			{parse_id(UserIdStr), ResourceStr, undefined, []};
+		    [UserIdStr, ResourceStr, ResIdStr | Rest] -> 
+			{parse_id(UserIdStr), ResourceStr, parse_id(ResIdStr), Rest}
+		end;
+	    {[<<"api">>, <<"v1">> | Path], Req2} ->
+		case Path of
+		    [] -> 
+			{undefined, undefined, undefined, []};
+		    [ResourceStr] -> 
+			{undefined, ResourceStr, undefined, []};
+		    [ResourceStr, ResIdStr | Rest] -> 
+			{undefined, ResourceStr, parse_id(ResIdStr), Rest}
+		end
 	end,
     {Method, Req3} = cowboy_http_req:method(Req2),
     {ResourceStr2, Module} = lists:keyfind(ResourceStr2, 1, Modules),
-    {ParentIds, SubModule, SubModukeId} = Module:get_sub_handler([{user, UserId}], ResId, SubPath),
+    {ParentIds, SubModule, SubModukeId} =
+	case UserId of
+	    undefined ->
+		Module:get_sub_handler([], ResId, SubPath);
+	    _ ->
+		Module:get_sub_handler([{user, UserId}], ResId, SubPath)
+	end,
     Db = ds_web_server:init_db(),
     State = #state{
       db = Db,
@@ -167,11 +184,11 @@ create_path(Req, #state{
 
 %% Callbacks
 
-to_json(Req,  #state{
+to_json(Req, #state{
 	  module = Module,
 	  db = Db,
-	  pids = undefiend,
-	  id = undefiend
+	  pids = [],
+	  id = undefined
 	 } = State) ->
     {ok, Entety} = Module:list_resources(Db),
     Res = case mochijson2:encode(Entety) of
@@ -182,12 +199,13 @@ to_json(Req,  #state{
 	  end,
     {Res, Req, State};
 
-to_json(Req,  #state{
+to_json(Req, #state{
 	  module = Module,
 	  db = Db,
 	  pids = PIds,
 	  id = undefined
 	 } = State) ->
+    io:format("~p/~p~n", [State, PIds]),
     {ok, Entety} = Module:list_resources_for_parent(Db, PIds),
     Res = case mochijson2:encode(Entety) of
 	      R when is_binary(R) ->
@@ -232,3 +250,12 @@ from_json(Req, #state{
 	       end,
     {ok, Req3} = cowboy_http_req:set_resp_body(RespBody, Req2),
     {true, Req3, State}.
+
+parse_id(Id) ->
+    case re:run(Id, <<"^\\d+$">>,[]) of
+	nomatch -> 
+	    Id;
+	_ -> 
+	    list_to_integer(binary_to_list(Id))
+    end.
+

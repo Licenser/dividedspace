@@ -37,5 +37,13 @@ CREATE TABLE fleet_shiptype (
 
 CREATE INDEX fleet_id_idx ON fleet_shiptype (fleet_id);
 
+CREATE TABLE fights (
+       id char(36) PRIMARY KEY,
+       fleet_a integer REFERENCES fleets(id) ON DELETE CASCADE,
+       fleet_b integer REFERENCES fleets(id) ON DELETE CASCADE);
+
+
        
-SELECT shiptypes.id, shiptypes.name, fleet_shiptype.count FROM fleets JOIN fleet_shiptype ON (fleet_shiptype.fleet_id = fleets.id) JOIN shiptypes ON (shiptypes.id = fleet_shiptype.shiptype_id);
+SELECT s.id, s.name, fs.count FROM fleets AS f
+JOIN fleet_shiptype ON (fleet_shiptype.fleet_id = fleets.id) AS fs
+JOIN shiptypes ON (shiptypes.id = fleet_shiptype.shiptype_id) as s;

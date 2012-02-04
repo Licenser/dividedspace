@@ -5,30 +5,46 @@
 (defn select [id]
   ($ id))
 
+(defn ensure [o]
+  (if (string? o)
+    (select o)
+    o))
+
 (defn append [obj cnt]
-  (.append obj cnt))
+  (.append (ensure obj) cnt))
 
 (defn text [obj txt]
-  (.text obj txt))
+  (.text (ensure obj) txt))
 
 (defn click [obj f]
-  (.click obj f))
+  (.click (ensure obj) f))
 
 (defn blur [obj f]
-  (.blur obj f))
+  (.blur (ensure obj) f))
 
 (defn clear [obj]
   (text obj ""))
 
 (defn val [obj]
-  (. obj (val)))
+  (if (string? obj)
+    (. (select obj) (val))
+    (. obj (val))))
+
+(defn ival [obj]
+  (js/parseInt (val obj)))
 
 (defn del [obj]
   (. obj (remove)))
 
-
 (defn attr [obj k v]
   (.attr obj k v))
+
+(defn s [opts f l]
+  (vec
+   (concat
+    [:select]
+    opts
+    (map f l))) )
 
 (defn c [v]
   (if (vector? v)
@@ -40,8 +56,7 @@
                      (condp = k
                        :click (click tag v)
                        :blur (click tag v)
-                       (attr tag (name k) v))
-                     )
+                       (attr tag (name k) v)))
                    tag
                    f)]
           (reduce

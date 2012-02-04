@@ -2,7 +2,6 @@
 -behaviour(cowboy_http_handler).
 -export([init/3, handle/2, terminate/2,
 	 json_reply/2,
-	 get_modules/1,
 	 flatten_sql_res/1]).
 
 %-include("ds_web.hrl").
@@ -15,21 +14,12 @@
 -record(state, {db}).
 
 init({tcp, http}, Req, [Db]) ->
-    {ok, Req, #state{db=Db}}.
+    {ok, Req, #state{db=ds_web_server:init_db()}}.
 
 handle(Req, #state{db=Db} = State) ->
-%    Db1 = case process_info(Db) of
-%	      undefined -> ds_web_server:init_db();
-%	      Else -> Else
-%	  end,
     {[<<"api">>, Version | Path], _} = cowboy_http_req:path(Req),
     {Method, _} = cowboy_http_req:method(Req),
-%    {ok, SessionCookieName} = application:get_env(ds_web, session_name),
-%    {ok, SessionKey} = application:get_env(ds_web, session_key),
-%    Session = ds_web_session:get_session(SessionCookieName, 
-%					 SessionKey, Req),
     {ok, Reply} = request(Method, Version, Path, #session{uid=1, admin=1}, Db, Req),
-%    {ok, Reply} = request(Method, Version, Path, Session, Db, Req),
     {ok, Reply, State#state{db=Db}}.
 
 terminate(_Req, _State) ->
@@ -41,21 +31,27 @@ request(_, _, _, undefined, _Db, Req) ->
 request('GET', _, [], _, _Db, Req) ->
     json_reply([<<"moduletype">>, <<"server">>, <<"user">>], Req);
 
-
 %% ============================ \/ User
 
 request('GET', Vsn, [<<"user">> | Rest], Session, Db, Req) ->
     ds_web_api_user:get(Vsn, Rest, Session, Db, Req);
 
+request('GET', _Vsn, [<<"test">> | _Rest], _Session, Db, Req) ->
+    {ok, _, Res} = 
+	pgsql:equery(Db, "select count, shiptype_id, name from fleet_shiptype " ++
+			 "JOIN modules on (modules.ship_id = fleet_shiptype.shiptype_id) " ++
+			 "WHERE fleet_shiptype.fleet_id = $1",
+		     [2]),
+    Ships = lists:foldl(fun ({Count, Id, Module}, [{Count, Id, Modules} | R]) ->
+				[{Count, Id, [Module | Modules] }| R];
+			    ({Count, Id, Module}, R) ->
+				[{Count, Id, [Module]} | R]
+			end, [], Res),
+    io:format("~p~n", [Ships]),
+    json_reply(Res, Req);
+
+
 request('POST', Vsn, [<<"user">> | Rest], Session, Db, Req) ->
-    ds_web_api_user:post(Vsn, Rest, Session, Db, Req);
-
-%% ============================ \/ Scripts
-
-request('GET', Vsn, [<<"scripts">> | Rest], Session, Db, Req) ->
-    ds_web_api_user:get(Vsn, Rest, Session, Db, Req);
-
-request('POST', Vsn, [<<"scripts">> | Rest], Session, Db, Req) ->
     ds_web_api_user:post(Vsn, Rest, Session, Db, Req);
 
 %% ============================ \/ Moduletype
@@ -75,11 +71,11 @@ request('GET', _, [<<"server">>], _Session, _Db, Req) ->
     json_reply([<<"epic">>, <<"ds_web">>], Req);
 
 request('GET', _, [<<"server">>, <<"epic">>], _Session, _Db, Req) ->
-    json_reply(get_epic_servers(), Req);
+    json_reply(ds_web_center:get_epic_servers(), Req);
 
 request('GET', _, [<<"server">>, <<"epic">>, UUID], _Session, _Db, Req) ->
-    Pid = get_epic_pid(UUID),
-    Fights = get_fights(Pid),
+    Pid = ds_web_center:get_epic_pid(UUID),
+    Fights = ds_web_epic:get_fights(Pid),
     FightData = lists:map(fun ({FightUUID, {State, Ticks, Time}}) ->
 				  [{id, FightUUID},
 				   {state, State}, {ticks, Ticks},
@@ -95,24 +91,6 @@ json_reply(Data, Req) ->
 			  [{<<"Content-Type">>, <<"application/json">>}], 
 			  mochijson2:encode(Data),
 			  Req).
-
-call_center(Call)->
-    gen_server:call({global,center_server}, Call).
-
-get_modules(Type) ->
-    call_center({get_modules, Type}).
-
-get_epic_servers() ->
-    R = call_center(get_epic_servers),
-    R.
-
-get_epic_pid(UUID) ->
-    {ok, R} = call_center({get_server_pid, UUID}),
-    R.
-
-get_fights(Pid) ->
-    {ok, R} = gen_server:call(Pid, list_fights),
-    R.
 
 flatten_sql_res(List) ->
     lists:map(fun ({E}) ->

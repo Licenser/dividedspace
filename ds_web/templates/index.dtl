@@ -26,6 +26,11 @@
           <span class="sectionhead">fleets</span>
           <div id="fleet"></div>
         </div>
+        <div id="fight-container" class="category">
+          <span class="sectionhead">Fights</span>
+	  <div id="fight"></div>
+        </div>
+
       </div>
       <div id="center"></div>
   </body>
