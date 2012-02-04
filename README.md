@@ -34,8 +34,6 @@ go to the main directory and run make shell,
 paste the following code into the shell and you get a webinterface on 
 http://localhost:8080
 
-==Code==
-
 ```erlang
 application:start(sasl).
 application:start(mnesia).
