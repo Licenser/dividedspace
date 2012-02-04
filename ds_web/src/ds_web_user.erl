@@ -1,10 +1,10 @@
 %%%-------------------------------------------------------------------
-%%% @author Heinz N. Gies <licenser@Schroedinger.local>
+%%% @author Heinz N. Gies <licenser@licenser.net>
 %%% @copyright (C) 2011, Heinz N. Gies
 %%% @doc
 %%%
 %%% @end
-%%% Created :  9 Dec 2011 by Heinz N. Gies <licenser@Schroedinger.local>
+%%% Created :  9 Dec 2011 by Heinz N. Gies <licenser@licenser.net>
 %%%-------------------------------------------------------------------
 -module(ds_web_user).
 

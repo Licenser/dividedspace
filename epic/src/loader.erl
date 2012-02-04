@@ -14,7 +14,6 @@
 	 load/1
 	]).
 
-
 load() ->
     load("armor") ++
 	load("engine") ++
@@ -26,7 +25,6 @@ load() ->
 load(Type) ->
     Modules = epic_center:get_modules(Type),
     lists:map(fun insert/1, Modules).
-
 
 convert({armor, Name, Size, Mass, Integrety, HitPropability, HitPriority, DamageAbsorbtion}) ->
     {ok, ModuleType} = module_type:new(Name, Size, Integrety, Mass, HitPropability, HitPriority, module:new_armor_spec(DamageAbsorbtion)),
