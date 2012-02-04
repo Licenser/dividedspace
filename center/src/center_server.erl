@@ -6,8 +6,7 @@
 %%% @end
 %%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
--module(center_server
-).
+-module(center_server).
 
 -behaviour(gen_server).
 

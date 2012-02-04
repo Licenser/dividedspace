@@ -63,7 +63,8 @@ init([]) ->
 			[[{<<"shiptype">>, ds_web_api_shiptype},
 			  {<<"script">>, ds_web_api_script},
 			  {<<"fleet">>, ds_web_api_fleet},
-			  {<<"fight">>, ds_web_api_fight}]
+			  {<<"fight">>, ds_web_api_fight},
+			  {<<"moduletype">>, ds_web_api_moduletype}]
 			]},
 		       {[<<"api">>, <<"v1">>, <<"user">>], ds_web_api_handler, [DB]},
 		       {[<<"api">>, <<"v1">>, <<"user">>, '_'], ds_web_api_handler, [DB]},		       

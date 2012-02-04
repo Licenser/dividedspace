@@ -8,9 +8,18 @@
 %%%-------------------------------------------------------------------
 -module(ds_web_api_moduletype).
 
-%% API
--export([get/5,
-	 post/5]).
+-behaviour(ds_web_api_behaviour).
+
+-export([get_sub_handler/3,
+	 delete/2,
+	 forbidden/3,
+	 create/3,
+	 exists/2,
+	 list_resources/1,
+	 list_resources_for_parent/2,
+	 get_data/2,
+	 get_owner/2,
+	 put_data/3]).
 
 -define(GETTER(Official, Internal, Converter),
 get(_, [Official], _, _, Req) ->
@@ -28,62 +37,101 @@ get(_, [Official, Name, Key], _, _, Req) ->
 %%% API
 %%%===================================================================
 
+get_sub_handler(Parents, This, []) ->
+    {Parents, ds_web_api_moduletype, This}.
+
+delete(_Db, _Id) ->
+    false.
+
+forbidden(_Db, _Id, _UId) ->
+    false.
+
+
+exists(_Db, <<"armor">>) ->
+    true;
+
+exists(_Db, <<"engine">>) ->
+    true;
+
+exists(_Db, <<"generator">>) ->
+    true;
+
+exists(_Db, <<"hull">>) ->
+    true;
+
+exists(_Db, <<"shield">>) ->
+    true;
+
+exists(_Db, <<"weapon">>) ->
+    true;
+
+exists(_Db, _Id) ->
+    false.
+
+create(_Db, _UId, _Parents) ->
+    false.
+
+list_resources(_Db) ->
+    {ok, [<<"armor">>,	
+	  <<"engine">>,	
+	  <<"generator">>,
+	  <<"hull">>,
+	  <<"shield">>,
+	  <<"weapon">>]}.
+
+list_resources_for_parent(_Db, _Parent) ->
+    {ok, [<<"armor">>,	
+	  <<"engine">>,	
+	  <<"generator">>,
+	  <<"hull">>,
+	  <<"shield">>,
+	  <<"weapon">>]}.
+    
+get_owner(_Db, _Id) ->
+    {ok, all}.
+
+get_data(_Db, Id) ->
+    ModuleData = lists:map(fun convert/1, ds_web_center:get_modules(binary_to_list(Id))),
+    {ok, ModuleData}.
+
+put_data(_Db, _Id, _Obj) ->
+
+    false.
+
+
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec
 %% @end
 %%--------------------------------------------------------------------
 
-get(_, [], _, _, Req) ->
-    ds_web_api_handler:json_reply([<<"armor">>,	
-		<<"engine">>,	
-		<<"generator">>,
-		<<"hull">>,
-		<<"shield">>,
-		<<"weapon">>], Req);
-
-?GETTER(<<"armor">>, "armor", fun convert_armor/1);
-?GETTER(<<"engine">>, "engines", fun convert_engine/1);
-?GETTER(<<"generator">>, "generators", fun convert_generator/1);
-?GETTER(<<"hull">>, "hulls", fun convert_hull/1);
-?GETTER(<<"shield">>, "shields", fun convert_shield/1);
-?GETTER(<<"weapon">>, "weapons", fun convert_weapon/1);
-get('GET', _, _, _, Req) ->
-    cowboy_http_req:reply(404, [], <<"Not found">>, Req);
-get(_, _, _, _, Req) ->
-    cowboy_http_req:reply(403, [], <<"Permission Denied">>, Req).
-
-post(_, _, _, _, Req) ->
-    cowboy_http_req:reply(403, [], <<"Permission Denied">>, Req).
-
-
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-convert_armor ({armor, Name, Size, Mass, Integrety, HitPropability, HitPriority, DamageAbsorbtion}) ->
+convert({armor, Name, Size, Mass, Integrety, HitPropability, HitPriority, DamageAbsorbtion}) ->
     [{type, <<"armor">>}, {<<"name">>, Name}, {<<"size">>, Size}, {<<"mass">>, Mass}, {<<"integrety">>, Integrety}, {<<"hitpropability">>, HitPropability}, {<<"hitpriority">>, HitPriority},
-     {<<"damageabsorbtion">>, DamageAbsorbtion}].
+     {<<"damageabsorbtion">>, DamageAbsorbtion}];
 
-convert_engine ({engine, Name, Size, Mass, Integrety, HitPropability, HitPriority, EnergyUsage, Range}) ->
+convert({engine, Name, Size, Mass, Integrety, HitPropability, HitPriority, EnergyUsage, Range}) ->
     [{type, <<"engine">>}, {<<"name">>, Name}, {<<"size">>, Size}, {<<"mass">>, Mass}, {<<"integrety">>, Integrety}, {<<"hitpropability">>, HitPropability}, {<<"hitpriority">>, HitPriority},
-     {<<"energyusage">>, EnergyUsage}, {<<"range">>, Range}].
+     {<<"energyusage">>, EnergyUsage}, {<<"range">>, Range}];
 
-convert_generator ({generator, Name, Size, Mass, Integrety, HitPropability, HitPriority, DischargeRate, Output, Capacity, Efficiency}) ->
+convert({generator, Name, Size, Mass, Integrety, HitPropability, HitPriority, DischargeRate, Output, Capacity, Efficiency}) ->
     [{type, <<"generator">>}, {<<"name">>, Name}, {<<"size">>, Size}, {<<"mass">>, Mass}, {<<"integrety">>, Integrety}, {<<"hitpropability">>, HitPropability}, {<<"hitpriority">>, HitPriority},
-     {<<"dischargerage">>, DischargeRate}, {<<"output">>, Output}, {<<"capacity">>, Capacity}, {<<"efficiency">>, Efficiency}].
+     {<<"dischargerage">>, DischargeRate}, {<<"output">>, Output}, {<<"capacity">>, Capacity}, {<<"efficiency">>, Efficiency}];
 
-convert_hull ({hull, Name, Size, Mass, Integrety, HitPropability, HitPriority, Maneuverability}) ->
+convert({hull, Name, Size, Mass, Integrety, HitPropability, HitPriority, Maneuverability}) ->
     [{type, <<"hull">>}, {<<"name">>, Name}, {<<"size">>, Size}, {<<"mass">>, Mass}, {<<"integrety">>, Integrety}, {<<"hitpropability">>, HitPropability}, {<<"hitpriority">>, HitPriority},
-     {<<"maneuverability">>, Maneuverability}].
+     {<<"maneuverability">>, Maneuverability}];
 
-
-convert_shield ({shield, Name, Size, Mass, Integrety, HitPropability, HitPriority, Energy}) ->
+convert({shield, Name, Size, Mass, Integrety, HitPropability, HitPriority, Energy}) ->
     [{type, <<"shield">>}, {<<"name">>, Name}, {<<"size">>, Size}, {<<"mass">>, Mass}, {<<"integrety">>, Integrety}, {<<"hitpropability">>, HitPropability}, {<<"hitpriority">>, HitPriority},
-     {<<"energy">>, Energy}].
+     {<<"energy">>, Energy}];
 
-convert_weapon ({weapon, Name, Size, Mass, Integrety, HitPropability, HitPriority, Damage, FireRate, Range, Variation, Accuracy, Rotatability, EnergyUsage}) ->
+convert({weapon, Name, Size, Mass, Integrety, HitPropability, HitPriority, Damage, FireRate, Range, Variation, Accuracy, Rotatability, EnergyUsage}) ->
     [{type, <<"weapon">>}, {<<"name">>, Name}, {<<"size">>, Size}, {<<"mass">>, Mass}, {<<"integrety">>, Integrety}, {<<"hitpropability">>, HitPropability}, {<<"hitpriority">>, HitPriority},
      {<<"damage">>, Damage}, {<<"firerate">>, FireRate}, {<<"range">>, Range}, {<<"variation">>, Variation}, {<<"accuracy">>, Accuracy}, {<<"rotatability">>, Rotatability}, {<<"energyusage">>, EnergyUsage}].
+
 
 get_module(ModuleType, Name, Converter) ->
     ModuleData = ds_web_center:get_modules(ModuleType),

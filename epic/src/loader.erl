@@ -16,15 +16,15 @@
 
 
 load() ->
-    load("data/armor.erl") ++
-	load("data/engines.erl") ++
-	load("data/generators.erl") ++
-	load("data/shields.erl") ++
-	load("data/weapons.erl") ++
-	load("data/hulls.erl").
+    load("armor") ++
+	load("engine") ++
+	load("generator") ++
+	load("shield") ++
+	load("weapon") ++
+	load("hull").
 
-load(File) ->
-    {ok, Modules} = file:consult(File),
+load(Type) ->
+    Modules = epic_center:get_modules(Type),
     lists:map(fun insert/1, Modules).
 
 

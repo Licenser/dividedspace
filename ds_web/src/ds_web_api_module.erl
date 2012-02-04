@@ -4,8 +4,7 @@
 
 %-include("ds_web.hrl").
 
--export([
-	 get_sub_handler/3,
+-export([get_sub_handler/3,
 	 delete/2,
 	 forbidden/3,
 	 create/3,

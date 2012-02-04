@@ -29,6 +29,5 @@ get_epic_pid(UUID) ->
     {ok, R} = call({get_server_pid, UUID}),
     R.
 
-
 add_fight(UUID, TeamA, TeamB) ->
     cast({add_fight, UUID, [TeamA, TeamB]}).

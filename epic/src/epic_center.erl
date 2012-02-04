@@ -10,7 +10,7 @@
 -include_lib("alog_pt.hrl").
 
 %% API
--export([register/1, call/1, cast/1]).
+-export([register/1, call/1, cast/1, get_modules/1]).
 
 -define(SERVER, {global, center_server}).
 
@@ -20,6 +20,10 @@
 
 register(Pid) ->
     call({register_epic, Pid}).
+
+get_modules(Type) ->
+    call({get_modules, Type}).
+
 %%--------------------------------------------------------------------
 %% @doc
 %% @spec

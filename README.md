@@ -25,8 +25,6 @@ instance for running AI scripts of the ships. Currently v8 does not support
 concurrency or running on more then one CPU/Core, so the way to scle is to start
 multiple epic nodes.
 
-
-
 Start a divided space
 =====================
 

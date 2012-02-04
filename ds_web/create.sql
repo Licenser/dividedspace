@@ -7,7 +7,7 @@ CREATE TABLE users (
 
 CREATE TABLE scripts (
        id SERIAL PRIMARY KEY,
-       name varchar(64), 
+       name varchar(64),
        code text,
        user_id integer REFERENCES users(id) ON DELETE CASCADE,
        (id));
@@ -41,9 +41,3 @@ CREATE TABLE fights (
        id char(36) PRIMARY KEY,
        fleet_a integer REFERENCES fleets(id) ON DELETE CASCADE,
        fleet_b integer REFERENCES fleets(id) ON DELETE CASCADE);
-
-
-       
-SELECT s.id, s.name, fs.count FROM fleets AS f
-JOIN fleet_shiptype ON (fleet_shiptype.fleet_id = fleets.id) AS fs
-JOIN shiptypes ON (shiptypes.id = fleet_shiptype.shiptype_id) as s;
