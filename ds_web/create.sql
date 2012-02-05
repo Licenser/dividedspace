@@ -21,7 +21,7 @@ CREATE TABLE shiptypes (
 CREATE TABLE modules (
        id SERIAL PRIMARY KEY,
        user_id integer REFERENCES users(id) ON DELETE CASCADE,
-       ship_id integer REFERENCES shiptypes(id),
+       ship_id integer REFERENCES shiptypes(id) ON DELETE CASCADE,
        name varchar(64));
 
 CREATE TABLE fleets (
