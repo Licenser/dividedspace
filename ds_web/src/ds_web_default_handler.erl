@@ -39,11 +39,8 @@ request('GET', [<<"admin">>], undefined, Req, _State) ->
 
 
 request('GET', [<<"logout">>], _, Req, _State) ->
-    io:format("1~n"),
     {ok, SessionCookieName} = application:get_env(ds_web, session_name),
-    io:format("2~n"),
     {ok, Req2} = ds_web_session:rem_session(SessionCookieName, Req),
-    io:format("3 ~p~n", [Req2]),
     cowboy_http_req:reply(200, [], force_login(), Req2);
 request('GET', [<<"login">>], undefined, Req, _State) ->
     {ok, Page} = tpl_login:render(),
@@ -64,7 +61,6 @@ request('POST', [<<"login">>], _, Req, #state{db = DB}) ->
 							      name = Name,
 							      admin = Rights
 							    }),
-	    io:format("~p~n", [Req2]),
 	    cowboy_http_req:reply(200, [], force_index(), Req2);
 	_ ->
 	    {ok, Page} = tpl_login:render(),
@@ -84,7 +80,6 @@ request(_, _, _, Req, _) ->
     
 user_pass(Req) ->
     {Data, _} = cowboy_http_req:body_qs(Req),
-    io:format("D: ~p~n", [Data]),
     case lists:keyfind(<<"user">>, 1, Data) of
 	false -> {<<"">>,<<"">>};
 	{_, U} -> 

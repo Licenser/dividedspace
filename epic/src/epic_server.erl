@@ -89,8 +89,10 @@ init([]) ->
 handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
     ?INFO({"handle call: ", get_fight, Id}),
     case dict:find(Id, Fights) of
-	{ok, Fight} -> {reply, {ok, Fight}, State};
-	error -> {reply, {error, not_found}, State}
+	{ok, Fight} -> 
+	    {reply, {ok, Fight}, State};
+	error -> 
+	    {reply, {error, not_found}, State}
     end;
 handle_call(list_fights, _From, #state{fights = Fights} = State) ->
     ?INFO({"handle call: ", list_fights}),

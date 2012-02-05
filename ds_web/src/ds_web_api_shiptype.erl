@@ -26,7 +26,6 @@ get_sub_handler([Parents], This, []) ->
 
 delete(Db, Id) ->
     R = pgsql:equery(Db, "DELETE FROM shiptypes WHERE id = $1", [Id]),
-    io:format("~p~n", [R]),
     case R of
 	{ok, 1} ->
 	    true;
@@ -92,7 +91,6 @@ get_data(Db, Id) ->
 put_data(Db, Id, Obj) ->
     {<<"user_id">>, UserId} = lists:keyfind(<<"user_id">>, 1, Obj),
     {<<"name">>, Name} = lists:keyfind(<<"name">>, 1, Obj),
-    %<<"Type ", (list_to_binary(io_lib:format("~p", [Id])))/binary>>,
     {<<"script_id">>, ScriptId} = lists:keyfind(<<"script_id">>, 1, Obj),
     {ok, _, _, [{RespId, UserId, Name, ScriptId}]} = 
 	pgsql:equery(Db, "UPDATE shiptypes SET user_id = $2, name = $3, script_id = $4" ++ 

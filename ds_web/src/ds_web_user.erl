@@ -29,14 +29,11 @@ verify(_Connection, <<"">>, <<"">>) ->
     {error, not_found};
 
 verify(Connection, User, Pass) ->
-    io:format("U/P: ~p/~p~n", [User, Pass]),
     SeededPass = <<User/binary, ":", Pass/binary>>,
-    io:format("SP: ~p~n", [SeededPass]),
     case pgsql:equery(Connection, "SELECT id, name, rights FROM users WHERE name=$1 and pass=MD5($2)", [binary_to_list(User), SeededPass]) of
 	{ok, _, [{UId, Name, Rights}]} -> {ok, UId, Name, Rights};
 	{ok, _, []} -> {error, not_found};
-	E -> io:format("E: ~p~n", [E]), 
-	     {error, sql_failed, E}
+	E -> {error, sql_failed, E}
     end.
 
 create(Connection, User, Pass) ->

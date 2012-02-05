@@ -127,7 +127,6 @@ handle_cast({add_fight, UUID, [TeamA, TeamB]}, #state{epic_servers = Servers} = 
     Units = expand_fleet(one, TeamA, []),
     Units2 = expand_fleet(two, TeamB, Units),
     {Pid, _} = lists:foldl(fun ({_, ServerPid}, {OldPid, OldTime}) ->
-				   io:format("~p~n", [gen_server:call(ServerPid, list_fights)]),
 				   {ok, Fights} = gen_server:call(ServerPid, list_fights),
 				   Time = lists:foldl(fun ({_, {_, _, FightTime}}, Total) ->
 							      Total + FightTime
@@ -158,7 +157,6 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({'DOWN', _Ref, process, Pid, _Reason}, #state{epic_servers = Servers} = State) ->
-    io:format("Client down: ~p.~n", [Pid]),
     NewState = State#state{epic_servers = dict:filter(fun (_, APid) ->
 							      APid =/= Pid
 						      end, Servers)},

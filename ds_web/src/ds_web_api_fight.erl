@@ -64,25 +64,35 @@ list_resources(Db) ->
 			 "JOIN fleets AS fleet_b ON (fights.fleet_b = fleet_b.id) " ++
 			 "JOIN users AS user_a ON (fleet_a.user_id = user_a.id) " ++
 			 "JOIN users AS user_b ON (fleet_b.user_id = user_b.id)"),
-    List = lists:map(fun ({Id, 
-			   FleetAName, FleetAId, UserAName, UserAId,
-			   FleetBName, FleetBId, UserBName, UserBId
-			  }) ->
-			     [{<<"id">>, Id},
-			      {<<"fleets">>,
-			       [
-				[{<<"id">>, FleetAId},
-				 {<<"name">>, FleetAName},
-				 {<<"user">>, 
-				  [{<<"id">>, UserAId},
-				   {<<"name">>, UserAName}]}],
-				[{<<"id">>, FleetBId},
-				 {<<"name">>, FleetBName},
-				 {<<"user">>, 
-				  [{<<"id">>, UserBId},
-				   {<<"name">>, UserBName}]}]]}]
-		     end, SIds),
-    {ok, List}.
+    List = lists:filter(fun ({Id, _, _, _, _, _, _, _, _} = E) ->
+				case ds_web_center:get_fight_server(Id) of
+				    error ->
+					pgsql:equery(Db, "DELETE FROM fights " ++
+							 "WHERE id = $1", [Id]),
+					false;
+				    {ok, _} ->
+					true
+				end
+			end, SIds),
+    List2 = lists:map(fun ({Id, 
+			    FleetAName, FleetAId, UserAName, UserAId,
+			    FleetBName, FleetBId, UserBName, UserBId
+			   }) ->
+			      [{<<"id">>, Id},
+			       {<<"fleets">>,
+				[
+				 [{<<"id">>, FleetAId},
+				  {<<"name">>, FleetAName},
+				  {<<"user">>, 
+				   [{<<"id">>, UserAId},
+				    {<<"name">>, UserAName}]}],
+				 [{<<"id">>, FleetBId},
+				  {<<"name">>, FleetBName},
+				  {<<"user">>, 
+				   [{<<"id">>, UserBId},
+				    {<<"name">>, UserBName}]}]]}]
+		      end, List),
+    {ok, List2}.
 
 list_resources_for_parent(Db, [{user, UId}]) ->
     {ok, _, SIds} =
@@ -131,22 +141,24 @@ get_data(Db, Id) ->
     {ok, get_obj(Db, Id)}.
 
 put_data(Db, Id, Obj) ->
-    {<<"fleet_a">>, FleetA} = lists:keyfind(<<"fleet_a">>, 1, Obj),
-    {<<"fleet_b">>, FleetB} = lists:keyfind(<<"fleet_b">>, 1, Obj),
-    {ok, _, _, [{Id, FleetA, FleetB}]} =     
+    {<<"fleet_a">>, FleetAId} = lists:keyfind(<<"fleet_a">>, 1, Obj),
+    {<<"fleet_b">>, FleetBId} = lists:keyfind(<<"fleet_b">>, 1, Obj),
+    {ok, _, _, [{Id, FleetAId, FleetBId}]} =     
 	pgsql:equery(Db, "INSERT INTO fights (id, fleet_a, fleet_b) "++
 			 "VALUES ($1, $2, $3) " ++
 			 "RETURNING id, fleet_a, fleet_b",
-		     [Id, FleetA, FleetB]),
-    
+		     [Id, FleetAId, FleetBId]),
+    FleetA = explode_fleet(Db, FleetAId),
+    FleetB = explode_fleet(Db, FleetBId),
+    ds_web_center:add_fight(Id, FleetA, FleetB),    
     {ok, [{<<"id">>, Id},
-	   {<<"fleet_a">>, FleetA},
-	   {<<"fleet_b">>, FleetB}]}.
+	   {<<"fleet_a">>, FleetAId},
+	   {<<"fleet_b">>, FleetBId}]}.
 
 get_obj(Db, Id) ->
     {ok, _, [{Id, 
-	      _FleetAName, FleetAId, _UserAName, _UserAId,
-	      _FleetBName, FleetBId, _UserBName, _UserBId}]} =
+	      FleetAName, FleetAId, UserAName, UserAId,
+	      FleetBName, FleetBId, UserBName, UserBId}]} =
 	pgsql:equery(Db, "SELECT fights.id, " ++
 			 "fleet_a.name AS fleet_a_name, " ++
 			 "fleet_a.id AS fleet_a_id, " ++
@@ -163,12 +175,20 @@ get_obj(Db, Id) ->
 			 "JOIN users AS user_b ON (fleet_b.user_id = user_b.id) " ++
 			 "WHERE fights.id = $1",
 		     [Id]),
-    FleetA = explode_fleet(Db, FleetAId),
-    FleetB = explode_fleet(Db, FleetBId),
-    ds_web_center:add_fight(Id, FleetA, FleetB),
     [{<<"id">>, Id},
-     {<<"fleet_a">>, FleetAId},
-     {<<"fleet_b">>, FleetBId}].
+     {<<"fleets">>,
+      [
+       [{<<"id">>, FleetAId},
+	{<<"name">>, FleetAName},
+	{<<"user">>, 
+	 [{<<"id">>, UserAId},
+	  {<<"name">>, UserAName}]}],
+       [{<<"id">>, FleetBId},
+	{<<"name">>, FleetBName},
+	{<<"user">>, 
+	 [{<<"id">>, UserBId},
+	  {<<"name">>, UserBName}]}]]}].
+
 
 % c("ds_web/src/ds_web_api_fight")
 

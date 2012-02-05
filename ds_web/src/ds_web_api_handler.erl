@@ -47,7 +47,6 @@ request('GET', _Vsn, [<<"test">> | _Rest], _Session, Db, Req) ->
 			    ({Count, Id, Module}, R) ->
 				[{Count, Id, [Module]} | R]
 			end, [], Res),
-    io:format("~p~n", [Ships]),
     json_reply(Res, Req);
 
 

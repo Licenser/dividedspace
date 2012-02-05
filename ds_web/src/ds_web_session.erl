@@ -69,7 +69,6 @@ set_session(SessionCookieName, SessionKey, Req, Session) ->
 %%--------------------------------------------------------------------
 
 rem_session(SessionCookieName, Req) ->
-    io:format("2.5~n"),
     cowboy_http_req:set_resp_cookie(SessionCookieName, <<>>, [{max_age, 0}], Req).    
 
 %%%===================================================================

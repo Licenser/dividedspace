@@ -86,7 +86,6 @@ put_data(Db, Id, Obj) ->
     {<<"user_id">>, UserId} = lists:keyfind(<<"user_id">>, 1, Obj),
     {<<"name">>, Name} = lists:keyfind(<<"name">>, 1, Obj),
     {<<"code">>, Code} = lists:keyfind(<<"code">>, 1, Obj),
-    io:format("~p~n", [[Db, Id, Obj, [Id, UserId, Name, Code]]]),
     {ok, _, _, [{RespId, UserId, Name, Code}]} = 
 	pgsql:equery(Db, "UPDATE scripts SET user_id = $2, name = $3, code = $4" ++ 
 			 "WHERE id = $1 RETURNING id, user_id, name, code", [Id, UserId, Name, Code]),

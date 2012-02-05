@@ -16,6 +16,19 @@
    (fn [res]
      (fun res))))
 
+(defn add-fight-line [{id "id"
+                       [{fleet-a "name"
+                         {user-a "name"} "user"}
+                        {fleet-b "name"
+                         {user-b "name"} "user"}] "fleets"}]
+  (dom/append
+   "#fight-list"
+   (dom/c
+    [:a
+     {:href (str "/fight/" id)
+      :target "_blank"}
+     (str fleet-a "(" user-a ") vs. " fleet-b "(" user-b ")") [:br]])))
+
 (defn start-fight []
   (let [fleet-a (dom/ival "#fleet-a")
         fleet-b (dom/ival "#fleet-b")]
@@ -23,7 +36,7 @@
      "/api/v1/fight"
      {"fleet_a" fleet-a
       "fleet_b" fleet-b}
-     (fn []))))
+     add-fight-line)))
 
 (defn fight-view []
   (dom/clear "#center")
@@ -40,18 +53,7 @@
      (let [list (dom/select "#fight-list")])
      (doall
       (map
-       (fn [{id "id"
-             [{fleet-a "name"
-               {user-a "name"} "user"}
-              {fleet-b "name"
-               {user-b "name"} "user"}] "fleets"}]
-         (dom/append
-          "#fight-list"
-          (dom/c
-           [:a
-            {:href (str "/fight/" id)
-             :target "_blank"}
-            (str fleet-a "(" user-a ") vs. " fleet-b "(" user-b ")") [:br]])))
+       add-fight-line
        res))))
   (ajaj/do-ajaj
    "/fleet"

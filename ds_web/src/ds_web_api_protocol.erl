@@ -205,7 +205,6 @@ to_json(Req, #state{
 	  pids = PIds,
 	  id = undefined
 	 } = State) ->
-    io:format("~p/~p~n", [State, PIds]),
     {ok, Entety} = Module:list_resources_for_parent(Db, PIds),
     Res = case mochijson2:encode(Entety) of
 	      R when is_binary(R) ->
