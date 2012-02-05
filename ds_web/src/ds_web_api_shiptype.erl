@@ -25,7 +25,9 @@ get_sub_handler([Parents], This, []) ->
     {[Parents], ds_web_api_shiptype, This}.
 
 delete(Db, Id) ->
-    case pgsql:equery(Db, "DELETE FROM shiptypes WHERE id = $1", [Id]) of
+    R = pgsql:equery(Db, "DELETE FROM shiptypes WHERE id = $1", [Id]),
+    io:format("~p~n", [R]),
+    case R of
 	{ok, 1} ->
 	    true;
 	{ok, 0} ->
