@@ -30,7 +30,29 @@
   (dom/append
    "#center"
    (dom/c
-    [:span {:id "new-fight"}]))
+    [:div
+     [:span {:id "new-fight"}]
+     [:br]
+     [:span {:id "fight-list"}]]))
+  (ajaj/get-clj
+   "/api/v1/fight"
+   (fn [res]
+     (let [list (dom/select "#fight-list")])
+     (doall
+      (map
+       (fn [{id "id"
+             [{fleet-a "name"
+               {user-a "name"} "user"}
+              {fleet-b "name"
+               {user-b "name"} "user"}] "fleets"}]
+         (dom/append
+          "#fight-list"
+          (dom/c
+           [:a
+            {:href (str "/fight/" id)
+             :target "_blank"}
+            (str fleet-a "(" user-a ") vs. " fleet-b "(" user-b ")") [:br]])))
+       res))))
   (ajaj/do-ajaj
    "/fleet"
    (fn [res]

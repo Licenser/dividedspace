@@ -27,7 +27,7 @@ init(_, Req, []) ->
 handle(Req, State) ->
     ?INFO({"handle fight"}),
     {[<<"fight">>, Fight], Req2} = cowboy_http_req:path(Req),
-    {ok, Page} = tpl_fight:render([fightid, Fight]),
+    {ok, Page} = tpl_fight:render([{fightid, Fight}]),
     {ok, Req3} = cowboy_http_req:reply(200, [], Page, Req2),
     {ok, Req3, State}.
 
@@ -45,9 +45,8 @@ websocket_init(_Any, Req, []) ->
     {[<<"fight">>, Fight], Req2} = cowboy_http_req:path(Req),
     {ok, FPid} = gen_server:call({global, center_server}, {get_fight, Fight}),
     gen_server:cast(FPid, {subscribe, self()}),
-    Req2 = cowboy_http_req:compact(Req2),
-    {ok, Req2, #state{fight = FPid}, hibernate}.
-
+    Req3 = cowboy_http_req:compact(Req2),
+    {ok, Req3, #state{fight = FPid}, hibernate}.
 
 websocket_handle(_Any, Req, State) ->
     {ok, Req, State}.
