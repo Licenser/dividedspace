@@ -25,6 +25,16 @@ instance for running AI scripts of the ships. Currently v8 does not support
 concurrency or running on more then one CPU/Core, so the way to scle is to start
 multiple epic nodes.
 
+
+Preperation
+===========
+
+First you need to set up a postgres database server. 
+* import the ds_web/create.sql file.
+* create a admin user with:
+  INSERT INTO users (name, pass, rights) VALUES('<name>', MD5('<name>:<pass>'), 1)
+* you might need to adjust the standalone.conf to your database settings.
+
 Start a divided space
 =====================
 
