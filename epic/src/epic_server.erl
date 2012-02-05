@@ -117,8 +117,8 @@ handle_call(Request, _From, State) ->
 handle_cast({add_fight, UUID, Units}, #state{fights = Fights} = State) ->
     ?INFO({"handle call(add_fight)", UUID}),
     ?DBG({Units}),
-    Us = lists:map(fun ({X, Y, Team, Spec}) ->
-                           {ok, Unit} = unit:from_template(X, Y, Team, Spec),
+    Us = lists:map(fun ({X, Y, Team, Spec, Code}) ->
+                           {ok, Unit} = unit:from_template(X, Y, Team, Spec, Code),
                            Unit
                    end, Units),
     Fight = fight:new(nil, Us),

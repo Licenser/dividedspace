@@ -20,22 +20,6 @@
 
 -define(SERVER, ?MODULE).
 
--define(UNIT_SCRIPT,
-"
-var foes = unit.closest_foes();
-if (foes.length > 0) {
-  var foe = foes[0];
-  var weapons = unit.weapons();
-
-  for (var i = 0; i < weapons.length; i++) {
-    var weapon = weapons[i];
-    var range = weapon.range();
-    unit.intercept(foe, range);
-    weapon.fire(foe);
-  }
-}
-"). %" <- I need this to fix Emacs highlighting :(
-
 -record(state, {}).
 
 %%%===================================================================
@@ -199,7 +183,7 @@ handle_turn(Storage, _FightPid, VM) ->
 			      ?INFO({"tick for unit", UnitId}),
 			      ?DBG({Unit}),
                               fight_storage:set_unit(Storage, unit:cycle(Unit)),
-                              erlv8_vm:run(VM, Context, ?UNIT_SCRIPT),
+                              erlv8_vm:run(VM, Context, unit:get(Unit, code)),
                               ok;
                           true -> 
 			      ?DBG({"destroyed - skipping tick for unit", UnitId}),

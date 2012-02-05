@@ -42,6 +42,7 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
+
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
@@ -50,6 +51,7 @@ place_tick(VM, Storage, FightPid) ->
 
 report_idle(Worker) ->
     gen_server:cast(?SERVER, {report_idle, Worker}).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -103,17 +105,21 @@ handle_call(Request, _From, State) ->
 handle_cast({place_tick, VM, Storage, FightPid}, #state{idle_workers = [], tasks=Tasks} = State) ->
     ?INFO({"place tick no idle workers", FightPid}),
     {noreply, State#state{tasks=Tasks ++ [{place_tick, VM, Storage, FightPid}]}};
+
 handle_cast({place_tick, VM, Storage, FightPid}, #state{idle_workers = [Worker | R]} = State) ->
     ?INFO({"place tick on worker", FightPid, Worker}),
     worker_fsm:tick(Worker, VM, Storage, FightPid),
     {noreply, State#state{idle_workers=R}};
+
 handle_cast({report_idle, Worker}, #state{idle_workers = W, tasks=[]} = State) ->
     ?INFO({"report idle no ticks", Worker}),
     {noreply, State#state{idle_workers=[Worker | W]}};
+
 handle_cast({report_idle, Worker}, #state{tasks=[{place_tick, VM, Storage, FightPid} | R]} = State) ->
     ?INFO({"report idle, ticks", Worker, FightPid}),    
     worker_fsm:tick(Worker, VM, Storage, FightPid),
     {noreply, State#state{tasks=R}};
+
 handle_cast(Msg, State) ->
     ?WARNING({"Unknown handle cast", Msg}),
     {noreply, State}.

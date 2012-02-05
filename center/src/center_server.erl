@@ -99,7 +99,6 @@ handle_call(get_epic_servers, _From, #state{epic_servers = Servers} = State) ->
 handle_call({get_server_pid, UUID}, _From, #state{epic_servers = Servers} = State) ->
     {reply, dict:find(UUID, Servers), State};
 handle_call({register_epic, Pid}, _From, #state{epic_servers = Servers} = State) when is_pid(Pid) ->
-    io:format("REGISTER: ~p~n", [Pid]),
     erlang:monitor(process, Pid),
     UUID = center_uuid:v4(),
     {reply, {ok, self()}, State#state{epic_servers = dict:store(UUID, Pid, Servers)}};
@@ -125,7 +124,6 @@ handle_call(_Request, _From, State) ->
 handle_cast({register_fight, UUID, Pid},  #state{fights = Fights} = State) ->
     {noreply, State#state{fights = dict:store(UUID, Pid, Fights)}};
 handle_cast({add_fight, UUID, [TeamA, TeamB]}, #state{epic_servers = Servers} = State) ->
-    io:format("Server: ~p~n", [dict:to_list(Servers)]),
     Units = expand_fleet(one, TeamA, []),
     Units2 = expand_fleet(one, TeamB, Units),
     {Pid, _} = lists:foldl(fun ({_, ServerPid}, {OldPid, OldTime}) ->
@@ -139,7 +137,6 @@ handle_cast({add_fight, UUID, [TeamA, TeamB]}, #state{epic_servers = Servers} = 
 				       true -> {OldPid, OldTime}
 				   end				       
 			   end, {error, 100000.0}, dict:to_list(Servers)),
-    io:format("Sending: ~p.~n", [{add_fight, UUID, Units}]),
     gen_server:cast(Pid, {add_fight, UUID, Units2}),
     {noreply, State};
 handle_cast(tick, #state{epic_servers = Servers} = State) ->
@@ -205,18 +202,18 @@ expand_fleet(Team, {N, Units}, List) ->
 			 one -> {-1, <<"one">>};
 			 two -> {1, <<"two">>}
 		     end,
-    {_, Units2} = lists:foldl(fun ({C, Unit}, {Poss, L}) ->
-				 add_unit(C, {Poss, L}, Unit, Mul, TeamStr)
+    {_, Units2} = lists:foldl(fun ({C, Unit, Code}, {Poss, L}) ->
+				 add_unit(C, {Poss, L}, Unit, Mul, TeamStr, Code)
 			 end, {lists:seq(S, E), List}, Units),
     Units2.
 
-add_unit(0, {Poss, L}, _Unit, _Mul, _Team) ->
+add_unit(0, {Poss, L}, _Unit, _Mul, _Team, _Code) ->
     {Poss, L};
 
-add_unit(C, {[Pos | Poss], L}, Unit, Mul, Team) ->
+add_unit(C, {[Pos | Poss], L}, Unit, Mul, Team, Code) ->
     Major = abs(Pos) div ?WIDTH,
     Minor = Pos rem ?WIDTH,    
-    add_unit(C - 1, {Poss, [{(3 + Major)*Mul, Minor, Team, Unit} | L]}, Unit, Mul, Team).
+    add_unit(C - 1, {Poss, [{(3 + Major)*Mul, Minor, Team, Unit, Code} | L]}, Unit, Mul, Team, Code).
 
     
     

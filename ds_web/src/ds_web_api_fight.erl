@@ -124,7 +124,7 @@ list_resources_for_parent(Db, [{user, UId}]) ->
 
 get_owner(Db, Id) ->
     {ok, _, [{Owner}]} =
-	pgsql:equery(Db, "SELECT user_id FROM fights where id = $1", [Id]),
+	pgsql:equery(Db, "SELECT user_id FROM fights WHERE id = $1", [Id]),
     {ok, Owner}.
 
 get_data(Db, Id) ->
@@ -145,8 +145,8 @@ put_data(Db, Id, Obj) ->
 
 get_obj(Db, Id) ->
     {ok, _, [{Id, 
-	      FleetAName, FleetAId, UserAName, UserAId,
-	      FleetBName, FleetBId, UserBName, UserBId}]} =
+	      _FleetAName, FleetAId, _UserAName, _UserAId,
+	      _FleetBName, FleetBId, _UserBName, _UserBId}]} =
 	pgsql:equery(Db, "SELECT fights.id, " ++
 			 "fleet_a.name AS fleet_a_name, " ++
 			 "fleet_a.id AS fleet_a_id, " ++
@@ -174,12 +174,19 @@ get_obj(Db, Id) ->
 
 explode_fleet(Db, Id) ->
     {ok, _, Res} = 
-	pgsql:equery(Db, "select count, shiptype_id, name from fleet_shiptype " ++
-			 "JOIN modules on (modules.ship_id = fleet_shiptype.shiptype_id) " ++
+	pgsql:equery(Db, "SELECT fleet_shiptype.count, " ++
+			 "shiptypes.id, " ++
+			 "modules.name, " ++ 
+			 "scripts.code " ++
+			 "FROM fleet_shiptype " ++
+			 "JOIN modules ON (modules.ship_id = fleet_shiptype.shiptype_id) " ++
+			 "JOIN shiptypes ON (shiptypes.id = fleet_shiptype.shiptype_id) " ++
+			 "JOIN scripts ON (scripts.id = shiptypes.script_id) " ++
 			 "WHERE fleet_shiptype.fleet_id = $1",
 		     [Id]),
-    Ships = lists:foldl(fun ({Count, Id, Module}, {C, [{Count, Modules} | R]}) ->
-				{C, [{Count, [Module | Modules] }| R]};
-			    ({Count, Id, Module}, {C, R}) ->
-				{C + Count, [{Count, [Module]} | R]}
-			end, {0, []}, Res).
+    Ships = lists:foldl(fun ({Count, _Id, Module, _}, {C, [{Count, Modules, Code} | R]}) ->
+				{C, [{Count, [Module | Modules], Code}| R]};
+			    ({Count, _Id, Module, Code}, {C, R}) ->
+				{C + Count, [{Count, [Module], Code} | R]}
+			end, {0, []}, Res),
+    Ships.

@@ -13,10 +13,10 @@
 
 %% API
 -export([ % Meta
-	  new/4,
+	  new/5,
 	  is_a/1,
 	  from_template/1,
-	  from_template/4,
+	  from_template/5,
 	  fields/0,
 	  explode/1,
 	  implode/1,
@@ -65,7 +65,7 @@
 	]).
 
 
--record(unit, {id, fleet, x, y, modules = [], destroyed = false}).
+-record(unit, {id, fleet, x, y, modules = [], destroyed = false, code}).
 
 %%%===================================================================
 %%% Meta
@@ -88,8 +88,8 @@ fields() ->
 %% @end
 %%--------------------------------------------------------------------					
 
-new(X, Y, Fleet, Modules) ->
-    create(epic_uuid:v4(), X, Y, Fleet, Modules).
+new(X, Y, Fleet, Modules, Code) ->
+    create(epic_uuid:v4(), X, Y, Fleet, Modules, Code).
 
 %%--------------------------------------------------------------------
 %% @doc
@@ -108,13 +108,14 @@ is_a(#unit{}) ->
 is_a(_) ->
     false.
 
-create(Id, X, Y, Fleet, Modules) when is_binary(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
+create(Id, X, Y, Fleet, Modules, Code) when is_binary(Id), is_integer(X), is_integer(Y), is_list(Modules) ->
     #unit{
 	   id = Id,
 	   x = X,
 	   y = Y,
 	   fleet = Fleet,
-	   modules = Modules
+	   modules = Modules,
+	   code = Code
        }.
 
 save(#unit{modules = Modules} = Unit) ->
@@ -128,7 +129,6 @@ module_sort(Modules) ->
     lists:sort(fun (A, B) ->
 		       module:hit_priority(A) > module:hit_priority(B)
 	       end,Modules).
-
 
 sort_modules(#unit{modules = Ms} = U) ->
     U#unit{modules = module_sort(Ms)}. 
@@ -158,11 +158,11 @@ implode(#unit{modules = Ms} = U) ->
     U#unit{modules = lists:map(fun module:id/1, Ms)}.
 
 from_template(Modules) when is_list(Modules) ->
-    from_template(0,0, nil, Modules).
+    from_template(0,0, nil, Modules, <<"">>).
 
-from_template(X, Y, Fleet, Modules) when is_integer(X), is_integer(Y), is_list(Modules) ->
+from_template(X, Y, Fleet, Modules, Code) when is_integer(X), is_integer(Y), is_list(Modules) ->
     ModuleIDs = create_modules(Modules),
-    Unit = explode(new(X, Y, Fleet, ModuleIDs)),
+    Unit = explode(new(X, Y, Fleet, ModuleIDs, Code)),
     storage:insert(Unit),
     {ok, Unit}.
 
@@ -177,11 +177,9 @@ ensure_record(Unit) when is_binary(Unit) ->
     {ok, U} = select(Unit),
     explode(U).
 
-
 %%%===================================================================
 %%% Accessor
 %%%===================================================================
-
 
 fleet(#unit{fleet = Fight}) ->
     Fight.
@@ -273,50 +271,6 @@ fly(#unit{} = Unit, X, Y) when is_integer(X), is_integer(Y) ->
 cycle(#unit{modules = Modules} = Unit) ->
     Unit#unit{modules = lists:map(fun module:cycle/1, Modules)}.
 
-%update_unit(Fight, UnitId, F) ->
-%    fight:add_unit(Fight, F(fight:get_unit(Fight, UnitId))).
-
-%update_unit_energy(Fight, UnitId, E) ->
-%    update_unit(Fight, UnitId, fun (Unit) ->
-%				       use_energy(Unit, E)
-%			       end).
-    
-
-%handle_weapon_hit(Fight, {ok, true, _Data}, AttackerId, TargetId, Energy, Damage, Map) ->
-%    NewFight = update_unit_energy(Fight, AttackerId, Energy),
-%    Target = fight:get_unit(Fight, TargetId),
-%    {NewTarget, TargetMessages} = hit(Target, Damage),
-%    OldHull = module:integrety(unit:hull(Target)),
-%    NewHull = module:integrety(unit:hull(NewTarget)),
-%    M = [{hit, AttackerId, TargetId, OldHull - NewHull, TargetMessages}, {target, AttackerId, TargetId}],
-%    {NewMessages, NewNewTarget}  = if 
-%		      NewHull =< 0 -> map_server:remove_unit(Map, unit:id(NewTarget)),
-%				      {[{destroyed, TargetId} | M], unit:destroyed(NewTarget, true)};
-%		      true -> {M, NewTarget}
-%		  end,
-%    {fight:add_unit(NewFight, NewNewTarget), NewMessages};
-
-%handle_weapon_hit(Fight, {ok, false, _Data}, AttackerId, TargetId, Energy, _Damage, _Map) ->
-%    {update_unit_energy(Fight, AttackerId, Energy), [{miss, AttackerId, TargetId}, {target, AttackerId, TargetId}]}.
-
-%handle_weapon(Weapon, {Fight, Messages}, Map, AttackerId, TargetId) ->
-%    {FightAfterIntercept, InterceptMessages} = intercept(Fight, Map, AttackerId, TargetId, Weapon),
-%    Attacker = fight:get_unit(FightAfterIntercept, AttackerId),
-%    Target = fight:get_unit(Fight, TargetId),
-%    {NewFight, NewMessages} = handle_weapon_hit(FightAfterIntercept, module:fire_weapon(Weapon, Attacker, Target), AttackerId, TargetId, module:energy_usage(Weapon), module:damage(Weapon), Map),
-%    {NewFight, NewMessages ++ InterceptMessages ++ Messages}.
-
-%turn(#unit{destroyed = true}, Fight, _Map) ->
-%    {Fight, []};
-%turn(#unit{id = UnitId} = Unit, Fight, Map) ->
-%    Weapons = modules_of_kind(Unit, weapon),
-%    case map_server:closest_foes(Map, Unit) of
-%	[{TargetId, _} | _] ->
-%	    {NewFight, Events} = lists:foldl(fun (A, B) -> handle_weapon(A, B, Map, UnitId, TargetId) end, {Fight, []}, Weapons),
-%	    {NewFight, Events};
-%	[] -> {Fight, []}
-%   end.
-
 hit(#unit{modules = OriginalModules} = Unit, Damage) ->
     {NewModules, _, Events} = 
 	lists:foldl(fun (Module, {Modules, RemainingDamage, Partial}) ->
@@ -356,6 +310,7 @@ create_modules([TypeName]) ->
     storage:insert(Module),
     [module:id(Module)];
 create_modules([TypeName | Modules]) ->
+    io:format("Module Type~p~n", [TypeName]),
     [ModuleType] = module_type:select_by_name(TypeName),
     {ok, Module} = module:new(ModuleType),
     storage:insert(Module),
@@ -396,26 +351,10 @@ consume_engine_usage(#unit{modules = Modules} = Unit, Range) ->
 			  end, {Range, []}, Modules),
     Unit#unit{modules = Ms}.
 
-
-%intercept(Fight, Map, AttackerId, TargetId, Weapon) ->
-%    Attacker = fight:get_unit(Fight, AttackerId),
-%    Target = fight:get_unit(Fight, TargetId),
-%    WeaponRange = module:weapon_range(Weapon),
-%    Dist = distance(Attacker, Target),
-%    if
-%	WeaponRange =/= Dist ->EngineRange = available_range(Attacker),
-%			       PosA = coords(Attacker),
-%			       PosT = coords(Target),
-%			       {X, Y, R} = map_server:best_distance(Map, PosA, PosT, EngineRange, WeaponRange),
-%			       map_server:move_unit(Map, AttackerId, X, Y),
-%			       {update_unit(Fight, AttackerId, fun(A) ->
-%								       coords(use_engine(A, R), {X, Y})
-%							       end), [{move, AttackerId, X, Y}]}; 
-%	true -> {Fight, []}
-%    end.
-
 get(#unit{x = X}, x) ->
     X;
+get(#unit{code = Code}, code) ->
+    Code;
 get(#unit{y = Y}, y) ->
     Y;
 get(#unit{id = Id}, id) ->
