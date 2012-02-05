@@ -26,15 +26,13 @@
   (text obj ""))
 
 (defn val [obj]
-  (if (string? obj)
-    (. (select obj) (val))
-    (. obj (val))))
+  (. (ensure obj) (val)))
 
 (defn ival [obj]
   (js/parseInt (val obj)))
 
 (defn del [obj]
-  (. obj (remove)))
+  (. (ensure obj) (remove)))
 
 (defn attr [obj k v]
   (.attr obj k v))

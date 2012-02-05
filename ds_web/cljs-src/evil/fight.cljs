@@ -26,15 +26,16 @@
      (fn []))))
 
 (defn fight-view []
+  (dom/clear "#center")
   (dom/append
-   (dom/select "#center")
+   "#center"
    (dom/c
     [:span {:id "new-fight"}]))
   (ajaj/do-ajaj
    "/fleet"
    (fn [res]
      (dom/append
-      (dom/select "#new-fight")
+      "#new-fight"
       (dom/c
        [:span
         (dom/s
@@ -64,7 +65,7 @@
 ; External Functions
 
 (defn update-fights []
-  (let [div (dom/select (str "div#fight"))]
+  (let [div (dom/select "div#fight")]
     (dom/clear div)
     (dom/append
      div

@@ -45,7 +45,7 @@
 
 (defn shiptype-update-size! [s]
   (let [[used total] (shiptype-size s)]
-    (dom/text (dom/select (str "#shiptype-" (s "id") "-size"))
+    (dom/text (str "#shiptype-" (s "id") "-size")
               (str used "/" total))))
 
 (defn module-line [ship-id m]
@@ -66,12 +66,12 @@
                                                       (fn [ms]
                                                         (filter #(not= (m "id") (% "id")) ms)))
                                                (shiptype-update-size! @shiptype)
-                                               (dom/del (dom/select (str "#" id))))))}
+                                               (dom/del (str "#" id)))))}
                                   "del"]]))
 
 (defn add-module-fn [s]
   (fn []
-    (let [module-name (dom/val (dom/select (str "#shiptype-" (s "id") "-module-select")))
+    (let [module-name (dom/val (str "#shiptype-" (s "id") "-module-select"))
           module (get @modules module-name)
           [used total] (shiptype-size @shiptype)]
       (cond
@@ -97,7 +97,7 @@
             (swap! shiptype update-in ["modules"] conj m)
             (shiptype-update-size! @shiptype)
             (dom/append
-             (dom/select (str "#shiptype-" (s "id") "-module"))
+             (str "#shiptype-" (s "id") "-module")
              (dom/c (module-line (s "id") m))))))))))
 
 (defn module-section [s]
@@ -126,7 +126,7 @@
 
 (defn save-fn [entity]
   (fn [] 
-    (let [script-id (dom/val (dom/select (str "#shiptype-" (entity "id") "-script-select")))
+    (let [script-id (dom/val (str "#shiptype-" (entity "id") "-script-select"))
           script-id (if (empty? script-id) nil (js/parseInt script-id))]
       (ajaj/put-clj
        (str "/api/v1/user/"
@@ -134,11 +134,11 @@
             "/shiptype/" (entity "id"))
      
        {"id" (entity "id")
-        "name" (dom/val (dom/select (str "#shiptype-" (entity "id") "-name")))
+        "name" (dom/val (str "#shiptype-" (entity "id") "-name"))
         "script_id" script-id
         "user_id" evil.ajaj.uid}
        (fn [s]
-         (dom/text (dom/select (str  "span[name=shiptype-" (s "id") "-name]")) (s "name")))))))
+         (dom/text (str  "span[name=shiptype-" (s "id") "-name]") (s "name")))))))
 
 (defn show-shiptype-fn [entity]
   (fn []        
@@ -186,7 +186,7 @@
      (str "/api/v1/user/" evil.ajaj.uid "/shiptype/" (entity "id"))
      (fn []
        (dom/del
-        (dom/select (str "#shiptype-" (entity "id"))))))))
+        (str "#shiptype-" (entity "id")))))))
 
 (defn add-shiptype
   ([entity]
@@ -226,7 +226,7 @@
                  "/shiptype")
             {"user_id" evil.ajaj.uid
              "script_id" nil
-             "name" (dom/val (dom/select "#shiptype-new-input"))}
+             "name" (dom/val "#shiptype-new-input")}
             add-shiptype)
            )} "add"]    
        [:Br]]))

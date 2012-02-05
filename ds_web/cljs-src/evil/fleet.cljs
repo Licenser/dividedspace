@@ -25,7 +25,7 @@
   (fn []
     (let [new-m (assoc m
                   "count"
-                  (js/parseInt (dom/val (dom/select (str "#fleet-" fleet-id "-shiptype-" (m "id") "-cnt")))))]
+                  (dom/ival (str "#fleet-" fleet-id "-shiptype-" (m "id") "-cnt")))]
       (ajaj/put-clj
        (str "/api/v1/user/"
             evil.ajaj.uid
@@ -52,7 +52,7 @@
                       evil.ajaj.uid
                       "/fleet/" fleet-id "/shiptype/" (m "id"))
                  (fn []
-                   (dom/del (dom/select (str "#" id))))))}
+                   (dom/del (str "#" id)))))}
       "del"]]))
 
 (defn update-shiptypes [id]
@@ -71,18 +71,18 @@
 
 (defn add-shiptype-fn [s]
   (fn []
-    (let [shiptype-id (dom/val (dom/select (str "#fleet-" (s "id") "-shiptype-select")))
-          cnt (dom/val (dom/select (str "#fleet-" fleet-id "-shiptype-cnt")))]
+    (let [shiptype-id (dom/ival (str "#fleet-" (s "id") "-shiptype-select"))
+          cnt (dom/ival (str "#fleet-" fleet-id "-shiptype-cnt"))]
       (ajaj/post-clj
        (str "/api/v1/user/"
             evil.ajaj.uid
             "/fleet/" (s "id") "/shiptype")
        {"fleet_id" (s "id")
-        "shiptype_id" (js/parseInt shiptype-id)
-        "count" (js/parseInt cnt)}
+        "shiptype_id" shiptype-id
+        "count" cnt}
        (fn [t]
          (dom/append
-          (dom/select (str "#fleet-" (s "id") "-shiptype"))
+          (str "#fleet-" (s "id") "-shiptype")
           (dom/c (shiptype-line (s "id") t))))))))
 
 (defn shiptype-section [s]
@@ -102,8 +102,7 @@
                         (fn [m]
                           (shiptype-line (s "id") m))
                         (s "shiptypes")))))]
-    
-    res))
+        res))
 
 (defn save-fn [entity]
   (fn [] 
@@ -112,10 +111,10 @@
           evil.ajaj.uid
           "/fleet/" (entity "id"))
      {"id" (entity "id")
-      "name" (dom/val (dom/select (str "#fleet-" (entity "id") "-name")))
+      "name" (dom/val (str "#fleet-" (entity "id") "-name"))
       "user_id" evil.ajaj.uid}
      (fn [s]
-       (dom/text (dom/select (str  "span[name=fleet-" (s "id") "-name]")) (s "name"))))))
+       (dom/text (str  "span[name=fleet-" (s "id") "-name]") (s "name"))))))
 
 (defn show-fleet-fn [entity]
   (fn []        
@@ -139,12 +138,13 @@
          (update-shiptypes (s "id")))))))
 
 (defn del-fleet-fn [entity]
-  (fn []
-    (ajaj/del-clj
-     (str "/api/v1/user/" evil.ajaj.uid "/fleet/" (entity "id"))
-     (fn []
-       (dom/del
-        (dom/select (str "#fleet-" (entity "id"))))))))
+  (let [id (entity "id")]
+    (fn []
+      (ajaj/del-clj
+       (str "/api/v1/user/" evil.ajaj.uid "/fleet/" id)
+       (fn []
+         (dom/del
+          (str "#fleet-" id)))))))
 
 (defn add-fleet
   ([entity]

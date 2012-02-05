@@ -22,11 +22,11 @@
           evil.ajaj.uid
           "/script/" (entity "id"))
      {"id" (entity "id")
-      "name" (dom/val (dom/select (str "#script-" (entity "id") "-name")))
-      "code" (dom/val (dom/select (str "#script-" (entity "id") "-code")))
+      "name" (dom/val (str "#script-" (entity "id") "-name"))
+      "code" (dom/val (str "#script-" (entity "id") "-code"))
       "user_id" evil.ajaj.uid}
      (fn [s]
-       (dom/text (dom/select (str  "span[name=script-" (s "id") "-name]")) (s "name"))))))
+       (dom/text (str "span[name=script-" (s "id") "-name]") (s "name"))))))
 
 (defn show-script-fn [entity]
   (fn []
