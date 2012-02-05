@@ -52,10 +52,11 @@ websocket_handle(_Any, Req, State) ->
     {ok, Req, State}.
 
 websocket_info({send, Data}, Req, State) ->
-    {ok, Req2} = cowboy_http_req:set_resp_body(Req, mochijson2:encode(Data)),
-    {reply, Req2, State, hibernate};
+    ?NOTICE({"Sending data", Data}),
+    {reply, {text, mochijson2:encode(Data)}, Req, State, hibernate};
 
-websocket_info(_Info, Req, State) ->
+websocket_info(Info, Req, State) ->
+    ?WARNING({"unknwon websocket info", Info}),
     {ok, Req, State, hibernate}.
 
 websocket_terminate(_Reason, _Req, #state{fight = Fight} = _State) ->

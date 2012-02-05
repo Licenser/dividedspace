@@ -180,10 +180,11 @@ handle_turn(Storage, _FightPid, VM) ->
                       {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
                       case unit:destroyed(Unit) of
                           false ->
-			      ?INFO({"tick for unit", UnitId}),
+			      Code = unit:get(Unit, code),
+			      ?INFO({"tick for unit", UnitId, Code}),
 			      ?DBG({Unit}),
                               fight_storage:set_unit(Storage, unit:cycle(Unit)),
-                              erlv8_vm:run(VM, Context, unit:get(Unit, code)),
+                              erlv8_vm:run(VM, Context, binary_to_list(Code)),
                               ok;
                           true -> 
 			      ?DBG({"destroyed - skipping tick for unit", UnitId}),

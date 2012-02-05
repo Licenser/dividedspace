@@ -295,8 +295,12 @@ use_energy(Unit, Energy) ->
 use_engine(Unit, Range) ->
     AvailableRange = available_range(Unit),
     if 
-	AvailableRange >= Range -> consume_engine_usage(Unit, Range);
-	true -> {error, not_enough_energy}
+	AvailableRange >= Range -> 
+	    ?INFO("use_engine, moved"),
+	    consume_engine_usage(Unit, Range);
+	true -> 
+	    ?INFO("use_engine, too little range."),
+	    {error, not_enough_energy}
     end.
 
 
@@ -310,7 +314,6 @@ create_modules([TypeName]) ->
     storage:insert(Module),
     [module:id(Module)];
 create_modules([TypeName | Modules]) ->
-    io:format("Module Type~p~n", [TypeName]),
     [ModuleType] = module_type:select_by_name(TypeName),
     {ok, Module} = module:new(ModuleType),
     storage:insert(Module),

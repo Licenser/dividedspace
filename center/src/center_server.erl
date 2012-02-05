@@ -125,7 +125,7 @@ handle_cast({register_fight, UUID, Pid},  #state{fights = Fights} = State) ->
     {noreply, State#state{fights = dict:store(UUID, Pid, Fights)}};
 handle_cast({add_fight, UUID, [TeamA, TeamB]}, #state{epic_servers = Servers} = State) ->
     Units = expand_fleet(one, TeamA, []),
-    Units2 = expand_fleet(one, TeamB, Units),
+    Units2 = expand_fleet(two, TeamB, Units),
     {Pid, _} = lists:foldl(fun ({_, ServerPid}, {OldPid, OldTime}) ->
 				   io:format("~p~n", [gen_server:call(ServerPid, list_fights)]),
 				   {ok, Fights} = gen_server:call(ServerPid, list_fights),

@@ -169,7 +169,7 @@ handle_cast({subscribe, Subscriber}, #state{
 	      subscribers = Subscribers,
 	      all_tick_events  = Ticks} = State) ->
     ?INFO({"subscribe", Subscriber}),
-    gen_server:cast(Subscriber, {send, Ticks}),
+    Subscriber ! {send, Ticks},
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
     ?INFO({"end tick, nothing to do"}),
@@ -182,6 +182,7 @@ handle_cast(end_tick, #state{all_tick_events = Ticks,
 
     OrderedEvents=lists:reverse(TickEvent),
     inform_subscribers(State, OrderedEvents),
+    ?INFO({"tick events", TickEvent}),
     epic_server:next_fight(),
     NewIdleCount = case TickEvent of
 		       [] -> IdleCount + 1;
@@ -222,6 +223,13 @@ handle_cast({add_event, Event}, #state{current_tick_events = Tick} = State) ->
     ?INFO({"adding event"}),
     ?DBG({Event}),    
     {noreply, State#state{current_tick_events = [Event | Tick]}};
+handle_cast({unsubscribe, Pid}, 
+	    #state{
+	      subscribers = Subs
+	      } = State) -> 
+    ?INFO({"unsubscribe", Pid}),
+    Subs2 = lists:delete(Pid, Subs),
+    {noreply, State#state{subscribers = Subs2}};
 handle_cast(Msg, State) ->
     ?WARNING({"Unknown handle cast", Msg}),
     {noreply, State}.
@@ -272,5 +280,5 @@ inform_subscribers(#state{subscribers = Subscribers}, Data) ->
     ?INFO({"inform subscriber"}),
     ?DBG({Subscribers, Data}),
     lists:map(fun (Subscriber) ->
-                      gen_server:cast(Subscriber, {send, Data})
+                      Subscriber ! {send, Data}
 	      end, Subscribers).

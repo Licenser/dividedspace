@@ -8,12 +8,46 @@
 %%%-------------------------------------------------------------------
 -module(center).
 
--export([start/0, start_fight/1]).
+-export([start/0, s/0,  start_fight/1]).
 
 start() ->
     application:start(sasl),
     application:start(center),
     application:start(ds_web).
+
+s() ->
+    application:start(sasl),
+    application:start(mnesia),
+    application:start(erlv8),
+    
+    application:start(center),
+    
+    application:start(alog),
+	
+
+    alog_control:set_flow_priority(1, {'=<', info}),
+    
+
+    application:start(crypto),
+    
+    application:start(public_key),
+    
+    application:start(ssl),
+	
+    application:start(epgsql),
+    
+    application:start(sendfile),
+    
+    application:start(cowboy),
+    
+
+    application:start(compiler),
+    
+    application:start(syntax_tools),
+    application:start(erlydtl),
+    application:start(ds_web),
+    application:start(epic).
+
 
 start_fight(N) ->
     S = trunc((N / 2) * -1),

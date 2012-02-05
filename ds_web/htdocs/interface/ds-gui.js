@@ -202,7 +202,7 @@ var DS = {
       }
     };
   },
-  
+    
     loadBattleLog: function(name) {
 	this.battleLog = {
 	    initial: true,
@@ -217,18 +217,19 @@ var DS = {
 	    // browser supports websockets
 	    var ws = new WebSocket(FightURL);
 	    ws.onopen = function() {
-			window.console.info("websocket connected!");
+		window.console.info("websocket connected!");
 	    };
 	    ws.onmessage = function (evt) {
-			var events = JSON.parse(evt.data);
-			DS.battleLog.ticks.push(events);
-			if (DS.battleLog.initial) {
-		    	window.console.info("initializing");
-		    	DS.setupDisplay();
-		    	DS.setupBattleMap();
-		    	DS.battleLog.initial = false;
-			};
-			DS.resumePlay();
+		console.log(evt);
+		var events = JSON.parse(evt.data);
+		DS.battleLog.ticks.push(events);
+		if (DS.battleLog.initial) {
+		    window.console.info("initializing");
+		    DS.setupDisplay();
+		    DS.setupBattleMap();
+		    DS.battleLog.initial = false;
+		};
+		DS.resumePlay();
 	    };
 	    ws.onclose = function() {
 		// websocket was closed

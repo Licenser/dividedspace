@@ -275,8 +275,14 @@ intercept(FightPid, Storage, Map, UnitId, Destination, Distance) ->
             {X, Y, R} = map_server:best_distance(Map, Start, Destination, Range, Distance),
 	    ?DBG({"intercept> next stop", X, Y, R}),
             map_server:move_unit(Map, Unit, X, Y),
-            NewUnit = unit:coords(unit:use_engine(Unit, R), {X, Y}),
-            fight_storage:set_unit(Storage, NewUnit),
+	    Unit2 = case  unit:use_engine(Unit, R) of
+			{error, Error} ->
+			    ?WARNING({"can't move", Error}),
+			    Unit;
+			Res -> 
+			    unit:coords(Res, {X, Y})
+		    end,
+            fight_storage:set_unit(Storage, Unit2),
             fight_server:add_event(FightPid, [{type, move}, {unit, UnitId}, {position, [{x, X}, {y, Y}]}]),
             {ok, {X, Y}};
 	true -> {ok, Destination}
