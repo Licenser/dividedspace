@@ -210,9 +210,13 @@ var DS = {
 	    index: 0
 	};
 	
-	var host = "localhost";
-	var port = "8080";
-	var FightURL = "ws://" + host + ":" + port + "/fight/" + name;
+	var host = window.location.host;
+	var port = window.location.port;
+	var FightURL = "ws://" + host;
+	if (host != "") {
+	    FightURL = FightURL + ":" + port;
+	}
+	FightURL = FightURL + "/fight/" + name;
 	if ("WebSocket" in window) {
 	    // browser supports websockets
 	    var ws = new WebSocket(FightURL);
