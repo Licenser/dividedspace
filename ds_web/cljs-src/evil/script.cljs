@@ -74,7 +74,15 @@
        [:input {:id "script-new-input"}]
        [:span
         {:click
-         (fn [])} "add"]
+         (fn []
+           (ajaj/post-clj
+            (str "/api/v1/user/"
+                 evil.ajaj.uid
+                 "/script")
+            {"user_id" evil.ajaj.uid
+             "name" (dom/val (dom/select "#script-new-input"))}
+            add-script)
+           )} "add"]
        [:br]]))
     (do-list
      (fn [res]
