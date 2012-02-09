@@ -5,8 +5,8 @@
    [evil.shiptype :as shiptype]))
 
 (defn do-list [fun]
-  (ajaj/do-ajaj
-   "/fleet"
+  (ajaj/get-clj
+   "/api/v1/fleet"
    (fn [res]
      (fun res))))
 
