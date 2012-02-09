@@ -90,7 +90,7 @@ application:start(erlv8).
 application:start(center).
 application:start(alog).
 
-alog_control:set_flow_priority(1, {'=<', info}).
+alog_control:set_flow_priority(1, {'=<', error}).
 
 application:start(crypto).
 application:start(public_key).
@@ -111,6 +111,21 @@ application:start(epic).
 Getting Started
 ===============
 The documentaiton is currently not very extensive.
+
+General
+-------
+To start a fleet there are some simple steps:
+
+* Create a script, see the scripting section for details.
+* Create one or more units, a unit needs:
+  * A script
+  * An Hull
+  * An Engine
+  * An Generator
+  * An Weapon
+* Create a fleet with at least 1 unit in it
+* Start the fight
+
 
 Scripting
 ---------
