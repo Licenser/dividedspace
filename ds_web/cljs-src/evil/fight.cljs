@@ -4,18 +4,6 @@
    [evil.dom :as dom]
    [evil.shiptype :as shiptype]))
 
-(defn do-list [fun]
-  (ajaj/get-clj
-   "/api/v1/fleet"
-   (fn [res]
-     (fun res))))
-
-(defn do-get [id fun]
-  (ajaj/do-ajaj
-   (str "/fleet/" id)
-   (fn [res]
-     (fun res))))
-
 (defn add-fight-line [{id "id"
                        [{fleet-a "name"
                          {user-a "name"} "user"}
@@ -55,8 +43,8 @@
       (map
        add-fight-line
        res))))
-  (ajaj/do-ajaj
-   "/fleet"
+  (ajaj/get-clj
+   "/api/v1/fleet"
    (fn [res]
      (dom/append
       "#new-fight"
