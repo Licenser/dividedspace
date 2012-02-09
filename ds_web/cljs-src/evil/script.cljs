@@ -80,7 +80,8 @@
                  evil.ajaj.uid
                  "/script")
             {"user_id" evil.ajaj.uid
-             "name" (dom/val (dom/select "#script-new-input"))}
+             "name" (dom/val (dom/select "#script-new-input"))
+             "code" ""}
             add-script)
            )} "add"]
        [:br]]))
