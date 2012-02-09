@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+git submodule init
+git submodule update
+cd ds_web/cljs
+./scripts/bootstrap
+cd ..
+make cljs
+cd ..
+make
