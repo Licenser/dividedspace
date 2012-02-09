@@ -35,6 +35,49 @@ First you need to set up a postgres database server.
   INSERT INTO users (name, pass, rights) VALUES('<name>', MD5('<name>:<pass>'), 1)
 * you might need to adjust the standalone.conf to your database settings.
 
+Dependencies
+============
+* Erlang 15
+* make 
+* scons
+* g++
+* libtool
+* autoconf
+* automake
+* uuid-dev
+* leiningen 
+* curl
+* openjdk-7-jdk
+
+Database Setup
+==============
+
+CREATE DATABASE dividedspace;
+CREATE USER ds;
+GRANT ALL ON DATABASE dividedspace TO ds;
+\password ds
+-> ds
+\c dividedspace
+\i ds_web/create.sql
+
+
+GRANT ALL ON fights  TO ds;
+GRANT ALL ON fleet_shiptype  TO ds;
+GRANT ALL ON fleet_shiptype_id_seq  TO ds;
+GRANT ALL ON fleets  TO ds;
+GRANT ALL ON fleets_id_seq  TO ds;
+GRANT ALL ON modules  TO ds;
+GRANT ALL ON modules_id_seq  TO ds;
+GRANT ALL ON scripts  TO ds;
+GRANT ALL ON scripts_id_seq  TO ds;
+GRANT ALL ON shiptypes  TO ds;
+GRANT ALL ON shiptypes_id_seq  TO ds;
+GRANT ALL ON users  TO ds;
+GRANT ALL ON users_id_seq  TO ds;
+
+INSERT INTO users (name, pass, rights) VALUES('admin', MD5('admin:pass'), 1)
+
+
 Start a divided space
 =====================
 
@@ -65,3 +108,24 @@ application:start(ds_web).
 
 application:start(epic).
 ```
+
+
+Getting Started
+===============
+The documentaiton is currently not very extensive.
+
+Scripting
+---------
+details on scriting can be found here:
+
+https://github.com/Licenser/dividedspace/wiki/Scripting
+
+Modules
+-------
+The currently availalbe modules can be found here:
+
+https://github.com/Licenser/dividedspace/tree/master/epic/data
+
+And a short descirption can be found in the wiki:
+
+https://github.com/Licenser/dividedspace/wiki/Modules
