@@ -60,7 +60,6 @@ GRANT ALL ON DATABASE dividedspace TO ds;
 \c dividedspace
 \i ds_web/create.sql
 
-
 GRANT ALL ON fights  TO ds;
 GRANT ALL ON fleet_shiptype  TO ds;
 GRANT ALL ON fleet_shiptype_id_seq  TO ds;
@@ -75,8 +74,7 @@ GRANT ALL ON shiptypes_id_seq  TO ds;
 GRANT ALL ON users  TO ds;
 GRANT ALL ON users_id_seq  TO ds;
 
-INSERT INTO users (name, pass, rights) VALUES('admin', MD5('admin:pass'), 1)
-
+INSERT INTO users (name, pass, rights) VALUES('admin', MD5('admin:pass'), 1);
 
 Start a divided space
 =====================
