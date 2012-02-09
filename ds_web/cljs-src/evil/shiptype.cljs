@@ -20,14 +20,66 @@
    (fn [res]
      (fun res))))
 
+(defn modules-of-type [modules type]
+  (filter #(= type (% "type")) modules))
+
+(defn test-hull [modules]
+  (if (empty? (modules-of-type modules "hull"))
+    ["No hull defined"]))
+
+(defn test-weapon [modules]
+  (if (empty? (modules-of-type modules "weapon"))
+    ["No weapon defined"]))
+
+(defn test-generator [modules]
+  (if (empty? (modules-of-type modules "generator"))
+    ["No generator defined"]))
+
+(defn test-engine [modules]
+  (if (empty? (modules-of-type modules "engine"))
+    ["No engine defined"]))
+
+(defn test-script [entity]
+  (if (empty? (dom/val (str "#shiptype-" (entity "id") "-script-select")))
+    ["No script defined."]))
+
+(defn module-warnings [modules]
+
+  (concat
+   []
+   (test-hull modules)
+   (test-weapon modules)
+   (test-generator modules)
+   (test-engine modules)))
+
+
+(defn warnings [shiptype]
+
+  (let [ws (concat
+            (module-warnings (shiptype "modules"))
+            (test-script shiptype))]
+    (dom/clear "#shiptype-warnings")
+    (dom/append
+     "#shiptype-warnings"
+     (dom/c 
+      (vec
+       (concat
+        [:ul
+         {:class "warnings"}]
+        (map
+         (fn [w]
+           [:li w])
+         ws)))))))
+
 (defn expand-module [{name "name" :as m}]
   (assoc (get @modules name) "id" (m "id")))
 
 (defn set-shiptype! [s]
-  (reset! shiptype (update-in
-                    s
-                    ["modules"]
-                    #(map expand-module %))))
+  (reset! shiptype
+          (update-in
+           s
+           ["modules"]
+           #(map expand-module %))))
 
 (defn shiptype-hull [s]
   (first (filter #(= "hull" (% "type"))
@@ -66,6 +118,7 @@
                                                       (fn [ms]
                                                         (filter #(not= (m "id") (% "id")) ms)))
                                                (shiptype-update-size! @shiptype)
+                                               (warnings @shiptype)
                                                (dom/del (str "#" id)))))}
                                   "del"]]))
 
@@ -96,6 +149,7 @@
           (let [m (expand-module m)]
             (swap! shiptype update-in ["modules"] conj m)
             (shiptype-update-size! @shiptype)
+            (warnings @shiptype)
             (dom/append
              (str "#shiptype-" (s "id") "-module")
              (dom/c (module-line (s "id") m))))))))))
@@ -138,6 +192,7 @@
         "script_id" script-id
         "user_id" evil.ajaj.uid}
        (fn [s]
+         (warnings @shiptype)
          (dom/text (str  "span[name=shiptype-" (s "id") "-name]") (s "name")))))))
 
 (defn show-shiptype-fn [entity]
@@ -166,6 +221,9 @@
             [:span "Size: " [:span {:id (str "shiptype-" (s "id") "-size")} used "/" total]] [:br]
             [:span "Modules"] [:br]
             (module-section s)]))
+         (dom/append
+          center
+          (dom/c [:div {:id "shiptype-warnings"}]))
          (script/do-list
           (fn [scripts]
             (let [select (dom/select (str "#shiptype-" (s "id") "-script-select"))]
@@ -178,7 +236,8 @@
                                             {:selected "selected"}
                                             {}))
                                    (% "name")]))
-                    scripts))))))))))
+                    scripts))
+              (warnings @shiptype)))))))))
 
 (defn del-shiptype-fn [entity]
   (fn []
