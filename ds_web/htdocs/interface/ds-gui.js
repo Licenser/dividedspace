@@ -217,6 +217,9 @@ var DS = {
 	    FightURL = FightURL + ":" + port;
 	}
 	FightURL = FightURL + "/fight/" + name;
+	if ('MozWebSocket' in window) {
+            WebSocket = MozWebSocket;
+	}
 	if ("WebSocket" in window) {
 	    // browser supports websockets
 	    var ws = new WebSocket(FightURL);
