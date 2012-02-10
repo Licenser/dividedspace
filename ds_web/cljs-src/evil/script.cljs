@@ -44,12 +44,21 @@
                      :id (str "script-" (s "id") "-name")
                      :value (s "name")}] [:br]
             [:span "Code: "] [:br]
-            [:textarea {:id  (str "script-" (s "id") "-code")}
+            [:textarea {:class "code"
+                        :id  (str "script-" (s "id") "-code")}
              (s "code")] [:br]
             [:input {:type "submit"
                      :value "Save"
                      :click (save-fn entity)}]
             ])))))))
+
+(defn del-script-fn [entity]
+  (fn []
+    (ajaj/del-clj
+     (str "/api/v1/user/" evil.ajaj.uid "/script/" (entity "id"))
+     (fn []
+       (dom/del
+        (str "#script-" (entity "id")))))))
 
 (defn add-script
   ([entity]
@@ -57,11 +66,17 @@
   ([div entity]
      (dom/append
       div
-      (dom/c [:span
-              {:id (str "script-" (entity "id"))
-               :click (show-script-fn entity)
-               :name (str "script-" (entity "id") "-name")}
-              (or (entity "name") "-") [:br]]))))
+      (dom/c [:div
+              {:id (str "script-" (entity "id"))}
+              [:span
+               {:click (show-script-fn entity)
+                :name (str "script-" (entity "id") "-name")}
+               (or (entity "name") "-")]
+              [:span
+                {:class "del"
+                 :click (del-script-fn entity)}
+                "del"]
+              ]))))
 
 ; External Functions
 (defn update-scripts []
@@ -73,7 +88,8 @@
       [:span
        [:input {:id "script-new-input"}]
        [:span
-        {:click
+        {:class "add"
+         :click
          (fn []
            (ajaj/post-clj
             (str "/api/v1/user/"

@@ -120,7 +120,7 @@
                                                (shiptype-update-size! @shiptype)
                                                (warnings @shiptype)
                                                (dom/del (str "#" id)))))}
-                                  "del"]]))
+                                  [:span {:class "del"} "del"]]]))
 
 (defn add-module-fn [s]
   (fn []
@@ -258,9 +258,11 @@
                 {:click (show-shiptype-fn entity)
                  :name (str "shiptype-" (entity "id") "-name")}
                 (or (entity "name") "-")]
+               " "
                [:span
-                {:click (del-shiptype-fn entity)}
-                " del"]
+                {:class "del"
+                 :click (del-shiptype-fn entity)}
+                "del"]
                [:br]
                ])
            del (dom/c [:span ])]
@@ -277,7 +279,8 @@
       [:span
        [:input {:id "shiptype-new-input"}]
        [:span
-        {:click
+        {:class "add"
+         :click
          (fn []
            (ajaj/post-clj
             (str "/api/v1/user/"

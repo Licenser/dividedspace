@@ -83,5 +83,5 @@
      div
      (dom/c
       [:span
-       [:span {:click fight-view} "add"]
+       [:span {:click fight-view} "manage"]
        [:br]]))))

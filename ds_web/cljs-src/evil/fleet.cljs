@@ -53,7 +53,7 @@
                       "/fleet/" fleet-id "/shiptype/" (m "id"))
                  (fn []
                    (dom/del (str "#" id)))))}
-      "del"]]))
+      [:span {:class "del"} "del"]]]))
 
 (defn update-shiptypes [id]
   (let [d (dom/select (str "#fleet-" id "-shiptype-select"))]
@@ -157,12 +157,12 @@
                 {:click (show-fleet-fn entity)
                  :name (str "fleet-" (entity "id") "-name")}
                 (or (entity "name") "-")]
+               " "
                [:span
-                {:click (del-fleet-fn entity)}
-                " del"]
-               [:br]
-               ])
-           del (dom/c [:span])]
+                {:class "del"
+                 :click (del-fleet-fn entity)}
+                "del"]
+               ])]
        (dom/append div c))))
 
 ; External Functions
@@ -176,7 +176,8 @@
       [:span
        [:input {:id "fleet-new-input"}]
        [:span
-        {:click
+        {:class "add"
+         :click
          (fn []
            (ajaj/post-clj
             (str "/api/v1/user/"
