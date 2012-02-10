@@ -26,7 +26,9 @@ delete(Db, Id) ->
     case pgsql:equery(Db, "DELETE FROM scripts WHERE id = $1", [Id]) of
 	{ok, 1} ->
 	    true;
-	_ -> 
+	{ok, 0} -> 
+	    false;
+	_Error ->
 	    false
     end.
 
