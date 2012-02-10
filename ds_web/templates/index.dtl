@@ -15,22 +15,21 @@
       <div id="left">
         <div id="epic" ></div>
         <div id="script-container" class="category">
-          <span class="sectionhead">scripts</span>
+          <span class="sectionhead">Scripts</span>
           <div id="script"></div>
          </div>
         <div id="shiptype-container" class="category">
-          <span class="sectionhead">ship types</span>
+          <span class="sectionhead">Shiptypes</span>
           <div id="shiptype"></div>
         </div>
         <div id="fleet-container" class="category">
-          <span class="sectionhead">fleets</span>
+          <span class="sectionhead">Fleets</span>
           <div id="fleet"></div>
         </div>
         <div id="fight-container" class="category">
           <span class="sectionhead">Fights</span>
 	  <div id="fight"></div>
         </div>
-
       </div>
       <div id="center"></div>
   </body>
