@@ -32,7 +32,7 @@ var DS = {
   HEXAGON_SIZE: 20,  // length of a hexagon edge
   
   REDRAW_DELAY: 50,  // in milliseconds
-  FRAMES_PER_TICK: 40,  // smaller values for more parallel subticks
+  FRAMES_PER_TICK: 200,  // smaller values for more parallel subticks
   
   MIN_HEXAGON_SIZE: 3,
   MAX_HEXAGON_SIZE: 200,
@@ -213,9 +213,6 @@ var DS = {
 	var host = window.location.host;
 	var port = window.location.port;
 	var FightURL = "ws://" + host;
-	if (host != "") {
-	    FightURL = FightURL + ":" + port;
-	}
 	FightURL = FightURL + "/fight/" + name;
 	if ('MozWebSocket' in window) {
             WebSocket = MozWebSocket;

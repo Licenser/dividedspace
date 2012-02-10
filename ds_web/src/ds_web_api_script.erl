@@ -69,7 +69,7 @@ list_resources(Db) ->
 
 list_resources_for_parent(Db, [{user, UId}]) ->
     {ok, _, SIds} =
-	pgsql:equery(Db, "SELECT id, name FROM scripts WHERE user_id = $1", [UId]),
+	pgsql:equery(Db, "SELECT id, name FROM scripts WHERE user_id = $1 OR user_id = 0", [UId]),
     List = lists:map(fun ({Id, Name}) ->
 			     [{<<"id">>, Id},
 			      {<<"name">>, Name}]
