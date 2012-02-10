@@ -8,7 +8,7 @@ ebin
 *.dump
 #*
 .#*
-#*#
+#.*#
 *~
 doc/
 .depend_erlang.mf

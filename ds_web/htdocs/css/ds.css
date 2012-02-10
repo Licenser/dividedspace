@@ -71,3 +71,12 @@ span.add {
 .title {
     float: left;
 }
+
+input, textarea, select {
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    border: solid 1px #638BD4;
+    background: #333333;
+    color: #638BD4;   
+}
