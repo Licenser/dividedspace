@@ -50,6 +50,11 @@
             [:input {:type "submit"
                      :value "Save"
                      :click (save-fn entity)}]
+            [:br]
+            [:a {:class "help"
+                 :target "_blank"
+                 :href "https://github.com/Licenser/dividedspace/wiki/Scripting"}
+             "Scripting Help"]
             ])))))))
 
 (defn del-script-fn [entity]
