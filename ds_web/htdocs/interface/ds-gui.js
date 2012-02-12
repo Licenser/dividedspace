@@ -31,7 +31,7 @@ var DS = {
   },
   HEXAGON_SIZE: 20,  // length of a hexagon edge
   
-  REDRAW_DELAY: 50,  // in milliseconds
+  REDRAW_DELAY: 200,  // in milliseconds
   FRAMES_PER_TICK: 200,  // smaller values for more parallel subticks
   
   MIN_HEXAGON_SIZE: 3,

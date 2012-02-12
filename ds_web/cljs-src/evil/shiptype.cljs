@@ -208,17 +208,26 @@
           center
           (dom/c
            [:div
-            [:span "Name:"]
+            [:span
+             {:class "label"}
+             "Name:"]
             [:input {:type "text"
                      :id (str "shiptype-" (s "id") "-name")
                      :value (s "name")}] [:br]
+            [:span
+             {:class "label"}
+             "Script:"]
             [:select
              {:id (str "shiptype-" (s "id") "-script-select")}
              [:option]]
             [:input {:type "submit"
                      :value "Save"
                      :click (save-fn entity)}] [:br]
-            [:span "Size: " [:span {:id (str "shiptype-" (s "id") "-size")} used "/" total]] [:br]
+            [:span
+             {:class "label"}
+             "Size:"]
+            [:span {:id (str "shiptype-" (s "id") "-size")} used "/" total]
+            [:br]
             [:span "Modules"] [:br]
             (module-section s)]))
          (dom/append

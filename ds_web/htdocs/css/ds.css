@@ -79,4 +79,11 @@ input, textarea, select {
     border: solid 1px #638BD4;
     background: #333333;
     color: #638BD4;   
+    width: 160px
 }
+
+span.span {
+    float: left;
+    width: 300px;
+}
+

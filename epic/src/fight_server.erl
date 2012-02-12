@@ -32,7 +32,7 @@
 -define(SERVER, ?MODULE). 
 -define(MAX_IDLE, 5).
 
--record(state, {initial_fight, fight, map, map_id, tick = 0, subscribers = [], all_tick_events = [], current_tick_events = [], tick_start = 0, tick_time = 0.0, storage, tick_in_progress = false, vm, idle_count = 0}).
+-record(state, {initial_fight, fight, map, map_id, tick = 0, init = [], subscribers = [], all_tick_events = [], current_tick_events = [], tick_start = 0, tick_time = 0.0, storage, tick_in_progress = false, vm, idle_count = 0}).
 
 %%%===================================================================
 %%% API
@@ -109,7 +109,7 @@ init([Fight]) ->
        fight = Fight,
        map = MapServer,
        storage = FightStorage,
-       all_tick_events = Placement
+       init = Placement
       }}.
 
     
@@ -166,9 +166,11 @@ handle_call(Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({subscribe, Subscriber}, #state{
+	      init = Init,
 	      subscribers = Subscribers,
 	      all_tick_events  = Ticks} = State) ->
     ?INFO({"subscribe", Subscriber}),
+    Subscriber ! {send, Init},
     Subscriber ! {send, Ticks},
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
@@ -182,7 +184,6 @@ handle_cast(end_tick, #state{all_tick_events = Ticks,
 
     OrderedEvents=lists:reverse(TickEvent),
     inform_subscribers(State, OrderedEvents),
-    ?INFO({"tick events", TickEvent}),
     epic_server:next_fight(),
     NewIdleCount = case TickEvent of
 		       [] -> IdleCount + 1;
