@@ -20,6 +20,8 @@
 	 unit_at/3,
 	 move_unit/4,
 	 closest_foes/2,
+	 closest_foes/3,
+	 closest_foes/4,
 	 best_distance/5,
 	 best_distance/7,
 	 remove_unit/2
@@ -48,6 +50,13 @@ remove_unit(Pid, Unit) ->
 
 closest_foes(Pid, Unit) ->
     gen_server:call(Pid, {closest_foes, Unit}).
+
+closest_foes(Pid, Unit, {MinRange, MaxRange}) ->
+    gen_server:call(Pid, {closest_foes, Unit, {MinRange, MaxRange}}).
+
+closest_foes(Pid, Unit, {MinRange, MaxRange}, {MinMass, MaxMass}) ->
+    gen_server:call(Pid, {closest_foes, Unit, {MinRange, MaxRange}, {MinMass, MaxMass}}).
+
 
 best_distance(Pid, {X1, Y1}, {X2, Y2}, D, Max) ->
     gen_server:call(Pid, {best_distance, X1, Y1, X2, Y2, D, Max}).
@@ -123,23 +132,29 @@ handle_call({best_distance, X1, Y1, X2, Y2, D, Max}, _From, #state{c2u = C2U} = 
     ?INFO({"best distance"}),
     {reply, find_path(C2U, X1, Y1, X2, Y2, D, Max), State};
 handle_call({closest_foes, Unit}, _From, #state{u2cf = U2CF} = State) ->
-    ?INFO({"closest foe"}),
-    MyFleet = unit:fleet(Unit),
-    U2CFoes = lists:foldl(fun ({_, D}, L) ->
-				  dict:to_list(D) ++ L
-			  end,
-			  [],
-			  dict:to_list(dict:filter(fun (F, _) ->
-							   F =/= MyFleet
-						   end, U2CF))),
-    FoesWithDist = lists:map(fun ({UId, Pos}) -> 
-				     {UId, unit:distance(Unit, Pos)}
-			     end, U2CFoes),
-    SortedFoes = lists:usort(fun ({_, D1}, {_, D2}) ->
-				     D1 < D2
-			     end, FoesWithDist),
-    ?DBG({Unit, SortedFoes}),
+    SortedFoes = sorted_foe(Unit, U2CF),
     {reply, SortedFoes, State};
+handle_call({closest_foes, Unit, {MinRange, MaxRange}}, _From, #state{u2cf = U2CF} = State) ->
+    Foes = lists:dropwhile(fun({_, D}) ->
+				   D < MinRange
+			   end, sorted_foe(Unit, U2CF)),
+    Foes1 = lists:takewhile(fun({_, D}) ->
+					 D =< MaxRange
+				 end, Foes),
+    {reply, Foes1, State};
+handle_call({closest_foes, Unit, {MinRange, MaxRange}, {MinMass, MaxMass}}, _From, #state{u2cf = U2CF} = State) ->
+    Foes = lists:dropwhile(fun({_, D}) ->
+				   D < MinRange
+			   end, sorted_foe(Unit, U2CF)),
+    Foes1 = lists:takewhile(fun({_, D}) ->
+				    D =< MaxRange
+			    end, Foes),
+    Foes2 = lists:filter(fun({U, _}) ->
+				 Mass = unit:mass(unit:ensure_record(U)),
+				 (Mass =< MaxMass) and
+						     (Mass >= MinMass)
+			 end, Foes1),
+    {reply, Foes2, State};
 handle_call({unit_at, X, Y}, _From, #state{c2u = C2U} = State) ->
     ?INFO({"unit at"}),
     ?DBG({X, Y}),
@@ -319,3 +334,21 @@ try_direction(C2U, X, Y, D) ->
     end.
 
 	    
+sorted_foe(Unit, U2CF) ->
+    ?INFO({"closest foe"}),
+    MyFleet = unit:fleet(Unit),
+    U2CFoes = lists:foldl(fun ({_, D}, L) ->
+				  dict:to_list(D) ++ L
+			  end,
+			  [],
+			  dict:to_list(dict:filter(fun (F, _) ->
+							   F =/= MyFleet
+						   end, U2CF))),
+    FoesWithDist = lists:map(fun ({UId, Pos}) -> 
+				     {UId, unit:distance(Unit, Pos)}
+			     end, U2CFoes),
+    SortedFoes = lists:usort(fun ({_, D1}, {_, D2}) ->
+				     D1 < D2
+			     end, FoesWithDist),
+    ?DBG({Unit, SortedFoes}),
+    SortedFoes.

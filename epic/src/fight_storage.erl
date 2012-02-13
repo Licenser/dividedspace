@@ -231,17 +231,37 @@ create_foe(Storage, VM, UnitId) ->
     add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [x, y, id, fleet, mass]),
     Unit.
 
+
+
+
 create_unit(FightPid, Map, Storage, VM, UnitId) ->
     ?INFO({FightPid, "Create Unit", UnitId}),
     Unit = create_foe(Storage, VM, UnitId),
     add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [range, energy]),
-    Unit:set_value("closest_foes", fun (#erlv8_fun_invocation{}, _) ->
-					   ?INFO({"JS closest_foes", UnitId}),
+    Unit:set_value("closest_foes", fun (#erlv8_fun_invocation{}, []) ->
+					   ?INFO({"JS closest_foes/0", UnitId}),
                                            U = fight_storage:get_unit(Storage, UnitId),
                                            Foes = map_server:closest_foes(Map, U),
                                            Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
 					   ?DBG({"returning", Fs}),
-                                           erlv8_vm:taint(VM, ?V8Arr(Fs))
+                                           erlv8_vm:taint(VM, ?V8Arr(Fs));
+				      (#erlv8_fun_invocation{}, [MinRange, MaxRange]) ->
+					   ?INFO({"JS closest_foes/1", UnitId}),
+                                           U = fight_storage:get_unit(Storage, UnitId),
+                                           Foes = map_server:closest_foes(Map, U, 
+									  {MinRange, MaxRange}),
+                                           Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
+					   ?DBG({"returning", Fs}),
+                                           erlv8_vm:taint(VM, ?V8Arr(Fs));
+				       (#erlv8_fun_invocation{}, [MinRange, MaxRange, MinMass, MaxMass]) ->
+					   ?INFO({"JS closest_foes/2", UnitId}),
+                                           U = fight_storage:get_unit(Storage, UnitId),
+                                           Foes = map_server:closest_foes(Map, U, 
+									  {MinRange, MaxRange},
+									  {MinMass, MaxMass}),
+                                           Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
+					   ?DBG({"returning", Fs}),
+                                           erlv8_vm:taint(VM, ?V8Arr(Fs))				       
 				   end),
     Unit:set_value("weapons", fun (#erlv8_fun_invocation{}, _) ->
 				      ?INFO({"JS weapons", UnitId}),
