@@ -80,11 +80,11 @@ init([Units, VM, Fight, Map]) ->
                                          ContextGlobal = erlv8_context:global(Context),
                                          ContextGlobal:set_value("unit", create_unit(Fight, Map, self(), VM, Id)),
                                          ContextGlobal:set_value("dbg", fun (#erlv8_fun_invocation{}, V) ->
-                                                                                ?DBG({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V])
+                                                                                ?DBG({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V], [script])
                                                                         end),
 
                                          ContextGlobal:set_value("log", fun (#erlv8_fun_invocation{}, V) ->
-                                                                                ?INFO({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V])
+                                                                                ?NOTICE({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V], [script])
                                                                         end),
                                          {Context, Unit}
                                  end,Units),
@@ -202,18 +202,18 @@ code_change(_OldVsn, State, _Extra) ->
 
 unit_getter(Storage, UnitId, Field) ->
     fun (#erlv8_fun_invocation{}, _) ->
-	    ?INFO({"JS Get on Unit", UnitId, Field}),
+	    ?INFO({"Get on Unit", UnitId, Field}, [], [script]),
             U = fight_storage:get_unit(Storage, UnitId),
             Res = unit:get(U, Field),
-	    ?DBG({"returning", Res}),
+	    ?DBG({"returning", Res}, [], [script]),
 	    Res
     end.
 
 weapon_getter(Weapon, Attr) ->
     fun (#erlv8_fun_invocation{}, _) ->
-	    ?INFO({"JS Get on Weapon", Weapon, Attr}),
+	    ?INFO({"Get on Weapon", Weapon, Attr}, [], [script]),
             Res = module:get(Weapon, Attr),
-	    ?DBG({"returning", Res}),
+	    ?DBG({"returning", Res}, [], [script]),
 	    Res
     end.
 
@@ -221,12 +221,12 @@ add_accessors(Object, _, []) ->
     Object;
 
 add_accessors(Object, AccessorFun, [V | R]) ->
-    ?INFO({"Adding acccessor", Object, V}),
+    ?INFO({"Adding acccessor", Object, V}, [], [script]),
     Object:set_value(erlang:atom_to_list(V), AccessorFun(V)),
     add_accessors(Object, AccessorFun, R).
 
 create_foe(Storage, VM, UnitId) ->
-    ?INFO({"Create Foe", UnitId}),
+    ?INFO({"Create Foe", UnitId}, [], [script]),
     Unit = erlv8_vm:taint(VM, erlv8_object:new([])),
     add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [x, y, id, fleet, mass]),
     Unit.
@@ -239,28 +239,28 @@ create_unit(FightPid, Map, Storage, VM, UnitId) ->
     Unit = create_foe(Storage, VM, UnitId),
     add_accessors(Unit, fun(V) -> unit_getter(Storage, UnitId, V) end, [range, energy]),
     Unit:set_value("closest_foes", fun (#erlv8_fun_invocation{}, []) ->
-					   ?INFO({"JS closest_foes/0", UnitId}),
+					   ?INFO({"closest_foes/0", UnitId}, [], [script]),
                                            U = fight_storage:get_unit(Storage, UnitId),
                                            Foes = map_server:closest_foes(Map, U),
                                            Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
 					   ?DBG({"returning", Fs}),
                                            erlv8_vm:taint(VM, ?V8Arr(Fs));
 				      (#erlv8_fun_invocation{}, [MinRange, MaxRange]) ->
-					   ?INFO({"JS closest_foes/1", UnitId}),
+					   ?INFO({"closest_foes/1", UnitId}, [], [script]),
                                            U = fight_storage:get_unit(Storage, UnitId),
                                            Foes = map_server:closest_foes(Map, U, 
 									  {MinRange, MaxRange}),
                                            Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
-					   ?DBG({"returning", Fs}),
+					   ?DBG({"returning", Fs}, [], [script]),
                                            erlv8_vm:taint(VM, ?V8Arr(Fs));
 				       (#erlv8_fun_invocation{}, [MinRange, MaxRange, MinMass, MaxMass]) ->
-					   ?INFO({"JS closest_foes/2", UnitId}),
+					   ?INFO({"JS closest_foes/2", UnitId}, [], [script]),
                                            U = fight_storage:get_unit(Storage, UnitId),
                                            Foes = map_server:closest_foes(Map, U, 
 									  {MinRange, MaxRange},
 									  {MinMass, MaxMass}),
                                            Fs = [ create_foe(Storage, VM, F) || {F, _} <- Foes ],
-					   ?DBG({"returning", Fs}),
+					   ?DBG({"returning", Fs}, [], [script]),
                                            erlv8_vm:taint(VM, ?V8Arr(Fs))				       
 				   end),
     Unit:set_value("dist", fun (#erlv8_fun_invocation{}, [Target]) ->
@@ -275,11 +275,11 @@ create_unit(FightPid, Map, Storage, VM, UnitId) ->
 			   end),
 
     Unit:set_value("weapons", fun (#erlv8_fun_invocation{}, _) ->
-				      ?INFO({"JS weapons", UnitId}),
+				      ?INFO({"JS weapons", UnitId}, [], [script]),
                                       U = fight_storage:get_unit(Storage, UnitId),
                                       W = unit:modules_of_kind(U, weapon),
                                       Ws = [ create_weapon(FightPid, Storage, VM, UnitId, Weapon, Map) || Weapon <- W ],
-				      ?DBG({"returning", Ws}),
+				      ?DBG({"returning", Ws}, [], [script]),
                                       erlv8_vm:taint(VM, ?V8Arr(Ws))
                               end),
     Unit:set_value("move", move_fun(FightPid, Storage, Map, UnitId)),
@@ -322,26 +322,26 @@ intercept(FightPid, Storage, Map, UnitId, Destination, Distance) ->
 
 move_fun(FightPid, Storage, Map, UnitId) ->
     fun (#erlv8_fun_invocation{}, [X, Y]) ->
-	    ?INFO({"JS move", UnitId, X, Y}),
+	    ?INFO({"move", UnitId, X, Y}, [], [script]),
             intercept(FightPid, Storage, Map, UnitId, {X, Y}, 0)
     end.
 
 intercept_fun(FightPid, Storage, Map, UnitId) ->
     fun (#erlv8_fun_invocation{}, [Target, Range]) ->
-	    ?INFO({"JS intercept", UnitId, Target, Range}),
+	    ?INFO({"intercept", UnitId, Target, Range}, [], [script]),
             TargetIdFun = Target:get_value("id"),
-	    ?DBG({TargetIdFun}),
+	    ?DBG({TargetIdFun}, [], [script]),
             TargetId = TargetIdFun:call(),
-	    ?DBG({TargetId}),
+	    ?DBG({TargetId}, [], [script]),
             TargetUnit = fight_storage:get_unit(Storage, TargetId),
-	    ?DBG({TargetUnit}),
+	    ?DBG({TargetUnit}, [], [script]),
             Coords = unit:coords(TargetUnit),
             intercept(FightPid, Storage, Map, UnitId, Coords, Range)
     end.
 
 fire_fun(FightPid, Storage, UnitId, Weapon, Map) ->
     fun (#erlv8_fun_invocation{}, [Target]) ->
-	    ?INFO({"JS fire", UnitId, Target}),
+	    ?INFO({"JS fire", UnitId, Target}, [], [script]),
             U = fight_storage:get_unit(Storage, UnitId),
             TargetIdFun = Target:get_value("id"),
             TargetId = TargetIdFun:call(),

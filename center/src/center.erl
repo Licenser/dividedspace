@@ -24,10 +24,6 @@ s() ->
     
     application:start(alog),
 	
-
-    alog_control:set_flow_priority(1, {'=<', info}),
-    
-
     application:start(crypto),
     
     application:start(public_key),
