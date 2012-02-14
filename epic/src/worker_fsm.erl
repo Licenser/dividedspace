@@ -12,15 +12,22 @@
 -behaviour(gen_fsm).
 
 %% API
--export([start_link/0, tick/4]).
+-export([start_link/0, tick/4, sub_tick/1]).
 
 %% gen_fsm callbacks
--export([init/1, waiting/2, handle_event/3,
+-export([init/1, 
+	 waiting/2, 
+	 ticking/2,
+	 handle_event/3,
 	 handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
 
 -define(SERVER, ?MODULE).
 
--record(state, {}).
+-record(state, {tick_pid = undefined,
+		vm,
+		fight,
+		storage,
+		units = []}).
 
 %%%===================================================================
 %%% API
@@ -40,6 +47,11 @@ start_link() ->
 
 tick(Worker, VM, Storage, FightPid) ->
     gen_fsm:send_event(Worker, {tick, VM, Storage, FightPid}).
+
+sub_tick(Worker) ->
+    gen_fsm:send_event(Worker, next_unit).
+
+
 
 
 %%%===================================================================
@@ -81,10 +93,51 @@ init([]) ->
 waiting({tick, VM, Storage, FightPid}, #state{} = State) ->
     ?INFO({"waiting -> tick"}),
     ?DBG({VM, Storage, FightPid}),
-    handle_turn(Storage, FightPid, VM),
+    sub_tick(self()),
+    {next_state, ticking, State#state{
+			    vm = VM,
+			    fight = FightPid,
+			    storage = Storage,
+			    units = fight_storage:get_ids(Storage)}}.
+
+
+ticking(timeout, #state{tick_pid = Pid, vm = VM} = State) ->
+    ?WARNING({"Tick Script timeout!", VM}),
+    
+    exit(Pid, kill),
+    sub_tick(self()),
+    {next_state, ticking, State};
+ticking(next_unit, #state{units = [],
+			  fight = FightPid} = State) ->
     fight_server:end_tick(FightPid),
     fight_worker:report_idle(self()),
-    {next_state, waiting, State}.
+    {next_state, waiting, State};
+ticking(next_unit, #state{units = [UnitId | Units], 
+			  vm = VM, 
+			  storage = Storage} = State) ->
+    io:format("next_tick~n"),
+    Worker = self(),
+    Pid = spawn(fun () ->
+		       {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
+		       case unit:destroyed(Unit) of
+			   false ->
+			       Code = unit:get(Unit, code),
+			       ?INFO({"tick for unit", UnitId, Code}),
+			       ?DBG({Unit}),
+			       fight_storage:set_unit(Storage, unit:cycle(Unit)),
+			       erlv8_vm:run(VM, Context, binary_to_list(Code)),
+			       sub_tick(Worker);
+			   true -> 
+			       ?DBG({"destroyed - skipping tick for unit", UnitId}),
+			       sub_tick(Worker)
+		       end
+			   
+	       end),
+	{next_state, ticking, State#state{
+				units = Units,
+				tick_pid = Pid
+			       }, 500}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -135,6 +188,11 @@ handle_sync_event(_Event, _From, StateName, State) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
+handle_info(timeout, StateName, #state{tick_pid = Pid} = State) ->
+    ?WARNING({"Tick Script timeout!"}),
+    exit(Pid, kill),
+    sub_tick(self()),
+    {next_state, StateName, State};
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
@@ -174,26 +232,28 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 %%%===================================================================
 
 
-handle_turn(Storage, _FightPid, VM) ->
-    ?INFO({"init turn"}),
-    ?NOTICE({"Tick(~p) started."}, [Storage, TickTime], [script]),   
-    TickStart = now(),
-    lists:map(fun (UnitId) ->
-                      {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
-                      case unit:destroyed(Unit) of
-                          false ->
-			      Code = unit:get(Unit, code),
-			      ?INFO({"tick for unit", UnitId, Code}),
-			      ?DBG({Unit}),
-			      
-                              fight_storage:set_unit(Storage, unit:cycle(Unit)),
-                              erlv8_vm:run(VM, Context, binary_to_list(Code)),
-                              ok;
-                          true -> 
-			      ?DBG({"destroyed - skipping tick for unit", UnitId}),
-                              ok
-                      end
-              end, fight_storage:get_ids(Storage)),
-    TickTime = timer:now_diff(now(), TickStart) / 1000000,
-    ?NOTICE({"Tick(~p) complete in ~ss."}, [Storage, TickTime], [script]),
-    ?INFO({"end turn"}).
+
+
+%handle_turn(Storage, _FightPid, VM) ->
+%    ?INFO({"init turn"}),
+%    ?NOTICE({"Tick(~p) started."}, [script]),   
+%    TickStart = now(),
+%    lists:map(fun (UnitId) ->
+%                      {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
+%                      case unit:destroyed(Unit) of
+%                          false ->
+%			      Code = unit:get(Unit, code),
+%			      ?INFO({"tick for unit", UnitId, Code}),
+%			      ?DBG({Unit}),
+%			      
+%                              fight_storage:set_unit(Storage, unit:cycle(Unit)),
+%                              erlv8_vm:run(VM, Context, binary_to_list(Code)),
+%                              ok;
+%                          true -> 
+%			      ?DBG({"destroyed - skipping tick for unit", UnitId}),
+%                              ok
+%                      end
+%              end, fight_storage:get_ids(Storage)),
+%    TickTime = timer:now_diff(now(), TickStart) / 1000000,
+%    ?NOTICE({"Tick(~p) complete in ~ss."}, [Storage, TickTime], [script]),
+%    ?INFO({"end turn"}).
