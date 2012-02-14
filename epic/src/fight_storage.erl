@@ -263,6 +263,17 @@ create_unit(FightPid, Map, Storage, VM, UnitId) ->
 					   ?DBG({"returning", Fs}),
                                            erlv8_vm:taint(VM, ?V8Arr(Fs))				       
 				   end),
+    Unit:set_value("dist", fun (#erlv8_fun_invocation{}, [Target]) ->
+				   U = fight_storage:get_unit(Storage, UnitId),
+				   TargetIdFun = Target:get_value("id"),
+				   TargetId = TargetIdFun:call(),
+				   TargetUnit = fight_storage:get_unit(Storage, TargetId),
+				   unit:distance(U, unit:coords(TargetUnit));
+			       (#erlv8_fun_invocation{}, [X, Y]) ->
+				   U = fight_storage:get_unit(Storage, UnitId),
+				   unit:distance(U, {X, Y})
+			   end),
+
     Unit:set_value("weapons", fun (#erlv8_fun_invocation{}, _) ->
 				      ?INFO({"JS weapons", UnitId}),
                                       U = fight_storage:get_unit(Storage, UnitId),
