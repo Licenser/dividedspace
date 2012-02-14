@@ -176,6 +176,7 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 
 handle_turn(Storage, _FightPid, VM) ->
     ?INFO({"init turn"}),
+    TickStart = now(),
     lists:map(fun (UnitId) ->
                       {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
                       case unit:destroyed(Unit) of
@@ -183,6 +184,7 @@ handle_turn(Storage, _FightPid, VM) ->
 			      Code = unit:get(Unit, code),
 			      ?INFO({"tick for unit", UnitId, Code}),
 			      ?DBG({Unit}),
+			      
                               fight_storage:set_unit(Storage, unit:cycle(Unit)),
                               erlv8_vm:run(VM, Context, binary_to_list(Code)),
                               ok;
@@ -191,4 +193,6 @@ handle_turn(Storage, _FightPid, VM) ->
                               ok
                       end
               end, fight_storage:get_ids(Storage)),
+    TickTime = timer:now_diff(now(), TickStart) / 1000000,
+    ?NOTICE({"Tick(~p) complete in ~ss."}, [Storage, TickTime], [script]),
     ?INFO({"end turn"}).
