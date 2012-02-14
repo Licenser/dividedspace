@@ -80,11 +80,12 @@ init([Units, VM, Fight, Map]) ->
                                          ContextGlobal = erlv8_context:global(Context),
                                          ContextGlobal:set_value("unit", create_unit(Fight, Map, self(), VM, Id)),
                                          ContextGlobal:set_value("dbg", fun (#erlv8_fun_invocation{}, V) ->
-                                                                                ?DBG({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V], [script])
+                                                                                ?DBG({"JS-DBG(~p:~p)> ~p.~n"}, [Fight, Id, V], [script]),
+										fight_server:add_event(Fight, [{type, log}, {message, list_to_binary(io_lib:format("[dbg] ~s", V))}])
                                                                         end),
-
                                          ContextGlobal:set_value("log", fun (#erlv8_fun_invocation{}, V) ->
-                                                                                ?NOTICE({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V], [script])
+                                                                                ?NOTICE({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V], [script]),
+										fight_server:add_event(Fight, [{type, log}, {message, list_to_binary(io_lib:format("[log] ~s", V))}])
                                                                         end),
                                          {Context, Unit}
                                  end,Units),
