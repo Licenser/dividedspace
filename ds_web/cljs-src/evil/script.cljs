@@ -26,6 +26,7 @@
       "code" (dom/val (str "#script-" (entity "id") "-code"))
       "user_id" evil.ajaj.uid}
      (fn [s]
+       (dom/text "#script-save-state" "OK")
        (dom/text (str "span[name=script-" (s "id") "-name]") (s "name"))))))
 
 (defn show-script-fn [entity]
@@ -45,11 +46,15 @@
                      :value (s "name")}] [:br]
             [:span "Code: "] [:br]
             [:textarea {:class "code"
+                        :keypress (fn []
+                                  (dom/text "#script-save-state" "!!!"))
                         :id  (str "script-" (s "id") "-code")}
              (s "code")] [:br]
             [:input {:type "submit"
                      :value "Save"
                      :click (save-fn entity)}]
+            " - "
+            [:span {:id "script-save-state"} "OK"]
             [:br]
             [:a {:class "help"
                  :target "_blank"

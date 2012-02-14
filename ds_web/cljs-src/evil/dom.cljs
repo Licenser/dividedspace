@@ -22,6 +22,12 @@
 (defn blur [obj f]
   (.blur (ensure obj) f))
 
+(defn change [obj f]
+  (.change (ensure obj) f))
+
+(defn keypress [obj f]
+  (.keypress (ensure obj) f))
+
 (defn clear [obj]
   (text obj ""))
 
@@ -53,7 +59,9 @@
                    (fn [tag [k v]]
                      (condp = k
                        :click (click tag v)
-                       :blur (click tag v)
+                       :blur (blur tag v)
+                       :change (change tag v)
+                       :keypress (keypress tag v)
                        (attr tag (name k) v)))
                    tag
                    f)]
