@@ -176,7 +176,6 @@ code_change(_OldVsn, StateName, State, _Extra) ->
 
 handle_turn(Storage, _FightPid, VM) ->
     ?INFO({"init turn"}),
-    ?NOTICE({"Tick(~p) started."}, [Storage, TickTime], [script]),   
     TickStart = now(),
     lists:map(fun (UnitId) ->
                       {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
@@ -195,5 +194,4 @@ handle_turn(Storage, _FightPid, VM) ->
                       end
               end, fight_storage:get_ids(Storage)),
     TickTime = timer:now_diff(now(), TickStart) / 1000000,
-    ?NOTICE({"Tick(~p) complete in ~ss."}, [Storage, TickTime], [script]),
     ?INFO({"end turn"}).
