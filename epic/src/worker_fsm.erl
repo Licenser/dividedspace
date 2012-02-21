@@ -26,6 +26,7 @@
 -record(state, {tick_pid = undefined,
 		vm,
 		fight,
+		ctx,
 		storage,
 		units = []}).
 
@@ -101,8 +102,8 @@ waiting({tick, VM, Storage, FightPid}, #state{} = State) ->
 			    units = fight_storage:get_ids(Storage)}}.
 
 
-ticking(timeout, #state{tick_pid = Pid, vm = VM} = State) ->
-    ?WARNING({"Tick Script timeout!", VM}),
+ticking(timeout, #state{tick_pid = Pid, vm = VM, ctx = Context} = State) ->
+    ?WARNING({"Tick Script timeout!", VM, Context}),
     
     exit(Pid, kill),
     sub_tick(self()),
@@ -117,15 +118,18 @@ ticking(next_unit, #state{units = [UnitId | Units],
 			  storage = Storage} = State) ->
     io:format("next_tick~n"),
     Worker = self(),
+    {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
     Pid = spawn(fun () ->
-		       {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
 		       case unit:destroyed(Unit) of
 			   false ->
+			       io:format("starting~n"),
 			       Code = unit:get(Unit, code),
 			       ?INFO({"tick for unit", UnitId, Code}),
 			       ?DBG({Unit}),
 			       fight_storage:set_unit(Storage, unit:cycle(Unit)),
-			       erlv8_vm:run(VM, Context, binary_to_list(Code)),
+			       io:format("starting 2~n"),			       
+			       Source = binary_to_list(Code),
+			       erlv8_vm:run(VM, Source),
 			       sub_tick(Worker);
 			   true -> 
 			       ?DBG({"destroyed - skipping tick for unit", UnitId}),
@@ -135,8 +139,9 @@ ticking(next_unit, #state{units = [UnitId | Units],
 	       end),
 	{next_state, ticking, State#state{
 				units = Units,
-				tick_pid = Pid
-			       }, 500}.
+				tick_pid = Pid,
+				ctx = Context
+			       }, 2000}.
 
 
 %%--------------------------------------------------------------------
