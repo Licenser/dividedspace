@@ -280,7 +280,13 @@ var DS = {
           if (console) console.error('Invalid info mode: ' + action.mode);
         break;
       case 'log':
-        if (console) console.log('[EPIC] ' + action.message);
+          if (console) console.log('[EPIC] ' + action.message);
+        break;
+      case 'error':
+          if (console) {
+	      console.error('[EPIC] Error: ' + action.message);
+	      console.error('[EPIC] Error: ' + action.stack);
+	  }
         break;
       default:
         if (console) console.error('Unknown action: ' + action.type);

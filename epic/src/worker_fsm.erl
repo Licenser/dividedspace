@@ -110,6 +110,7 @@ ticking(next_unit, #state{units = [],
     {next_state, waiting, State};
 ticking(next_unit, #state{units = [UnitId | Units], 
 			  vm = VM, 
+			  fight = Fight,
 			  storage = Storage} = State) ->
     {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
     case unit:destroyed(Unit) of
@@ -126,10 +127,14 @@ ticking(next_unit, #state{units = [UnitId | Units],
 		    ?WARNING({"Error during tick for unit", Error}, [], [script]),
 		    ok;
 		{throw, undefined} ->
-		    ?WARNING({"Unknown error during execution"}, [], [script]);
+		    ?WARNING({"Unknown error during execution"}, [], [script]),
 		{throw, Exception} ->
 		    Message = Exception:get_value("message"),
 		    Stack =Exception:get_value("stack"),
+		    fight_server:add_event(Fight, [{type, error}, 
+						   {message, Message},
+						   {stack, Stack}])
+
 		    ?WARNING({"Throw during tick for unit", Message, Stack}, [], [script]),
 		    ok
 	    end,
@@ -141,8 +146,7 @@ ticking(next_unit, #state{units = [UnitId | Units],
     {next_state, ticking, State#state{
 			    units = Units,
 			    ctx = Context
-			   }, 2000}.
-
+			   }}.
 
 %%--------------------------------------------------------------------
 %% @private
