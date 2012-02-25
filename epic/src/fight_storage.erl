@@ -88,9 +88,9 @@ init([Units, VM, Fight, Map]) ->
 								       ?NOTICE({"JS-LOG(~p:~p)> ~p.~n"}, [Fight, Id, V], [script]),
 								       fight_server:add_event(Fight, [{type, log}, {message, list_to_binary(io_lib:format("[log] ~s", V))}])
 							       end),
-                                         {Context, Unit}
-                                 end,Units),
-                ids = dict:fetch_keys(Units)}}.
+				{Context, Unit}
+			end,Units),
+       ids = dict:fetch_keys(Units)}}.
 
 %%--------------------------------------------------------------------
 %% @private

@@ -124,17 +124,15 @@ ticking(next_unit, #state{units = [UnitId | Units],
 		{ok, _} ->
 		    ok;
 		{error, Error} -> 
-		    ?WARNING({"Error during tick for unit", Error}, [], [script]),
-		    ok;
+		    ?WARNING({"Error during tick for unit", Error}, [], [script]);
 		{throw, undefined} ->
-		    ?WARNING({"Unknown error during execution"}, [], [script]),
+		    ?WARNING({"Unknown error during execution"}, [], [script]);
 		{throw, Exception} ->
 		    Message = Exception:get_value("message"),
 		    Stack =Exception:get_value("stack"),
 		    fight_server:add_event(Fight, [{type, error}, 
 						   {message, Message},
-						   {stack, Stack}])
-
+						   {stack, Stack}]),
 		    ?WARNING({"Throw during tick for unit", Message, Stack}, [], [script]),
 		    ok
 	    end,
