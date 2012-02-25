@@ -23,12 +23,14 @@
 
 -define(SERVER, ?MODULE).
 
--record(state, {tick_pid = undefined,
-		vm,
-		fight,
-		ctx,
-		storage,
-		units = []}).
+-define(TIMEOUT, 500).
+
+-record(state, {
+	  vm,
+	  fight,
+	  ctx,
+	  storage,
+	  units = []}).
 
 %%%===================================================================
 %%% API
@@ -101,13 +103,6 @@ waiting({tick, VM, Storage, FightPid}, #state{} = State) ->
 			    storage = Storage,
 			    units = fight_storage:get_ids(Storage)}}.
 
-
-ticking(timeout, #state{tick_pid = Pid, vm = VM, ctx = Context} = State) ->
-    ?WARNING({"Tick Script timeout!", VM, Context}),
-    
-    exit(Pid, kill),
-    sub_tick(self()),
-    {next_state, ticking, State};
 ticking(next_unit, #state{units = [],
 			  fight = FightPid} = State) ->
     fight_server:end_tick(FightPid),
@@ -116,32 +111,37 @@ ticking(next_unit, #state{units = [],
 ticking(next_unit, #state{units = [UnitId | Units], 
 			  vm = VM, 
 			  storage = Storage} = State) ->
-    io:format("next_tick~n"),
-    Worker = self(),
     {Context, Unit} = fight_storage:get_unit_with_context(Storage, UnitId),
-    Pid = spawn(fun () ->
-		       case unit:destroyed(Unit) of
-			   false ->
-			       io:format("starting~n"),
-			       Code = unit:get(Unit, code),
-			       ?INFO({"tick for unit", UnitId, Code}),
-			       ?DBG({Unit}),
-			       fight_storage:set_unit(Storage, unit:cycle(Unit)),
-			       io:format("starting 2~n"),			       
-			       Source = binary_to_list(Code),
-			       erlv8_vm:run(VM, Source),
-			       sub_tick(Worker);
-			   true -> 
-			       ?DBG({"destroyed - skipping tick for unit", UnitId}),
-			       sub_tick(Worker)
-		       end
-			   
-	       end),
-	{next_state, ticking, State#state{
-				units = Units,
-				tick_pid = Pid,
-				ctx = Context
-			       }, 2000}.
+    case unit:destroyed(Unit) of
+	false ->
+	    Code = unit:get(Unit, code),
+	    ?INFO({"tick for unit", UnitId, Code}),
+	    ?DBG({Unit}),
+	    fight_storage:set_unit(Storage, unit:cycle(Unit)),
+	    Source = binary_to_list(Code),
+	    case erlv8_vm:run_timed(VM, Context, Source, ?TIMEOUT) of
+		{ok, _} ->
+		    ok;
+		{error, Error} -> 
+		    ?WARNING({"Error during tick for unit", Error}, [], [script]),
+		    ok;
+		{throw, undefined} ->
+		    ?WARNING({"Unknown error during execution"}, [], [script]);
+		{throw, Exception} ->
+		    Message = Exception:get_value("message"),
+		    Stack =Exception:get_value("stack"),
+		    ?WARNING({"Throw during tick for unit", Message, Stack}, [], [script]),
+		    ok
+	    end,
+	    sub_tick(self());
+	true -> 
+	    ?DBG({"destroyed - skipping tick for unit", UnitId}),
+	    sub_tick(self())
+    end,
+    {next_state, ticking, State#state{
+			    units = Units,
+			    ctx = Context
+			   }, 2000}.
 
 
 %%--------------------------------------------------------------------
@@ -193,11 +193,6 @@ handle_sync_event(_Event, _From, StateName, State) ->
 %%                   {stop, Reason, NewState}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(timeout, StateName, #state{tick_pid = Pid} = State) ->
-    ?WARNING({"Tick Script timeout!"}),
-    exit(Pid, kill),
-    sub_tick(self()),
-    {next_state, StateName, State};
 handle_info(_Info, StateName, State) ->
     {next_state, StateName, State}.
 
