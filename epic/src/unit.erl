@@ -9,7 +9,6 @@
 %%% Created : 22 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(unit).
--include_lib("alog_pt.hrl").
 
 %% API
 -export([ % Meta
@@ -59,7 +58,6 @@
 	  distance/2,
 	  mass/1,
 	  cycle/1,
-%	  turn/3,
 	  use_energy/2,
 	  hit/2
 	]).
@@ -274,7 +272,8 @@ cycle(#unit{modules = Modules} = Unit) ->
 hit(#unit{modules = OriginalModules} = Unit, Damage) ->
     {NewModules, _, Events} = 
 	lists:foldl(fun (Module, {Modules, RemainingDamage, Partial}) ->
-			    {NewModule, NewDamage, MewPartial} = module:hit(Module, RemainingDamage, Partial, random:uniform()),
+			    {NewModule, NewDamage, MewPartial} = 
+				module:hit(Module, RemainingDamage, Partial, random:uniform()),
 			    {[NewModule | Modules], NewDamage, MewPartial}
 		    end, {[], Damage, []}, module_sort(OriginalModules)),
     NewUnit = Unit#unit{modules= NewModules},
@@ -296,10 +295,10 @@ use_engine(Unit, Range) ->
     AvailableRange = available_range(Unit),
     if 
 	AvailableRange >= Range -> 
-	    ?INFO("use_engine, moved"),
+	    %INFO("use_engine, moved"),
 	    consume_engine_usage(Unit, Range);
 	true -> 
-	    ?INFO("use_engine, too little range."),
+	    %INFO("use_engine, too little range."),
 	    {error, not_enough_energy}
     end.
 

@@ -52,6 +52,7 @@ Dependencies
 Database Setup
 ==============
 
+```SQL
 CREATE DATABASE dividedspace;
 CREATE USER ds;
 GRANT ALL ON DATABASE dividedspace TO ds;
@@ -75,6 +76,7 @@ GRANT ALL ON users  TO ds;
 GRANT ALL ON users_id_seq  TO ds;
 
 INSERT INTO users (name, pass, rights) VALUES('admin', MD5('admin:pass'), 1);
+```
 
 Start a divided space
 =====================

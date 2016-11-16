@@ -7,7 +7,6 @@
 %%% Created : 21 Apr 2011 by Heinz N. Gies <heinz@schroedinger.lan>
 %%%-------------------------------------------------------------------
 -module(epic_server).
--include_lib("alog_pt.hrl").
 -behaviour(gen_server).
 
 %% API
@@ -87,7 +86,7 @@ init([]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
-    ?INFO({"handle call: ", get_fight, Id}),
+    %INFO({"handle call: ", get_fight, Id}),
     case dict:find(Id, Fights) of
 	{ok, Fight} -> 
 	    {reply, {ok, Fight}, State};
@@ -95,14 +94,14 @@ handle_call({get_fight, Id}, _From, #state{fights = Fights} = State) ->
 	    {reply, {error, not_found}, State}
     end;
 handle_call(list_fights, _From, #state{fights = Fights} = State) ->
-    ?INFO({"handle call: ", list_fights}),
+    %INFO({"handle call: ", list_fights}),
     Result = {ok, lists:map(fun ({UUID, Pid}) -> 
 				   {ok, Report} = fight_server:report(Pid),
 				   {UUID, Report}
 			   end, dict:to_list(Fights))},
     {reply, Result, State};
-handle_call(Request, _From, State) ->
-    ?WARNING({"Unknown handle call", Request}),
+handle_call(_Request, _From, State) ->
+    %WARNING({"Unknown handle call", Request}),
     Reply = ok,
     {reply, Reply, State}.
 
@@ -117,8 +116,8 @@ handle_call(Request, _From, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_cast({add_fight, UUID, Units}, #state{fights = Fights} = State) ->
-    ?INFO({"handle call(add_fight)", UUID}),
-    ?DBG({Units}),
+    %INFO({"handle call(add_fight)", UUID}),
+    %DBG({Units}),
     Us = lists:map(fun ({X, Y, Team, Spec, Code}) ->
                            {ok, Unit} = unit:from_template(X, Y, Team, Spec, Code),
                            Unit
@@ -128,11 +127,11 @@ handle_cast({add_fight, UUID, Units}, #state{fights = Fights} = State) ->
     gen_server:cast({global, center_server}, {register_fight, UUID, FPid}),
     {noreply, State#state{fights = dict:store(UUID, FPid, Fights)}};
 handle_cast(tick, #state{tick_status=running} = State) ->
-    ?WARNING({"New Tick can't be started since old one is still running"}),
-    ?DBG({State}),
+    %WARNING({"New Tick can't be started since old one is still running"}),
+    %DBG({State}),
     {noreply, State};
 handle_cast(tick, #state{fights = Fights, tick_status=idle} = State) ->
-    ?NOTICE({"Starting new Tick."}),
+    %NOTICE({"Starting new Tick."}),
     FightPids = lists:map(fun ({_, Pid}) ->
 			       Pid
 		       end, dict:to_list(Fights)),
@@ -142,18 +141,18 @@ handle_cast(tick, #state{fights = Fights, tick_status=idle} = State) ->
 			  fight_running=undefined,
 			  tick_status=running}};
 handle_cast(next_fight, #state{fights_done = Done, fight_running = Current, fights_pending = [Next | Rest]} = State) ->
-    ?NOTICE({"Starting next fight.", Next}),
+    %NOTICE({"Starting next fight.", Next}),
     fight_server:trigger(Next),
     {noreply, State#state{fights_done=[Current | Done],
 			  fights_pending = Rest,
 			  fight_running=Next}};
 handle_cast(next_fight, #state{fights_pending = []} = State) ->
-    ?NOTICE({"Ending Tick."}),
+    %NOTICE({"Ending Tick."}),
     {noreply, State#state{fights_done=[],
 			  fight_running=undefined,
 			  tick_status=idle}};
-handle_cast(Msg, State) ->
-    ?WARNING({"Unknown handle cast", Msg}),
+handle_cast(_Msg, State) ->
+    %WARNING({"Unknown handle cast", Msg}),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -167,17 +166,17 @@ handle_cast(Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info(timeout, State) ->
-    ?NOTICE({"Registering with Center Server"}),
+    %NOTICE({"Registering with Center Server"}),
     {ok, Pid} = epic_center:register(self()),
-    ?DBG({Pid}),
+    %DBG({Pid}),
     Ref = erlang:monitor(process, Pid),
-    ?DBG({Ref}),
+    %DBG({Ref}),
     {noreply, State#state{ref = Ref}};
-handle_info({'DOWN', Ref, process, Pid, Reason}, #state{ref = Ref} = State) ->
-    ?WARNING({"Center Node went down", Pid, Ref, Reason}),
+handle_info({'DOWN', Ref, process, _Pid, _Reason}, #state{ref = Ref} = State) ->
+    %WARNING({"Center Node went down", Pid, Ref, Reason}),
     {noreply, State, 1000};
-handle_info(Info, State) ->
-    ?WARNING({"Unknown handle info", Info}),
+handle_info(_Info, State) ->
+    %WARNING({"Unknown handle info", Info}),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -192,7 +191,7 @@ handle_info(Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason,  #state{ref = Ref} = _State) ->
-    ?DBG({"Terminating"}),
+    %DBG({"Terminating"}),
     erlang:demonitor(Ref),
     ok.
 

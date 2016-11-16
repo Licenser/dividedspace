@@ -7,7 +7,6 @@
 %%% Created : 15 May 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(epic_center).
--include_lib("alog_pt.hrl").
 
 %% API
 -export([register/1, call/1, cast/1, get_modules/1]).
@@ -35,10 +34,10 @@ get_modules(Type) ->
 %%%===================================================================
 
 call(What) ->
-    ?NOTICE({"call center", What}),
+    %?NOTICE({"call center", What}),
     gen_server:call(?SERVER, What). 
     
 
 cast(What) ->
-    ?NOTICE({"cast center", What}),
+    %?NOTICE({"cast center", What}),
     gen_server:cast(?SERVER, What). 

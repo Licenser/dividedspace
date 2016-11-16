@@ -30,7 +30,6 @@
 %
 -module(epic_uuid).
 -export([init/0, v4/0]).
--import(random).
 -include("epic_types.hrl").
 
 init() ->

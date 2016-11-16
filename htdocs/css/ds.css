@@ -1,0 +1,89 @@
+html {
+    overflow: scroll;
+    height: 100%;
+    background: black;
+}
+body {
+    margin: 0;
+    padding: 0;
+    font-family: "Lucida Console";
+    color: #638BD4;
+    width: 100%;
+    height: 100%;
+    line-height: 1.5em;
+}
+
+div.category {
+    overflow: auto;
+    border-bottom: 1px solid #638BD4;
+
+}
+
+div#left {
+    width: 210px;
+    height: 100%;
+    background: black;
+    border: none;
+    border-right: solid 1px #638BD4;
+    float: left;
+    overflow: auto;
+    text-align:center;
+}
+
+div#center {
+    margin-left: 250px;
+    padding: 20px 20px;
+}
+
+span.sectionhead {
+    color: blue;
+}
+
+textarea.code {
+    height: 400px;
+    width: 600px;
+}
+
+ul.warnings {
+    color: #F8952B;
+}
+
+span.sectionhead {
+    color: red;
+}
+
+div.category {
+    text-align: center;
+}
+
+div.category div{
+    text-align: left;
+}
+span.del {
+
+     float: right;
+}
+span.add {
+
+     float: right;
+}
+
+.title {
+    float: left;
+}
+
+input, textarea, select {
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+    border: solid 1px #638BD4;
+    background: #333333;
+    color: #638BD4;   
+    width: 160px
+}
+
+span.span {
+    float: left;
+    width: 300px;
+}
+

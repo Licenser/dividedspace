@@ -8,8 +8,6 @@
 %%%-------------------------------------------------------------------
 -module(map).
 
--include_lib("alog_pt.hrl").
-
 -include("epic_types.hrl").
 
 
@@ -64,7 +62,7 @@ to_cartesian({X, Y}) ->
 -spec friction_direction_between(coords(), coords()) ->
 					float().
 friction_direction_between(A, B) ->
-    ?INFO({"direction_between"}),
+    %INFO({"direction_between"}),
     {CX1, CY1} = to_cartesian(A),
     {CX2, CY2} = to_cartesian(B),
     D = ((0 - (math:atan2(CY2 - CY1, CX2 - CX1) / math:pi()) + 0.5) * 3),
@@ -73,7 +71,7 @@ friction_direction_between(A, B) ->
 	D < 0 -> D + 6;
 	true -> D
     end,
-    ?DBG({A, B, Dir}),
+    %DBG({A, B, Dir}),
     Dir.
 
 
@@ -111,7 +109,7 @@ distance({X1, Y1}, {X2, Y2}) when is_integer(X1),
 				  is_integer(Y1),
 				  is_integer(X2), 
 				  is_integer(Y2) ->
-    ?INFO({"calculating distance"}),
+    %INFO({"calculating distance"}),
     DX = X1 - X2,
     DY = Y1 - Y2,
     AX = int_abs(DX),
@@ -122,7 +120,7 @@ distance({X1, Y1}, {X2, Y2}) when is_integer(X1),
 	XPos == YPos -> int_max(AX, AY);
 	true -> AX + AY
     end,
-    ?DBG({X1, Y1, X2, Y2, Dist}),
+    %DBG({X1, Y1, X2, Y2, Dist}),
     Dist.
 				   
 

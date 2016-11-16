@@ -7,7 +7,6 @@
 %%% Created : 27 Apr 2011 by Heinz N. Gies <heinz@licenser.net>
 %%%-------------------------------------------------------------------
 -module(fight).
--include_lib("alog_pt.hrl").
 
 -export([ % Meta
 	  new/2
@@ -26,7 +25,7 @@
 -record(fight, {map, units}).
 
 new(Map, Units) when is_list(Units) ->
-    ?INFO({"New Fight"}),
+    %INFO({"New Fight"}),
     #fight{map = Map,
 	   units = dict:from_list(lists:map(fun (Unit) ->
 						    {unit:ensure_id(Unit), unit:ensure_record(Unit)}

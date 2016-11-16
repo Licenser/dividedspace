@@ -8,8 +8,6 @@
 %%%-------------------------------------------------------------------
 -module(fight_server).
 
--include_lib("alog_pt.hrl").
-
 -behaviour(gen_server).
 
 %% API
@@ -88,8 +86,8 @@ report(Pid) ->
 %% @end
 %%--------------------------------------------------------------------
 init([Fight]) ->
-    ?INFO({"init"}),
-    ?DBG({Fight}),
+    %INFO({"init"}),
+    %DBG({Fight}),
     Placement = lists:foldl(fun (UnitId, L) ->
 				    Unit = fight:get_unit(Fight, UnitId),
 				    Name = unit:name(Unit),
@@ -102,7 +100,7 @@ init([Fight]) ->
     {ok, VM} = erlv8_vm:start(),
     {ok, MapServer} = map_sup:start_child(Units),
     {ok, FightStorage} = storage_sup:start_child(Units, VM, self(), MapServer),
-    ?DBG({VM, MapServer, FightStorage}),
+    %DBG({VM, MapServer, FightStorage}),
     {ok, #state{
        vm = VM,
        initial_fight = Fight,
@@ -129,29 +127,29 @@ init([Fight]) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call(status, _Form, #state{tick_in_progress = false, idle_count = IdleCount} = State) when IdleCount > ?MAX_IDLE ->
-    ?INFO({"ended"}),
-    ?DBG({IdleCount, ?MAX_IDLE}),
+    %INFO({"ended"}),
+    %DBG({IdleCount, ?MAX_IDLE}),
     {reply, {ok, ended}, State};
 handle_call(status, _Form, #state{tick_in_progress = false} = State) ->
-    ?INFO({"idle"}),
+    %INFO({"idle"}),
     {reply, {ok, idle}, State};
 handle_call(status, _Form, #state{tick_in_progress = true} = State) ->
-    ?INFO({"in_turn"}),
+    %INFO({"in_turn"}),
     {reply, {ok, in_turn}, State};
 handle_call(report, _From, #state{tick_in_progress = InProgress,
 				  tick = Tick,
 				  idle_count = IdleCount,
 				  tick_time = TickTime} = State) ->
-    ?INFO({"report"}),
+    %INFO({"report"}),
     Status = if
 		 IdleCount > ?MAX_IDLE -> ended;
 		 InProgress == true -> in_turn;
 		 true -> idle
 	     end,
-    ?DBG({Status, Tick, TickTime}),
+    %DBG({Status, Tick, TickTime}),
     {reply, {ok, {Status, Tick, TickTime}}, State};
-handle_call(Request, _From, State) ->
-    ?WARNING({"Unknown handle call", Request}),
+handle_call(_Request, _From, State) ->
+    %WARNING({"Unknown handle call", Request}),
     Reply = ok,
     {reply, Reply, State}.
 
@@ -169,12 +167,12 @@ handle_cast({subscribe, Subscriber}, #state{
 	      init = Init,
 	      subscribers = Subscribers,
 	      all_tick_events  = Ticks} = State) ->
-    ?INFO({"subscribe", Subscriber}),
+    %INFO({"subscribe", Subscriber}),
     Subscriber ! {send, Init},
     Subscriber ! {send, Ticks},
     {noreply, State#state{subscribers = [Subscriber | Subscribers]}};
 handle_cast(end_tick, #state{tick_in_progress = false} = State) ->
-    ?INFO({"end tick, nothing to do"}),
+    %INFO({"end tick, nothing to do"}),
     {noreply, State};
 handle_cast(end_tick, #state{all_tick_events = Ticks,
                              current_tick_events = TickEvent,
@@ -190,7 +188,7 @@ handle_cast(end_tick, #state{all_tick_events = Ticks,
 		       _ -> 0
 		   end,
     TickTime = timer:now_diff(now(), TickStart) / 1000000,
-    ?INFO({"end tick (~ps)", NewIdleCount}, [TickTime]),    
+    %INFO({"end tick (~ps)", NewIdleCount}, [TickTime]),    
     {noreply, State#state{
 		tick_time = TickTime,
                 current_tick_events = [],
@@ -199,10 +197,10 @@ handle_cast(end_tick, #state{all_tick_events = Ticks,
                 all_tick_events = Ticks ++ OrderedEvents
                }};
 handle_cast(trigger_tick, #state{tick_in_progress = true} = State) ->
-    ?WARNING({"Tick triggered but one is still in progress"}),
+    %WARNING({"Tick triggered but one is still in progress"}),
     {noreply, State};
 handle_cast(trigger_tick, #state{idle_count = IdleCount} = State) when IdleCount > ?MAX_IDLE ->
-    ?INFO({"Tick triggered but we are idle"}),
+    %INFO({"Tick triggered but we are idle"}),
     epic_server:next_fight(),
     {noreply, State};
 handle_cast(trigger_tick, #state{fight = _Fight,
@@ -210,29 +208,29 @@ handle_cast(trigger_tick, #state{fight = _Fight,
 				 vm = VM,
 				 storage = Storage
 				} = State) ->
-    ?INFO({"tricker tick and start"}),
-    ?DBG({Tick, VM, Storage}),
+    %INFO({"tricker tick and start"}),
+    %DBG({Tick, VM, Storage}),
     fight_worker:place_tick(VM, Storage, self()),
     {noreply, State#state{tick_start = now(),
 			  tick = Tick + 1,
                           tick_in_progress = true}};
 handle_cast({add_event, {multi, NewEvents}}, #state{current_tick_events = Tick} = State) ->
-    ?INFO({"adding multi event"}),
-    ?DBG({NewEvents}),
+    %INFO({"adding multi event"}),
+    %DBG({NewEvents}),
     {noreply, State#state{current_tick_events = NewEvents ++ Tick}};
 handle_cast({add_event, Event}, #state{current_tick_events = Tick} = State) ->
-    ?INFO({"adding event"}),
-    ?DBG({Event}),    
+    %INFO({"adding event"}),
+    %DBG({Event}),    
     {noreply, State#state{current_tick_events = [Event | Tick]}};
 handle_cast({unsubscribe, Pid}, 
 	    #state{
 	      subscribers = Subs
 	      } = State) -> 
-    ?INFO({"unsubscribe", Pid}),
+    %INFO({"unsubscribe", Pid}),
     Subs2 = lists:delete(Pid, Subs),
     {noreply, State#state{subscribers = Subs2}};
-handle_cast(Msg, State) ->
-    ?WARNING({"Unknown handle cast", Msg}),
+handle_cast(_Msg, State) ->
+    %WARNING({"Unknown handle cast", Msg}),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -245,8 +243,8 @@ handle_cast(Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info(Info, State) ->
-    ?WARNING({"Unknown handle info", Info}),
+handle_info(_Info, State) ->
+    %WARNING({"Unknown handle info", Info}),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -278,8 +276,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 inform_subscribers(#state{subscribers = Subscribers}, Data) ->
-    ?INFO({"inform subscriber"}),
-    ?DBG({Subscribers, Data}),
+    %INFO({"inform subscriber"}),
+    %DBG({Subscribers, Data}),
     lists:map(fun (Subscriber) ->
                       Subscriber ! {send, Data}
 	      end, Subscribers).
