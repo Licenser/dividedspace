@@ -2,7 +2,8 @@ DS_WEB_BIN=ds_web/ebin ds_web/deps/*/ebin
 EPIC_BIN=epic/ebin epic/deps/*/ebin
 CENTER_BIN=center/ebin
 
-all: center epic ds_web
+all: epic
+#all: center epic ds_web
 
 center: force_look
 	make -C center
